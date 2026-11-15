@@ -23,9 +23,13 @@ type overlay struct {
 
 func (o *overlay) attach() {
 	o.hwnd = uintptr(o.w.NativeWindow())
+	// Wails creates a captioned window; make it a bare popup so Windows draws
+	// no title bar or frame.
+	win.SetStyle(o.hwnd, win.OverlayStyle)
 	win.SetExStyle(o.hwnd, win.OverlayExStyle)
 	win.LayeredOpaque(o.hwnd)
 	win.SquareCorners(o.hwnd)
+	win.NoBorder(o.hwnd)
 	win.SetWindowPos(o.hwnd, 0, 0, 0, 0, 0, win.SWP_NOMOVE|win.SWP_NOSIZE|win.SWP_NOACTIVATE|win.SWP_FRAMECHANGED)
 }
 

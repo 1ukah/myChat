@@ -121,6 +121,9 @@ type App struct {
 	steamToken  string             // token in use with the Steam source
 	status      Status
 	ready       bool
+
+	settingsReady   bool
+	settingsPending bool
 }
 
 func newApp(store *config.Store) *App {
@@ -403,10 +406,32 @@ func (a *App) showSettings() {
 	if a.settings == nil {
 		return
 	}
+	// Focusing before WebView2 has loaded crashes inside Wails, so an early
+	// request waits for settingsLoaded.
+	a.mu.Lock()
+	if !a.settingsReady {
+		a.settingsPending = true
+		a.mu.Unlock()
+		return
+	}
+	a.mu.Unlock()
 	application.InvokeAsync(func() {
 		a.settings.Show()
 		a.settings.Focus()
 	})
+}
+
+// settingsLoaded runs when the settings page has loaded.
+func (a *App) settingsLoaded() {
+	a.mu.Lock()
+	first := !a.settingsReady
+	pending := a.settingsPending
+	a.settingsReady, a.settingsPending = true, false
+	a.mu.Unlock()
+	log.Printf("settings loaded (pending show: %v)", pending)
+	if first && pending {
+		a.showSettings()
+	}
 }
 
 func (a *App) snapshot() Snapshot {
@@ -499,6 +524,7 @@ func (s *ChatService) OverlayReady() {
 	a.mu.Lock()
 	a.ready = true
 	a.mu.Unlock()
+	go a.demo()
 }
 
 // SaveConfig applies and saves settings. It returns the stored values.

@@ -111,6 +111,7 @@ func main() {
 		sw.Hide()
 		e.Cancel()
 	})
+	sw.OnWindowEvent(events.Common.WindowRuntimeReady, func(*application.WindowEvent) { a.settingsLoaded() })
 	a.settings = sw
 
 	tray := app.SystemTray.New()

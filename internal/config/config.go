@@ -52,7 +52,7 @@ func Default() Config {
 		Hotkey:         Hotkey{Code: "KeyI"},
 		CloseAfterSend: true,
 		Animations:     true,
-		Blur:           true,
+		Blur:           false, // DWM blur-behind turns the overlay opaque
 		AnimationStyle: "slide-up",
 		AnimationSpeed: "normal",
 		ShowAvatars:    true,

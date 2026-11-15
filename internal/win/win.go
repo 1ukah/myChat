@@ -63,7 +63,17 @@ const (
 	LLKHF_INJECTED = 0x10
 	LLKHF_UP       = 0x80
 
+	GWL_STYLE   = -16
 	GWL_EXSTYLE = -20
+
+	WS_POPUP        = 0x80000000
+	WS_CLIPSIBLINGS = 0x04000000
+	WS_CLIPCHILDREN = 0x02000000
+
+	// OverlayStyle is a bare popup: no caption, frame or system menu.
+	OverlayStyle = WS_POPUP | WS_CLIPSIBLINGS | WS_CLIPCHILDREN
+
+	WS_EX_NOREDIRECTIONBITMAP = 0x00200000
 
 	WS_EX_TOPMOST       = 0x00000008
 	WS_EX_TRANSPARENT   = 0x00000020
@@ -74,8 +84,10 @@ const (
 	WS_EX_CONTROLPARENT = 0x00010000
 
 	// OverlayExStyle never activates, stays on top, has no taskbar button
-	// and lets mouse clicks through.
-	OverlayExStyle = WS_EX_CONTROLPARENT | WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE
+	// and lets mouse clicks through (layered + transparent). NOREDIRECTIONBITMAP
+	// makes DWM compose WebView2 through DirectComposition, which keeps
+	// per-pixel transparency; a plain layered window paints it opaque.
+	OverlayExStyle = WS_EX_CONTROLPARENT | WS_EX_NOREDIRECTIONBITMAP | WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE
 
 	SW_HIDE           = 0
 	SW_SHOWNOACTIVATE = 4
@@ -232,6 +244,11 @@ func GetExStyle(hwnd uintptr) uintptr {
 	return r
 }
 
+func SetStyle(hwnd, style uintptr) {
+	var idx int32 = GWL_STYLE
+	pSetWindowLongPtrW.Call(hwnd, uintptr(idx), style)
+}
+
 func SetExStyle(hwnd, style uintptr) {
 	var idx int32 = GWL_EXSTYLE
 	pSetWindowLongPtrW.Call(hwnd, uintptr(idx), style)
@@ -258,6 +275,7 @@ const (
 	dwmwaWindowCornerPreference = 33
 	dwmwaSystemBackdropType     = 38
 	dwmwaUseImmersiveDarkMode   = 20
+	dwmwaBorderColor            = 34
 )
 
 func dwmSet(hwnd uintptr, attr uint32, val uint32) {
@@ -266,6 +284,9 @@ func dwmSet(hwnd uintptr, attr uint32, val uint32) {
 
 // SquareCorners turns off Windows 11 rounded corners.
 func SquareCorners(hwnd uintptr) { dwmSet(hwnd, dwmwaWindowCornerPreference, 1) }
+
+// NoBorder removes the Windows 11 1 px window border.
+func NoBorder(hwnd uintptr) { dwmSet(hwnd, dwmwaBorderColor, 0xFFFFFFFE) }
 
 // DarkFrame asks DWM for dark window chrome.
 func DarkFrame(hwnd uintptr) { dwmSet(hwnd, dwmwaUseImmersiveDarkMode, 1) }

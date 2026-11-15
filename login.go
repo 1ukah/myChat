@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"os"
 	"strings"
 	"time"
 
@@ -104,7 +105,9 @@ func (a *App) needsLogin(reason string) {
 	})
 	a.setLogin(LoginState{Phase: "idle", Error: reason})
 	a.emitLocalLogins()
-	a.showSettings()
+	if os.Getenv("MYCHAT_DEMO") == "" {
+		a.showSettings()
+	}
 }
 
 // useSteam logs on with the login the Steam client saved for account. An
