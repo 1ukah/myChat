@@ -7,3 +7,6 @@ frontend/node_modules
 build/bin/
 frontend/dist/
 frontend/node_modules/
+
+# local design references, not committed
+reference/
