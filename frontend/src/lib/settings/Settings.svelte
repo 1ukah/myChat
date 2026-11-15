@@ -2,8 +2,7 @@
   // The settings window (frameless, 980×680, resizable), laid out like the
   // CS2 settings screen: a top bar with the big condensed nav, a tab row with
   // the search button, a second row of sub-tabs, a centred column of rows on
-  // a smoky blue-grey background, RESET at the bottom right, and a narrow
-  // rail with contour lines on the right.
+  // a smoky blue-grey background, and RESET at the bottom right.
   import { onDestroy, setContext, tick } from "svelte";
   import * as Cfg from "../../../bindings/mychat/internal/config/models";
   import { app, hideSettings, minimiseSettings, saveConfig } from "../store.svelte";
@@ -115,10 +114,12 @@
     { tab: "account", section: "steam", label: "Steam account", words: "sign in login log out switch saved account password steam guard qr code" },
     { tab: "chat", section: "chat-box", label: "Open chat", words: "hotkey key bind shortcut" },
     { tab: "chat", section: "chat-box", label: "Close after sending" },
+    { tab: "chat", section: "chat-box", label: "Double-tap Enter to close", words: "double press twice empty line" },
     { tab: "chat", section: "pop-ups", label: "Show new message pop-ups", words: "toast notification" },
     { tab: "chat", section: "pop-ups", label: "Pop-up duration", words: "toast seconds time" },
     { tab: "chat", section: "pop-ups", label: "Multiple messages", words: "toast pop-up layout stack group grouped discord sender" },
     { tab: "chat", section: "pop-ups", label: "Messages shown", words: "toast pop-up max count number how many recent" },
+    { tab: "overlay", section: "appearance", label: "Chat look", words: "style theme legacy minimal light cs2" },
     { tab: "overlay", section: "appearance", label: "Show avatars", words: "pictures" },
     { tab: "overlay", section: "appearance", label: "Size", words: "scale zoom" },
     { tab: "overlay", section: "animation", label: "Animations", words: "motion" },
@@ -188,6 +189,7 @@
     if (tab === "chat") {
       patch = {
         closeAfterSend: true,
+        doubleEnterClose: true,
         showToasts: true,
         toastSeconds: 6,
         toastLayout: "group",
@@ -199,8 +201,9 @@
       }
     } else {
       patch = {
+        overlayStyle: "legacy",
         showAvatars: true,
-        // Off by default: Windows blur-behind can turn the overlay solid.
+        // Always off: Windows blur-behind turns the overlay solid.
         blur: false,
         scale: 1,
         animations: true,
@@ -224,10 +227,12 @@
     if (!s.accountName || (s.state === "needs_login" && app.login.phase !== "done")) {
       return { tone: "off", ring: "none", name: "Not signed in", text: "Steam" } as const;
     }
-    const name = s.personaName || s.accountName;
+    // The login name stays out of sight unless the user asked to see it.
+    const name = s.personaName || (app.config.showAccountName ? s.accountName : "") || "Steam";
     switch (s.state) {
       case "online":
-        return { tone: "on", ring: "green", name, text: "Online" } as const;
+        // Logged in to Steam; it says nothing about the user's Steam status.
+        return { tone: "in", ring: "accent", name, text: "Logged in" } as const;
       case "connecting":
       case "needs_login":
         return { tone: "warn", ring: "accent", name, text: "Connecting" } as const;
@@ -270,12 +275,12 @@
     <button type="button" class="steam" aria-label="Steam account" onclick={() => pickTab("account")}>
       <span class="who">
         <bdi class="name">{steam.name}</bdi>
-        <span class="state"><span class="dot {steam.tone}"></span>{steam.text}</span>
+        <span class="state {steam.tone}"><span class="dot {steam.tone}"></span>{steam.text}</span>
       </span>
       {#if steam.tone === "off"}
         <span class="nobody"><Icon name="user" size={18} /></span>
       {:else}
-        <Avatar size={28} ring={steam.ring} name={steam.name} />
+        <Avatar size={28} ring={steam.ring} src={app.status.avatar} name={steam.name} />
       {/if}
     </button>
     <div class="window">
@@ -394,7 +399,7 @@
 
   <footer class="bottom">
     <div class="notice" class:bad={notice?.bad} role="status">
-      {notice ? notice.text : "Changes are saved as you make them."}
+      {notice ? notice.text : "Changes save automatically."}
     </div>
     {#if canReset}
       <button type="button" class="reset" onclick={resetDefaults}>
@@ -403,9 +408,6 @@
       </button>
     {/if}
   </footer>
-
-  <!-- The right rail: contour lines, like CS2's friends rail. -->
-  <aside class="rail"></aside>
 </div>
 
 <style>
@@ -413,13 +415,13 @@
     position: fixed;
     inset: 0;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 52px;
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: 52px auto minmax(0, 1fr) 52px;
     grid-template-areas:
-      "top top"
-      "tabs rail"
-      "content rail"
-      "bottom rail";
+      "top"
+      "tabs"
+      "content"
+      "bottom";
     color: var(--text);
     /* Cool blue-grey smoke: soft dark and light clouds over a slate base. */
     background:
@@ -570,8 +572,13 @@
     background: var(--dim);
   }
 
-  .dot.on {
-    background: var(--green);
+  /* Logged in: the app's blue, not Steam's green "online". */
+  .state.in {
+    color: var(--accent);
+  }
+
+  .dot.in {
+    background: var(--accent);
   }
 
   .dot.warn {
@@ -735,7 +742,7 @@
 
   /* A centred column of rows straight on the background, as in CS2. */
   .column {
-    width: min(680px, 100% - 48px);
+    width: min(732px, 100% - 48px);
     min-height: 100%;
     margin: 0 auto;
     padding: 0 0 40px;
@@ -850,16 +857,6 @@
 
   .reset:hover {
     color: var(--accent);
-  }
-
-  /* ---------- right rail ---------- */
-
-  .rail {
-    grid-area: rail;
-    background:
-      var(--topo) 120px 40px / 560px 560px,
-      rgba(86, 99, 112, 0.34);
-    border-left: 1px solid rgba(0, 0, 0, 0.3);
   }
 
   /* ---------- focus and motion ---------- */

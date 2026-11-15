@@ -1,6 +1,6 @@
 <script lang="ts" generics="T extends string">
-  // CS2-style dropdown: the value in bold condensed caps with a chevron
-  // ("FULLSCREEN WINDOWED ⌄"), and a flat list that opens below. The chosen
+  // CS2-style dropdown: the value in bold condensed type with a chevron
+  // ("Slide up ⌄"), and a flat list that opens below. The chosen
   // option is the steel-blue box of the selected tab.
   import { tick } from "svelte";
   import Icon from "./Icon.svelte";
@@ -111,7 +111,6 @@
     font-size: 21px;
     font-weight: 700;
     letter-spacing: 0.01em;
-    text-transform: uppercase;
   }
 
   /* No box: just the value and a chevron, right-aligned in the row. */
@@ -123,7 +122,6 @@
     padding: 0 0 0 8px;
     font: inherit;
     letter-spacing: inherit;
-    text-transform: inherit;
     white-space: nowrap;
     color: #fff;
     background: none;
@@ -165,7 +163,6 @@
     font: inherit;
     letter-spacing: inherit;
     text-align: left;
-    text-transform: inherit;
     white-space: nowrap;
     color: #fff;
     background: none;

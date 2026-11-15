@@ -1,5 +1,5 @@
 <script lang="ts">
-  // On/off setting, CS2 style: the value as bold condensed caps (YES / NO)
+  // On/off setting, CS2 style: the value in bold condensed type (Yes / No)
   // and a small pill switch like "Look for Competitive" in the friends rail.
   let {
     checked,
@@ -46,7 +46,6 @@
     font-size: 21px;
     font-weight: 700;
     letter-spacing: 0.01em;
-    text-transform: uppercase;
     color: #fff;
   }
 

@@ -24,14 +24,16 @@
 // else signs in. Guard code ABCDE is right; other codes are wrong. The QR is
 // shown but never scanned.
 //
-// Extra switches: &blur=1  &anim=0  &avatars=0  &scale=0.75
+// Extra switches: &look=minimal|legacy  &blur=1  &anim=0  &avatars=0  &scale=0.75
 //                 &style=fade|slide-up|slide-down|slide-left|slide-right|typewriter
 //                 &speed=fast|normal|slow  &bg=dark|bright|mixed
 //                 &layout=stack|group  &max=1..5  &long=1 (a long pop-up message)
 //
 // The chat engine below is a small imitation of internal/chat, good enough to
 // try the keys: text, arrows, Tab, /w name, /r, /help, /clear, PgUp/PgDn,
-// Enter, Esc. A message containing "fail" fails to send.
+// Enter, Esc. A message containing "fail" fails to send. Enter on an empty
+// line closes only on a double tap (`doubleEnterClose`, on by default).
+// "Stas (work)" is a friend with a nickname; his Steam name is "st4s_".
 
 import type { Backend, Handlers } from "../backend";
 import type { View } from "../store.svelte";
@@ -42,7 +44,10 @@ import * as SL from "../../../bindings/mychat/internal/steamlocal/models";
 
 interface Friend {
   id: string;
+  /** The nickname the user gave, else the Steam name. */
   name: string;
+  /** The Steam name, when `name` is a nickname. */
+  altName?: string;
   online: boolean;
   inGame: string;
   avatar: string;
@@ -78,7 +83,11 @@ const FRIENDS: Friend[] = [
   { id: "76561198000000006", name: "Sandro", online: false, inGame: "", avatar: "" },
   { id: "76561198000000007", name: "أحمد", online: true, inGame: CS2, avatar: avatar("أحمد", 200) },
   { id: "76561198000000008", name: "s1mple_fan", online: true, inGame: "", avatar: avatar("s1mple_fan", 45) },
+  { id: "76561198000000009", name: "Stas (work)", altName: "st4s_", online: true, inGame: CS2, avatar: avatar("st4s_", 95) },
 ];
+
+/** The user's own avatar (`Status.avatar`). */
+const OWN_AVATAR = avatar("sant1", 210);
 
 /** The fields of an Entry that describe the other person. */
 const peer = (f: Friend): Pick<C.Entry, "peerId" | "peerName" | "peerAvatar"> => ({
@@ -178,6 +187,9 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
   let cfg = new Cfg.Config({
     hotkey: new Cfg.Hotkey({ code: "KeyI" }),
     closeAfterSend: false,
+    doubleEnterClose: true,
+    overlayStyle: params.get("look") === "minimal" ? "minimal" : "legacy",
+    showAccountName: false,
     animations: flag("anim", true),
     animationStyle: STYLES.includes(params.get("style") ?? "") ? (params.get("style") as string) : "slide-up",
     animationSpeed: (params.get("speed") ?? "") in SPEEDS ? (params.get("speed") as string) : "normal",
@@ -209,8 +221,8 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     !loggedIn
       ? { state: "needs_login", detail: mock === "expired" ? EXPIRED : "" }
       : mock === "offline"
-        ? { state: "offline", detail: "Connection lost. Trying again in 5 s.", accountName: "sant1_cs", source, personaName: "sant1" }
-        : { state: "online", accountName: "sant1_cs", source, personaName: "sant1" },
+        ? { state: "offline", detail: "Connection lost. Trying again in 5 s.", accountName: "sant1_cs", source, personaName: "sant1", avatar: OWN_AVATAR }
+        : { state: "online", accountName: "sant1_cs", source, personaName: "sant1", avatar: OWN_AVATAR },
   );
   let login = new M.LoginState(
     mock === "expired"
@@ -270,7 +282,11 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     emit("status", status);
     setLogin({ phase: "done", method, account });
     loginTimers = [
-      window.setTimeout(() => setStatus({ state: "online", personaName: persona }), 300),
+      // The avatar is known a moment after the session is up.
+      window.setTimeout(
+        () => setStatus({ state: "online", personaName: persona, avatar: avatar(persona, 210) }),
+        300,
+      ),
     ];
   };
   /**
@@ -313,6 +329,8 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
   let scroll = 0;
   let toastTimer = 0;
   let toasts: C.Entry[] = [];
+  /** When Enter was last pressed on an empty line (for the double tap). */
+  let lastEmptyEnter = 0;
   /** `mock=toast`: the pop-ups stay up, for screenshots. */
   const still = mock === "toast";
 
@@ -362,6 +380,7 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
       hideDelayMs: cfg.animations ? SPEEDS[cfg.animationSpeed] : 0,
       blur: cfg.blur,
       showAvatars: cfg.showAvatars,
+      overlayStyle: cfg.overlayStyle,
     });
   const setMode = (m: string): void => {
     mode = m;
@@ -425,10 +444,11 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     const query = q.toLowerCase();
     const groups: Friend[][] = [[], [], []];
     for (const f of FRIENDS) {
-      const n = f.name.toLowerCase();
-      if (n === query) groups[0].push(f);
-      else if (n.startsWith(query)) groups[1].push(f);
-      else if (n.includes(query)) groups[2].push(f);
+      // A friend is found by the nickname and by the Steam name behind it.
+      const names = [f.name, f.altName ?? ""].filter(Boolean).map((n) => n.toLowerCase());
+      if (names.includes(query)) groups[0].push(f);
+      else if (names.some((n) => n.startsWith(query))) groups[1].push(f);
+      else if (names.some((n) => n.includes(query))) groups[2].push(f);
     }
     const onlineFirst = (g: Friend[]): Friend[] => [...g.filter((f) => f.online), ...g.filter((f) => !f.online)];
     return { all: groups.flatMap(onlineFirst), exact: groups[0] };
@@ -678,6 +698,13 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
         break;
     }
     changed();
+    // Enter on an empty line: with double-tap on, only the second quick press closes.
+    if (action === "close" && e.key === "Enter" && !cfg.closeAfterSend && cfg.doubleEnterClose) {
+      const now = performance.now();
+      const second = now - lastEmptyEnter < 400;
+      lastEmptyEnter = second ? 0 : now;
+      if (!second) return;
+    }
     if (action === "close" || (action === "sent" && cfg.closeAfterSend)) closeComposer();
   };
 
@@ -789,11 +816,14 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
       if (next.scale < 0.75 || next.scale > 1.5) next.scale = 1;
       if (next.toastLayout !== "stack") next.toastLayout = "group";
       if (!(next.toastMax >= 1 && next.toastMax <= 5)) next.toastMax = 3;
+      if (next.overlayStyle !== "minimal") next.overlayStyle = "legacy";
       if (!STYLES.includes(next.animationStyle)) next.animationStyle = "slide-up";
       if (!(next.animationSpeed in SPEEDS)) next.animationSpeed = "normal";
       cfg = next;
       const saved = configView();
       emit("config", saved);
+      // Like Go: the overlay learns about a new look, style or speed at once.
+      emit("mode", modeInfo());
       return new Promise((resolve) => window.setTimeout(() => resolve(saved), 60));
     },
 
@@ -900,7 +930,7 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     },
 
     previewToast() {
-      toast(new C.Entry({ id: -Date.now(), time: Date.now(), kind: "in", peerName: "myChat", text: "This is how new messages look in game." }));
+      toast(new C.Entry({ id: -Date.now(), time: Date.now(), kind: "in", peerName: "Preview", text: "This is how new messages look in game." }));
       return done();
     },
 

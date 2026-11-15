@@ -5,15 +5,20 @@
   import Section from "./Section.svelte";
 
   const commands: [string, string][] = [
-    ["/r", "Reply to the last person who whispered you. Type /r and a space, then your message."],
-    ["/w name", "Whisper a friend. Start typing the name and pick from the list."],
+    ["/r", "Reply to the last person who whispered you."],
+    ["/w name", "Whisper a friend. Type a name or a nickname and pick from the list."],
     ["/help", "List the commands in the chat box."],
     ["/clear", "Empty the chat log."],
   ];
 
   const keys = $derived<[string[], string][]>([
     [app.config.hotkeyLabel ? app.config.hotkeyLabel.split(" + ") : ["I"], "Open the chat box in game."],
-    [["Enter"], "Send. On an empty line it closes the chat box."],
+    [
+      ["Enter"],
+      !app.config.closeAfterSend && app.config.doubleEnterClose
+        ? "Send. On an empty line, press twice quickly to close the chat box."
+        : "Send. On an empty line it closes the chat box.",
+    ],
     [["Esc"], "Close the chat box."],
     [["Tab"], "Next recent person. Shift + Tab goes back."],
     [["↑", "↓"], "Your sent messages, or move in the name list."],
@@ -54,10 +59,10 @@
 
 <Section id="about" title="About">
   <p class="note">
-    myChat never opens, reads or writes the game process. It uses a normal Windows hotkey and a
-    keyboard hook only while the chat box is open.
+    The game process is never opened, read or written. Keys are read only while the chat box is
+    open.
   </p>
-  <Row label="Quit myChat" hint="Closing this window keeps myChat running in the tray.">
+  <Row label="Quit myChat" hint="Closing this window only hides it to the tray.">
     <Button variant="danger" icon="power" onclick={quit}>Quit myChat</Button>
   </Row>
 </Section>

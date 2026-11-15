@@ -16,6 +16,13 @@ export const ANIMATION_SPEEDS = ["fast", "normal", "slow"] as const;
 
 export type AnimationSpeed = (typeof ANIMATION_SPEEDS)[number];
 
+/** The two chat looks (`overlayStyle`). Anything unknown counts as legacy. */
+export type Look = "legacy" | "minimal";
+
+export function asLook(value: string): Look {
+  return value === "minimal" ? "minimal" : "legacy";
+}
+
 /** Entry time per speed, and the time Go waits before it hides the window. */
 export const SPEED_MS: Record<AnimationSpeed, number> = { fast: 120, normal: 200, slow: 320 };
 

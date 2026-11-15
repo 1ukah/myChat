@@ -93,8 +93,6 @@
         <Spinner size={14} label="Checking the code" /><span>Checking the code…</span>
       {:else if login.codeError}
         <span class="error">{login.codeError}</span>
-      {:else}
-        <span>The code is sent as soon as you type the last character.</span>
       {/if}
     </div>
   {:else}

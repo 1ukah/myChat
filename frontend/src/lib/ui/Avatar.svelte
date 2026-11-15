@@ -79,12 +79,13 @@
     width: var(--size);
     height: var(--size);
     background: var(--tile);
+    /* Square; the Minimal look only softens the corners. */
+    border-radius: var(--avatar-radius, 0);
     /* About 1 px on the small sizes, 2 px from 44 px up. */
     box-shadow: 0 0 0 max(1px, calc(var(--size) / 22)) var(--ring);
   }
 
-  .avatar.round,
-  .avatar.round img {
+  .avatar.round {
     border-radius: 50%;
   }
 
@@ -130,6 +131,7 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
+    border-radius: inherit;
     opacity: 0;
   }
 

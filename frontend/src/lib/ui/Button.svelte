@@ -1,5 +1,5 @@
 <script lang="ts">
-  // CS2 button: a flat translucent box with a small bold caps label; the main
+  // CS2 button: a flat translucent box with a small bold label; the main
   // action uses the steel-blue fill of the selected tab.
   import type { Snippet } from "svelte";
   import Icon, { type IconName } from "./Icon.svelte";
@@ -41,7 +41,6 @@
     font-weight: 700;
     line-height: 1;
     letter-spacing: 0.01em;
-    text-transform: uppercase;
     white-space: nowrap;
     color: #fff;
     background: rgba(255, 255, 255, 0.12);

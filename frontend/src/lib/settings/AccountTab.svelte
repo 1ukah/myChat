@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { app, cancelLogin, logout, refreshLocalLogins } from "../store.svelte";
+  import { app, cancelLogin, logout, refreshLocalLogins, saveConfig } from "../store.svelte";
   import Avatar from "../ui/Avatar.svelte";
   import Button from "../ui/Button.svelte";
+  import Icon from "../ui/Icon.svelte";
   import AccountCards from "./AccountCards.svelte";
   import Login from "./Login.svelte";
   import Row from "./Row.svelte";
@@ -15,29 +16,25 @@
   const loggedOut = $derived(
     !status.accountName || (status.state === "needs_login" && app.login.phase !== "done"),
   );
-  const name = $derived(status.personaName || status.accountName || "Steam");
+  /** The Steam login name is private: shown only when the user asks for it. */
+  const showAccount = $derived(app.config.showAccountName);
+  const name = $derived(
+    status.personaName || (showAccount ? status.accountName : "") || "Steam",
+  );
   const viaSteam = $derived(status.source === "steam");
-  const method = $derived.by(() => {
-    switch (status.source) {
-      case "steam":
-        return {
-          label: "Using Steam on this PC",
-          hint: "myChat uses the login the Steam app saved on this PC. It never leaves this PC.",
-        };
-      case "password":
-        return {
-          label: "Password login",
-          hint: "myChat keeps its own session from your sign-in. Your password is not stored.",
-        };
-      default:
-        return { label: "QR login", hint: "myChat keeps its own session from the QR code you scanned." };
-    }
-  });
+  const method = $derived(
+    status.source === "steam"
+      ? "Using Steam on this PC"
+      : status.source === "password"
+        ? "Password login"
+        : "QR login",
+  );
 
   const conn = $derived.by(() => {
     switch (status.state) {
       case "online":
-        return { tone: "on", ring: "green", text: "Online" } as const;
+        // Logged in to Steam; it says nothing about the user's Steam status.
+        return { tone: "in", ring: "accent", text: "Logged in" } as const;
       case "connecting":
       case "needs_login":
         return { tone: "warn", ring: "accent", text: "Connecting" } as const;
@@ -45,6 +42,12 @@
         return { tone: "bad", ring: "offline", text: "Offline" } as const;
     }
   });
+
+  let eyeError = $state("");
+
+  async function toggleAccount(): Promise<void> {
+    eyeError = await saveConfig({ showAccountName: !showAccount });
+  }
 
   /** Showing Steam's saved accounts again, to change to another one. */
   let switching = $state(false);
@@ -70,17 +73,29 @@
     <!-- Status card, in the style of the CS2 spectator bar: the player in
          focus gets the circle avatar with a coloured ring. -->
     <div class="card">
-      <Avatar round size={64} ring={conn.ring} {name} />
+      <Avatar round size={64} ring={conn.ring} src={status.avatar} {name} />
       <div class="who">
         <div class="name"><bdi>{name}</bdi></div>
         <div class="state">
           <span class="dot {conn.tone}"></span>
-          <span class="label">{conn.text}</span>
-          {#if status.accountName}
+          <span class="label {conn.tone}">{conn.text}</span>
+          {#if showAccount}
             <span class="account">· {status.accountName}</span>
           {/if}
+          <button
+            type="button"
+            class="eye"
+            aria-label={showAccount ? "Hide account name" : "Show account name"}
+            title={showAccount ? "Hide account name" : "Show account name"}
+            aria-pressed={showAccount}
+            onclick={toggleAccount}
+          >
+            <Icon name={showAccount ? "eye-off" : "eye"} size={14} />
+          </button>
         </div>
-        {#if status.detail && status.state !== "online"}
+        {#if eyeError}
+          <div class="detail bad" role="alert">{eyeError}</div>
+        {:else if status.detail && status.state !== "online"}
           <div class="detail">{status.detail}</div>
         {/if}
       </div>
@@ -94,16 +109,16 @@
         oncancel={cancelSwitch}
       />
     {:else}
-      <Row label={method.label} hint={method.hint + " Your Steam app's status is not touched."}>
-        {#if viaSteam}
+      {#if viaSteam}
+        <Row label={method}>
           <Button icon="swap" onclick={startSwitch}>Switch account</Button>
-        {/if}
-      </Row>
+        </Row>
+      {/if}
       <Row
-        label="Log out"
+        label={viaSteam ? "Log out" : method}
         hint={viaSteam
-          ? "Ends myChat's session. The Steam app stays signed in."
-          : "Ends myChat's session and removes its saved login from this PC. The Steam app stays signed in."}
+          ? "The Steam app stays signed in."
+          : "Logging out removes the saved login from this PC. The Steam app stays signed in."}
       >
         <Button variant="danger" icon="logout" onclick={logout}>Log out</Button>
       </Row>
@@ -153,13 +168,44 @@
     font-size: 14px;
     font-weight: 700;
     letter-spacing: 0.01em;
-    text-transform: uppercase;
     color: #fff;
   }
 
+  /* Logged in: the app's blue, not Steam's green "online". */
+  .state .label.in {
+    color: var(--accent);
+  }
+
   .account {
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  /* Shows or hides the Steam login name. */
+  .eye {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 20px;
+    margin-left: -2px;
+    padding: 0;
+    color: var(--muted);
+    background: none;
+    border: 0;
+    border-radius: 2px;
+    cursor: pointer;
+  }
+
+  .eye:hover {
+    color: var(--accent);
+  }
+
+  .eye:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
   }
 
   .detail {
@@ -171,6 +217,10 @@
     color: var(--muted);
   }
 
+  .detail.bad {
+    color: var(--red-text);
+  }
+
   .dot {
     flex: none;
     width: 8px;
@@ -179,8 +229,8 @@
     background: var(--dim);
   }
 
-  .dot.on {
-    background: var(--green);
+  .dot.in {
+    background: var(--accent);
   }
 
   .dot.warn {
@@ -202,5 +252,9 @@
     letter-spacing: 0.01em;
     text-transform: uppercase;
     color: var(--accent);
+  }
+
+  :global(.anim) .eye {
+    transition: color 120ms;
   }
 </style>

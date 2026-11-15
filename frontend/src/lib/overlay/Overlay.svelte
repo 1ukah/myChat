@@ -5,7 +5,7 @@
   import type * as C from "../../../bindings/mychat/internal/chat/models";
   import { app, overlayReady } from "../store.svelte";
   import Composer from "./Composer.svelte";
-  import { motionOf } from "./motion";
+  import { asLook, motionOf } from "./motion";
   import Panel from "./Panel.svelte";
   import Stage from "./Stage.svelte";
   import Toasts from "./Toasts.svelte";
@@ -16,6 +16,8 @@
   const open = $derived(app.mode.mode === "composer");
   const live = $derived(app.mode.mode !== "hidden");
   const motion = $derived(motionOf(app.mode, app.mode.hideDelayMs));
+  /** The chat look: Legacy (CS2 style) or Minimal (light panels). */
+  const minimal = $derived(asLook(app.mode.overlayStyle) === "minimal");
 
   // What was last on screen. After `hidden` it stays mounted so the exit
   // animation has something to fade, and so reopening costs no DOM work.
@@ -60,6 +62,7 @@
       '600 16px "Saira Semi Condensed"',
       '700 16px "Saira Semi Condensed"',
       '400 16px "Noto Sans"',
+      '600 16px "Noto Sans"',
       '700 16px "Noto Sans"',
     ];
     const loaded = Promise.all(faces.map((f) => document.fonts.load(f))).catch(() => undefined);
@@ -88,6 +91,7 @@
             {status}
             live={open}
             avatars={app.mode.showAvatars}
+            {minimal}
             typewriter={motion.typewriter}
           />
         {:else}
@@ -97,6 +101,7 @@
             hotkey={app.config.hotkeyLabel}
             {live}
             avatars={app.mode.showAvatars}
+            {minimal}
             {motion}
           />
         {/if}

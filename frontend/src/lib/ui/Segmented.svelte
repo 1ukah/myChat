@@ -1,6 +1,6 @@
 <script lang="ts" generics="T extends string">
   // A row of small tabs; the selected one is the filled steel-blue box
-  // (FAST / NORMAL / SLOW).
+  // (Fast / Normal / Slow).
   let {
     value,
     options,
@@ -46,7 +46,6 @@
     font-size: 15px;
     font-weight: 700;
     letter-spacing: 0.01em;
-    text-transform: uppercase;
     color: #fff;
     background: none;
     border: 0;

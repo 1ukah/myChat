@@ -5,7 +5,7 @@
   // messages from two people show the "multiple messages" layout as well.
   import { onDestroy, untrack } from "svelte";
   import * as C from "../../../bindings/mychat/internal/chat/models";
-  import { motionOf } from "../overlay/motion";
+  import { asLook, motionOf } from "../overlay/motion";
   import Panel from "../overlay/Panel.svelte";
   import Stage from "../overlay/Stage.svelte";
   import Toasts from "../overlay/Toasts.svelte";
@@ -70,6 +70,7 @@
               hotkey={app.config.hotkeyLabel}
               live={!leaving}
               avatars={app.config.showAvatars}
+              minimal={asLook(app.config.overlayStyle) === "minimal"}
               {motion}
             />
           </Panel>
@@ -133,7 +134,6 @@
     font-size: 13px;
     font-weight: 700;
     letter-spacing: 0.01em;
-    text-transform: uppercase;
     color: #fff;
     background: rgba(0, 0, 0, 0.6);
     border: 0;

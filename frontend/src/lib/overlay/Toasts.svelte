@@ -23,6 +23,7 @@
     hotkey,
     live,
     avatars = false,
+    minimal = false,
     motion,
   }: {
     /** Oldest first; the whole list is replaced on every change. */
@@ -35,6 +36,8 @@
     live: boolean;
     /** Show the senders' avatars (setting `showAvatars`). */
     avatars?: boolean;
+    /** The Minimal look (`overlayStyle`): light, compact, rounded boxes. */
+    minimal?: boolean;
     motion: Motion;
   } = $props();
 
@@ -189,7 +192,7 @@
   });
 </script>
 
-<div class="toasts" bind:this={list}>
+<div class="toasts" class:minimal bind:this={list}>
   {#each boxes as box (box.key)}
     <div class="box" class:fresh={box.fresh} style:--who={box.tint}>
       {#if avatars}
@@ -217,7 +220,13 @@
     </div>
   {/each}
   {#if boxes.length > 0}
-    <div class="hint"><span>[{key}] Reply</span></div>
+    <div class="hint">
+      {#if minimal}
+        <span><b>{hotkey || "I"}</b> to reply</span>
+      {:else}
+        <span>[{key}] Reply</span>
+      {/if}
+    </div>
   {/if}
 </div>
 
@@ -328,6 +337,70 @@
     letter-spacing: 0.02em;
     color: #c5ccd3;
     background: rgba(0, 0, 0, 0.45);
+  }
+
+  /* ---------- Minimal look ----------
+     Small frosted-white cards with dark text, a hairline edge, a soft shadow
+     and round corners; narrower than Legacy. The person's colour, darkened so
+     it reads on white, is kept for the name only. */
+
+  .minimal {
+    --width: 400px;
+    --avatar-radius: 4px;
+    --muted: #6f7b8a;
+    --tile: #66758a;
+    font-family: var(--font-body);
+  }
+
+  .minimal .box {
+    gap: 8px;
+    padding: 5px 12px 6px 8px;
+    background: linear-gradient(rgba(255, 255, 255, 0.93), rgba(243, 247, 252, 0.83));
+    border-radius: 11px;
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.8),
+      0 0 0 1px rgba(24, 38, 62, 0.1),
+      0 3px 10px rgba(14, 24, 44, 0.18);
+  }
+
+  .minimal .face {
+    margin: 2px 0 0;
+  }
+
+  .minimal .name {
+    letter-spacing: 0;
+    color: color-mix(in srgb, var(--who) 46%, #0d1b33);
+    text-shadow: none;
+  }
+
+  .minimal .time {
+    font-weight: 400;
+  }
+
+  .minimal .text {
+    font-weight: 400;
+    color: #151c26;
+    text-shadow: none;
+  }
+
+  .minimal .hint {
+    height: 17px;
+  }
+
+  .minimal .hint span {
+    padding: 0 8px;
+    font-weight: 400;
+    line-height: 17px;
+    letter-spacing: 0;
+    color: #4b5767;
+    background: rgba(255, 255, 255, 0.84);
+    border-radius: 9px;
+    box-shadow: 0 0 0 1px rgba(24, 38, 62, 0.08);
+  }
+
+  .minimal .hint b {
+    font-weight: 700;
+    color: #151c26;
   }
 
   /* A new message moves in the way the chosen style says (--dx/--dy). */

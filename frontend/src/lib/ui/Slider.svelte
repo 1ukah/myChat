@@ -123,7 +123,6 @@
     line-height: 32px;
     letter-spacing: 0.01em;
     text-align: center;
-    text-transform: uppercase;
     font-variant-numeric: tabular-nums;
     color: #fff;
     border: 1px solid var(--line-strong);

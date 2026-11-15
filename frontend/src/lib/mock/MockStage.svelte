@@ -57,6 +57,13 @@
       ],
     ],
     [
+      "look",
+      [
+        ["legacy", { look: "legacy" }],
+        ["minimal", { look: "minimal" }],
+      ],
+    ],
+    [
       "pop-ups",
       [
         ["stack", { layout: "stack" }],

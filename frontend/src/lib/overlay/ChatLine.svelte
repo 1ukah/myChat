@@ -14,10 +14,13 @@
   let {
     entry,
     avatars = false,
+    minimal = false,
     typewriter = false,
   }: {
     entry: C.Entry;
     avatars?: boolean;
+    /** The Minimal look: "name: text" and "To name: text", dark on light. */
+    minimal?: boolean;
     /** Animation style is "typewriter": a new incoming message types itself out. */
     typewriter?: boolean;
   } = $props();
@@ -38,9 +41,9 @@
 <!-- String literals carry the spaces and nothing inside .msg is split over
      lines, so the layout never depends on how template whitespace collapses.
      <bdi> keeps right-to-left names and messages from reordering the brackets. -->
-<div class="line {kind}" class:pending class:fresh>
+<div class="line {kind}" class:minimal class:pending class:fresh>
   <span class="time">{clock(entry.time)}</span>
-  <span class="msg">{#if kind === "in"}<span class="who">{"[FROM] "}{@render face()}<bdi>{entry.peerName}</bdi></span>{": "}{:else if kind === "out"}<span class="who">{"[TO] "}{@render face()}<bdi>{entry.peerName}</bdi></span>{": "}{/if}<bdi class="text">{#if typed}<Typed text={entry.text} />{:else}{entry.text}{/if}</bdi></span>
+  <span class="msg">{#if kind === "in"}<span class="who">{minimal ? "" : "[FROM] "}{@render face()}<bdi>{entry.peerName}</bdi></span>{": "}{:else if kind === "out"}<span class="who">{minimal ? "To " : "[TO] "}{@render face()}<bdi>{entry.peerName}</bdi></span>{": "}{/if}<bdi class="text">{#if typed}<Typed text={entry.text} />{:else}{entry.text}{/if}</bdi></span>
   {#if pending}
     <span class="dots" role="img" aria-label="sending"><i></i><i></i><i></i></span>
   {:else if failed}
@@ -137,6 +140,55 @@
 
   .fail svg {
     flex: none;
+  }
+
+  /* ---------- Minimal look: dark text on the light panel, no shadows ---------- */
+
+  .minimal {
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 20px;
+    color: #151c26;
+    text-shadow: none;
+  }
+
+  .minimal.in {
+    --c: #1f62ad;
+  }
+
+  .minimal.out {
+    --c: #566273;
+  }
+
+  .minimal .who {
+    font-weight: 700;
+  }
+
+  .minimal.out .text {
+    color: #364250;
+  }
+
+  .minimal.system {
+    font-weight: 400;
+    color: #5f6b7a;
+  }
+
+  .minimal.error {
+    font-weight: 600;
+    color: #b8322a;
+  }
+
+  .minimal .time {
+    font-size: 11px;
+    font-weight: 400;
+    color: #7c8796;
+  }
+
+  .minimal .fail {
+    font-size: 12px;
+    font-weight: 600;
+    color: #b8322a;
   }
 
   /* A new line uses a shorter, smaller version of the panel's motion

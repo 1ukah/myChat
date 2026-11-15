@@ -67,7 +67,6 @@
     font-family: var(--font-cond);
     font-weight: 700;
     letter-spacing: 0.01em;
-    text-transform: uppercase;
     white-space: nowrap;
     color: #fff;
     background: none;

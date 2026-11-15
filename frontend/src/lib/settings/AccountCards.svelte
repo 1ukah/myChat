@@ -135,8 +135,6 @@
       <!-- Switch mode has no "Steam app" section to show the watch in. -->
       <Spinner size={14} label="Waiting" />
       <span>Waiting for you to sign in to Steam…</span>
-    {:else}
-      <span>Uses the login the Steam app saved on this PC. It never leaves this PC.</span>
     {/if}
   </p>
 </div>

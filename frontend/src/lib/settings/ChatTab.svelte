@@ -32,14 +32,14 @@
 <Section id="chat-box" title="Chat box">
   <Row
     label="Open chat"
-    hint="Press this key in game to open the chat box. Escape cancels a change."
+    hint="The key that opens the chat box in game."
     error={errors.hotkey}
   >
     <HotkeyInput label={app.config.hotkeyLabel} onpick={(hotkey) => set("hotkey", { hotkey })} />
   </Row>
   <Row
     label="Close after sending"
-    hint="The chat box closes as soon as your message is sent."
+    hint="Sending a message closes the chat box."
     error={errors.closeAfterSend}
   >
     <Toggle
@@ -48,12 +48,26 @@
       onchange={(closeAfterSend) => set("closeAfterSend", { closeAfterSend })}
     />
   </Row>
+  <!-- Has no effect while the chat box closes after every message. -->
+  {#if !app.config.closeAfterSend}
+    <Row
+      label="Double-tap Enter to close"
+      hint="Enter on an empty line closes the chat only when pressed twice quickly."
+      error={errors.doubleEnterClose}
+    >
+      <Toggle
+        label="Double-tap Enter to close"
+        checked={app.config.doubleEnterClose}
+        onchange={(doubleEnterClose) => set("doubleEnterClose", { doubleEnterClose })}
+      />
+    </Row>
+  {/if}
 </Section>
 
 <Section id="pop-ups" title="Pop-ups">
   <Row
     label="Show new message pop-ups"
-    hint="A small card where the chat box opens, when a friend writes to you."
+    hint="Shown in game when a friend writes to you."
     error={errors.showToasts}
   >
     <Toggle
@@ -73,7 +87,7 @@
       value={app.config.toastSeconds}
       min={2}
       max={30}
-      format={(v) => `${v} s`}
+      format={(v) => `${v}s`}
       onchange={(toastSeconds) => set("toastSeconds", { toastSeconds })}
     />
   </Row>
@@ -87,7 +101,7 @@
   </Row>
   <Row
     label="Messages shown"
-    hint="How many recent messages stay on screen at once."
+    hint="How many messages stay on screen at once."
     error={errors.toastMax}
     dim={off}
   >

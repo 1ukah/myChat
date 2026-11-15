@@ -131,8 +131,7 @@
         {:else if accounts.length === 0}
           <div class="line">
             <p class="text">
-              The Steam app has no saved account on this PC yet. Sign in to Steam with "Remember me"
-              on; myChat continues on its own.
+              No saved Steam account on this PC. Sign in to Steam with "Remember me" on.
             </p>
             <Button icon="open" disabled={opening} onclick={openSteam}>Open Steam sign-in</Button>
           </div>
@@ -142,10 +141,7 @@
         {/if}
       </section>
     {:else}
-      <p class="text nosteam">
-        {local.error || "Steam is not installed on this PC."} Sign in with your account name or a QR
-        code instead.
-      </p>
+      <p class="text nosteam">{local.error || "Steam is not installed on this PC."}</p>
     {/if}
 
     <section class="way">
@@ -192,10 +188,7 @@
       </div>
       <p class="trust">
         <Icon name="lock" />
-        <span>
-          Your password goes only to Steam, encrypted with Steam's own key. myChat never stores
-          it.
-        </span>
+        <span>Your password goes only to Steam and is not stored.</span>
       </p>
     </section>
 
@@ -225,7 +218,6 @@
               <li><span class="n">2</span><span>Tap the <b>Steam Guard</b> shield icon.</span></li>
               <li><span class="n">3</span><span>Scan this code and approve the sign-in.</span></li>
             </ol>
-            <p class="fine">Nothing is typed in here.</p>
             <button type="button" class="link" onclick={startLogin}>
               <Icon name="retry" /><span>{qrError ? "Try again" : "New code"}</span>
             </button>
@@ -234,11 +226,6 @@
       {/if}
     </section>
   {/if}
-
-  <p class="own">
-    myChat runs as a quiet second session, like the Steam mobile app. Your Steam app stays signed in
-    and keeps its status.
-  </p>
 </div>
 
 <style>
@@ -514,13 +501,6 @@
     border-radius: 2px;
   }
 
-  .fine {
-    margin: 8px 0 0;
-    font-size: 12px;
-    line-height: 18px;
-    color: var(--muted);
-  }
-
   .link {
     display: flex;
     align-items: center;
@@ -541,14 +521,6 @@
 
   .link:hover {
     color: var(--accent);
-  }
-
-  .own {
-    margin: 0;
-    padding: 12px 0;
-    font-size: 12px;
-    line-height: 18px;
-    color: var(--muted);
   }
 
   :global(.anim) .qr {

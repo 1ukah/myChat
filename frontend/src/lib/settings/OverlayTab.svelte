@@ -1,6 +1,7 @@
 <script lang="ts">
   import type * as Cfg from "../../../bindings/mychat/internal/config/models";
   import {
+    asLook,
     asSpeed,
     asStyle,
     type AnimationSpeed,
@@ -38,6 +39,13 @@
     { value: "slow", label: "Slow" },
   ];
 
+  const LOOKS = [
+    { value: "legacy", label: "Legacy", hint: "The dark CS2-style chat." },
+    { value: "minimal", label: "Minimal", hint: "Light, compact panels with rounded corners." },
+  ] as const;
+
+  const look = $derived(asLook(app.config.overlayStyle) === "minimal" ? LOOKS[1] : LOOKS[0]);
+
   const percent = $derived(Math.round(app.config.scale * 100));
   // The slider covers 0–600 px; a larger value set by hand still fits.
   const offsetMax = $derived(Math.max(600, app.config.bottomOffset));
@@ -45,9 +53,17 @@
 </script>
 
 <Section id="appearance" title="Appearance">
+  <Row label="Chat look" hint={look.hint} error={errors.overlayStyle}>
+    <Segmented
+      label="Chat look"
+      value={look.value}
+      options={LOOKS}
+      onchange={(overlayStyle) => set("overlayStyle", { overlayStyle })}
+    />
+  </Row>
   <Row
     label="Show avatars"
-    hint="Friends' Steam pictures next to their messages and names."
+    hint="Friends' pictures next to their names."
     error={errors.showAvatars}
   >
     <Toggle
@@ -72,7 +88,7 @@
 <Section id="animation" title="Animation">
   <Row
     label="Animations"
-    hint="Motion when the chat box, pop-ups and new messages appear."
+    hint="Motion when the chat box, pop-ups and new messages appear or go."
     error={errors.animations}
   >
     <Toggle
@@ -81,12 +97,7 @@
       onchange={(animations) => set("animations", { animations })}
     />
   </Row>
-  <Row
-    label="Animation style"
-    hint="How the chat box, pop-ups and new lines come in and go out."
-    error={errors.animationStyle}
-    dim={still}
-  >
+  <Row label="Animation style" error={errors.animationStyle} dim={still}>
     <Select
       label="Animation style"
       value={asStyle(app.config.animationStyle)}
@@ -95,12 +106,7 @@
       onchange={(animationStyle) => set("animationStyle", { animationStyle })}
     />
   </Row>
-  <Row
-    label="Animation speed"
-    hint="Fast 120 ms · Normal 200 ms · Slow 320 ms"
-    error={errors.animationSpeed}
-    dim={still}
-  >
+  <Row label="Animation speed" error={errors.animationSpeed} dim={still}>
     <Segmented
       label="Animation speed"
       value={asSpeed(app.config.animationSpeed)}
@@ -131,7 +137,7 @@
   <Row
     label="Preview in game position"
     hint={app.config.showToasts
-      ? "Shows a sample pop-up where it will appear in game."
+      ? "Shows a sample pop-up where it appears in game."
       : "Pop-ups are turned off in the Chat tab."}
   >
     <Button variant="accent" icon="eye" disabled={!app.config.showToasts} onclick={previewToast}>

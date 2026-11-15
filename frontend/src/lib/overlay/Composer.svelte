@@ -16,6 +16,7 @@
     status,
     live,
     avatars = false,
+    minimal = false,
     typewriter = false,
   }: {
     composer: C.ComposerState;
@@ -27,6 +28,8 @@
     live: boolean;
     /** Show friends' avatars (setting `showAvatars`). */
     avatars?: boolean;
+    /** The Minimal look (`overlayStyle`): light, compact, rounded panels. */
+    minimal?: boolean;
     /** Animation style is "typewriter". Never applies to the input line. */
     typewriter?: boolean;
   } = $props();
@@ -63,11 +66,11 @@
 
   // ---- thin scrollbar, drawn from the scroll position Go reports ----
 
-  /** About how many lines fit in the log box. */
-  const FIT = 12;
+  /** About how many lines fit in the log box (the Minimal one is lower). */
+  const fit = $derived(minimal ? 10 : 12);
   const bar = $derived.by(() => {
-    if (total <= FIT) return null;
-    const size = Math.max(14, (FIT / total) * 100);
+    if (total <= fit) return null;
+    const size = Math.max(14, (fit / total) * 100);
     const scroll = Math.min(Math.max(composer.scroll, 0), total - 1);
     return { size, bottom: Math.min(100 - size, (scroll / total) * 100) };
   });
@@ -89,6 +92,7 @@
     void channel.kind;
     void channel.targetName;
     void avatars;
+    void minimal;
     if (!fieldEl || !textEl || !caretEl) return;
 
     const view = fieldEl.clientWidth;
@@ -102,12 +106,12 @@
   });
 </script>
 
-<div class="composer" class:live>
+<div class="composer" class:live class:minimal>
   <div class="frame">
     <div class="log">
       <div class="lines">
         {#each lines as entry (entry.id)}
-          <ChatLine {entry} {avatars} {typewriter} />
+          <ChatLine {entry} {avatars} {minimal} {typewriter} />
         {:else}
           <div class="empty">No messages yet.</div>
         {/each}
@@ -118,7 +122,7 @@
       {/if}
 
       {#if composer.scroll > 0}
-        <div class="newer">↓ {composer.scroll} newer · [PGDN]</div>
+        <div class="newer">↓ {composer.scroll} newer · {minimal ? "PgDn" : "[PGDN]"}</div>
       {/if}
 
       {#if suggestions.length > 0 || composer.error}
@@ -137,6 +141,8 @@
                     <span class="dot" class:on={s.online}></span>
                   {/if}
                   <bdi class="sname">{s.name}</bdi>
+                  <!-- A friend with a nickname: the Steam name, small, next to it. -->
+                  {#if s.altName}<bdi class="salt">{s.altName}</bdi>{/if}
                   <span class="sgame">{s.inGame || (s.online ? "Online" : "Offline")}</span>
                 </div>
               {/each}
@@ -158,11 +164,11 @@
     <div class="input {kind}">
       {#if kind === "whisper"}
         <div class="label">
-          <span>[TO]</span>
+          <span>{minimal ? "To" : "[TO]"}</span>
           {#if avatars}
-            <!-- The person in focus gets CS2's circle, as the spectated player does. -->
+            <!-- Square, like the avatars in the chat lines; the border tells
+                 whether the person is online. -->
             <Avatar
-              round
               size={22}
               ring={channel.online ? "whisper" : "offline"}
               src={channel.avatar}
@@ -192,18 +198,25 @@
   </div>
 
   <div class="foot">
-    <div class="steam">
-      {#if steam}
+    {#if steam}
+      <div class="steam">
         <span class="dot {steam.tone}"></span>
         <span>{steam.text}</span>
-      {/if}
-    </div>
-    <!-- Key hints as CS2 writes them: "[CTRL] Close". -->
+      </div>
+    {/if}
+    <!-- Key hints as CS2 writes them: "[CTRL] Close". Minimal: "Enter send". -->
     <div class="keys">
-      <span>[ENTER] Send</span>
-      <span>[ESC] Close</span>
-      <span>[TAB] Next</span>
-      <span>/help</span>
+      {#if minimal}
+        <span><b>Enter</b> send</span>
+        <span><b>Esc</b> close</span>
+        <span><b>Tab</b> next</span>
+        <span><b>/help</b></span>
+      {:else}
+        <span>[ENTER] Send</span>
+        <span>[ESC] Close</span>
+        <span>[TAB] Next</span>
+        <span>/help</span>
+      {/if}
     </div>
   </div>
 </div>
@@ -340,6 +353,17 @@
     overflow: hidden;
     text-overflow: ellipsis;
     font-weight: 700;
+  }
+
+  /* The Steam name behind a nickname. */
+  .salt {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
   }
 
   .sgame {
@@ -572,6 +596,233 @@
     display: flex;
     gap: 14px;
     margin-left: auto;
+  }
+
+  /* ---------- Minimal look ----------
+     Light and airy: two small frosted-white cards (log, input) with dark
+     text, hairline edges, a soft shadow and round corners. Nothing blurs the
+     game here, so the frost is a dense white gradient: it stays light over a
+     dark scene and the edge and shadow keep it visible over a bright one.
+     The log card is only as tall as its lines, up to ten of them. */
+
+  .minimal {
+    --avatar-radius: 3px;
+    --ink: #151c26;
+    --blue: #1f62ad;
+    --muted: #677383;
+    --dim: #9aa5b3;
+    --whisper: var(--blue);
+    --green: #2f9e58;
+    --gold: #c98a12;
+    --red-text: #b8322a;
+    --tile: #66758a;
+    --glass: linear-gradient(rgba(255, 255, 255, 0.92), rgba(243, 247, 252, 0.82));
+    --glass-edge:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.8), 0 0 0 1px rgba(24, 38, 62, 0.1),
+      0 6px 18px rgba(14, 24, 44, 0.2);
+    align-items: center;
+    justify-content: flex-end;
+    font-family: var(--font-body);
+  }
+
+  .minimal .frame {
+    flex: none;
+    gap: 5px;
+    width: 520px;
+    padding: 0;
+    background: none;
+  }
+
+  .minimal .log {
+    flex: none;
+    background: var(--glass);
+    border-radius: 12px;
+    box-shadow: var(--glass-edge);
+  }
+
+  .minimal .lines {
+    position: relative;
+    inset: auto;
+    max-height: 214px;
+    padding: 7px 16px 7px 12px;
+  }
+
+  .minimal .empty {
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 20px;
+    text-shadow: none;
+  }
+
+  .minimal .bar {
+    right: 4px;
+    width: 3px;
+    background: rgba(24, 38, 62, 0.28);
+    border-radius: 2px;
+  }
+
+  .minimal .newer {
+    right: 12px;
+    height: 18px;
+    padding: 0 9px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 18px;
+    letter-spacing: 0;
+    text-transform: none;
+    color: #fff;
+    background: var(--blue);
+    border-radius: 9px;
+  }
+
+  .minimal .pop {
+    left: 6px;
+    right: 6px;
+    bottom: 6px;
+  }
+
+  .minimal .suggest {
+    padding: 3px 4px 4px;
+    background: #fdfeff;
+    border-radius: 9px;
+    box-shadow:
+      0 0 0 1px rgba(24, 38, 62, 0.12),
+      0 8px 20px rgba(14, 24, 44, 0.2);
+  }
+
+  .minimal .shead {
+    height: 22px;
+    padding: 0 8px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 22px;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  .minimal .srow {
+    height: 26px;
+    margin: 0 0 2px;
+    font-size: 14px;
+    color: var(--ink);
+    background: none;
+    border-radius: 6px;
+  }
+
+  .minimal .srow:last-child {
+    margin-bottom: 0;
+  }
+
+  .minimal .srow.off {
+    color: var(--muted);
+  }
+
+  .minimal .srow.sel {
+    color: #0f3f78;
+    background: rgba(31, 98, 173, 0.13);
+    box-shadow: inset 0 0 0 1px rgba(31, 98, 173, 0.26);
+  }
+
+  .minimal .salt,
+  .minimal .sgame {
+    font-size: 12px;
+    font-weight: 400;
+  }
+
+  .minimal .srow.sel .sgame {
+    color: var(--blue);
+  }
+
+  .minimal .error {
+    margin-top: 4px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #a3271f;
+    background: #fdeceb;
+    border-radius: 8px;
+    box-shadow:
+      0 0 0 1px rgba(184, 50, 42, 0.24),
+      0 4px 12px rgba(14, 24, 44, 0.16);
+  }
+
+  .minimal .input {
+    gap: 7px;
+    height: 38px;
+    padding: 0 13px 0 11px;
+    background: var(--glass);
+    border-radius: 12px;
+    box-shadow: var(--glass-edge);
+  }
+
+  .minimal .label {
+    font-size: 14px;
+    line-height: 22px;
+    text-shadow: none;
+  }
+
+  .minimal .text {
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 22px;
+    color: var(--ink);
+    text-shadow: none;
+  }
+
+  .minimal .hint {
+    font-size: 14px;
+  }
+
+  .minimal .caret {
+    height: 18px;
+    background: var(--blue);
+  }
+
+  .minimal .send {
+    font-size: 12px;
+    letter-spacing: 0;
+    text-transform: none;
+    color: #a2acb9;
+  }
+
+  .minimal .send.ready {
+    color: var(--blue);
+  }
+
+  /* The hints sit in small pills, so they read over any scene. */
+  .minimal .foot {
+    width: 520px;
+    height: 24px;
+    padding: 0 2px;
+    font-size: 11px;
+    font-weight: 400;
+    line-height: 18px;
+    color: #4b5767;
+    text-shadow: none;
+  }
+
+  .minimal .steam,
+  .minimal .keys {
+    height: 18px;
+    margin-top: 4px;
+    padding: 0 9px;
+    background: rgba(255, 255, 255, 0.84);
+    border-radius: 9px;
+    box-shadow:
+      0 0 0 1px rgba(24, 38, 62, 0.08),
+      0 2px 8px rgba(14, 24, 44, 0.16);
+  }
+
+  .minimal .keys {
+    gap: 10px;
+  }
+
+  .minimal .keys b {
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  .minimal .steam .dot {
+    box-shadow: none;
   }
 
   /* ---------- motion ---------- */
