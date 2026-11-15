@@ -23,25 +23,23 @@
 
 <style>
   section {
-    scroll-margin-top: 4px;
-    padding-top: 20px;
+    scroll-margin-top: 0;
+    padding-top: 24px;
   }
 
   h2 {
     margin: 0;
-    padding: 0 16px 8px;
-    font-family: var(--font-head);
-    font-size: 22px;
+    padding: 0 0 4px;
+    font-family: var(--font-title);
+    font-size: 23px;
     font-style: italic;
     font-weight: 700;
-    line-height: 28px;
-    letter-spacing: 0.02em;
+    line-height: 30px;
     color: var(--muted);
-    border-bottom: 1px solid var(--line);
   }
 
   .active h2 {
-    color: var(--text);
+    color: #c3cad1;
   }
 
   :global(.anim) h2 {

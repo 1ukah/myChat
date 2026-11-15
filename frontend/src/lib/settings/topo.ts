@@ -75,7 +75,7 @@ export function topoTile(size = 560, seed = 5): string {
 
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">` +
-    `<path d="${d}" fill="none" stroke="#fff" stroke-opacity="0.06" stroke-width="1" stroke-linecap="round"/>` +
+    `<path d="${d}" fill="none" stroke="#fff" stroke-opacity="0.1" stroke-width="1" stroke-linecap="round"/>` +
     `</svg>`
   );
 }

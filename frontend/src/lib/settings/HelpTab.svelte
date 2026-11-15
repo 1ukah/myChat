@@ -70,14 +70,13 @@
   }
 
   tr {
-    background: var(--row);
     border-bottom: 1px solid var(--line);
   }
 
   th,
   td {
-    height: 44px;
-    padding: 8px 16px;
+    height: 48px;
+    padding: 8px 16px 8px 0;
     font-size: 14px;
     font-weight: 400;
     line-height: 20px;
@@ -94,11 +93,14 @@
     color: var(--text-soft);
   }
 
+  td {
+    padding-right: 0;
+  }
+
   code {
     font-family: var(--font-head);
-    font-size: 18px;
+    font-size: 17px;
     font-weight: 700;
-    letter-spacing: 0.06em;
     color: var(--accent);
   }
 
@@ -107,31 +109,28 @@
     gap: 6px;
   }
 
+  /* Keys in thin bordered boxes, like CS2 value boxes. */
   kbd {
-    min-width: 28px;
-    height: 24px;
+    min-width: 32px;
+    height: 28px;
     padding: 0 8px;
-    font-family: var(--font-head);
-    font-size: 15px;
+    font-family: var(--font-cond);
+    font-size: 18px;
     font-weight: 700;
-    line-height: 22px;
-    letter-spacing: 0.06em;
+    line-height: 26px;
+    letter-spacing: 0.01em;
     text-align: center;
     text-transform: uppercase;
-    color: var(--text);
-    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
     border: 1px solid var(--line-strong);
-    border-radius: 2px;
   }
 
   .note {
     margin: 0;
-    padding: 16px;
+    padding: 12px 0 14px;
     font-size: 14px;
     line-height: 22px;
     color: var(--text-soft);
-    background: var(--row);
     border-bottom: 1px solid var(--line);
-    box-shadow: inset 3px 0 0 var(--green);
   }
 </style>

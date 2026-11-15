@@ -1,10 +1,12 @@
 <script lang="ts">
-  // One incoming message (640×92), laid out like a spectator player card:
-  // ringed circle avatar, condensed name, the message. A newer toast replaces
-  // the one on screen with a quick cross-fade.
+  // One incoming message (640×92), in the style of CS2's round banner:
+  // a grey dotted banner with light-blue edges and » « marks that carries the
+  // sender's name, and under it the blue pixel-mosaic "MVP" strip with the
+  // square avatar, a tag and the message. A newer toast replaces the one on
+  // screen with a quick cross-fade.
   import { untrack } from "svelte";
   import type * as C from "../../../bindings/mychat/internal/chat/models";
-  import { clock } from "../format";
+  import { clock, playerColor } from "../format";
   import Avatar from "../ui/Avatar.svelte";
   import Typed from "./Typed.svelte";
 
@@ -56,28 +58,28 @@
         ]
       : [{ entry: next, out: false, swap: false }];
   });
+
+  /** "Ctrl + F6" → "CTRL+F6", as CS2 writes key hints. */
+  const key = $derived((hotkey || "I").replace(/\s*\+\s*/g, "+").toUpperCase());
 </script>
 
 <div class="toast">
   {#each cards as card (card.entry.id)}
     <div class="card" class:out={card.out} class:swap={card.swap}>
-      {#if avatars}
-        <Avatar size={44} ring="whisper" src={card.entry.peerAvatar} name={card.entry.peerName} />
-      {/if}
-      <div class="body">
-        <div class="top">
-          <bdi class="name">{card.entry.peerName}</bdi>
-          <svg class="mail" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-            <path
-              d="M1.5 3.5h13v9h-13z M1.5 4l6.5 5 6.5-5"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.5"
-            />
-          </svg>
-          <span class="reply">Press <kbd>{hotkey || "I"}</kbd> to reply</span>
-          <span class="time">{clock(card.entry.time)}</span>
-        </div>
+      <div class="banner">
+        <span class="mark">»</span>
+        <bdi class="name">{card.entry.peerName}</bdi>
+        <span class="mark">«</span>
+      </div>
+      <div class="strip">
+        {#if avatars}
+          <Avatar
+            size={40}
+            tint={playerColor(card.entry.peerId || card.entry.peerName)}
+            src={card.entry.peerAvatar}
+            name={card.entry.peerName}
+          />
+        {/if}
         <div class="text">
           <bdi>
             {#if typewriter && !card.out}
@@ -86,6 +88,10 @@
               {card.entry.text}
             {/if}
           </bdi>
+        </div>
+        <div class="side">
+          <span class="tag">Whisper</span>
+          <span class="reply">[{key}] Reply · {clock(card.entry.time)}</span>
         </div>
       </div>
     </div>
@@ -101,103 +107,123 @@
     bottom: 0;
     left: 0;
     height: 92px;
-    box-shadow: inset 3px 0 0 var(--whisper);
+    font-family: var(--font-head);
   }
 
   .card {
     position: absolute;
     inset: 0;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    padding: 0 16px 0 21px;
   }
 
-  .body {
-    flex: 1;
-    min-width: 0;
-  }
+  /* ---------- the banner: "»  R O U N D   W O N  «" ---------- */
 
-  .top {
+  .banner {
+    position: absolute;
+    top: 0;
+    right: 88px;
+    left: 88px;
     display: flex;
     align-items: center;
-    gap: 8px;
-    height: 20px;
-    white-space: nowrap;
+    gap: 12px;
+    height: 34px;
+    padding: 0 14px;
+    color: var(--banner);
+    background:
+      var(--dots),
+      rgba(62, 64, 68, 0.84);
+    /* Light-blue bars close the banner on both sides. */
+    box-shadow:
+      inset 2px 0 0 var(--banner),
+      inset -2px 0 0 var(--banner);
+  }
+
+  .mark {
+    flex: none;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 34px;
   }
 
   .name {
+    flex: 1;
     min-width: 0;
     overflow: hidden;
+    /* The tracking adds space after the last letter; this re-centres. */
+    padding-left: 0.2em;
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 34px;
+    letter-spacing: 0.2em;
+    text-align: center;
     text-overflow: ellipsis;
-    font-family: var(--font-head);
-    font-size: 19px;
-    font-weight: 700;
-    line-height: 20px;
-    letter-spacing: 0.05em;
     text-transform: uppercase;
-    color: var(--whisper);
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+    white-space: nowrap;
   }
 
-  .mail {
-    flex: none;
-    color: var(--whisper);
-    opacity: 0.8;
-  }
+  /* ---------- the strip: blue pixel mosaic, soft at both ends ---------- */
 
-  .reply {
-    flex: none;
+  .strip {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
     display: flex;
     align-items: center;
-    gap: 5px;
-    margin-left: auto;
-    padding-left: 8px;
-    font-family: var(--font-head);
-    font-size: 13px;
-    font-weight: 500;
-    line-height: 20px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--muted);
-  }
-
-  /* Boxed key, as in the scoreboard footer. */
-  .reply kbd {
-    min-width: 16px;
-    height: 16px;
-    padding: 0 5px;
-    font: inherit;
-    font-size: 12px;
-    font-weight: 700;
-    line-height: 16px;
-    text-align: center;
-    color: var(--text);
-    background: rgba(255, 255, 255, 0.08);
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.34);
-  }
-
-  .time {
-    flex: none;
-    font-size: 12px;
-    font-variant-numeric: tabular-nums;
-    color: var(--muted);
+    gap: 12px;
+    height: 54px;
+    padding: 0 44px;
+    background:
+      var(--mosaic),
+      rgba(29, 91, 136, 0.9);
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 36px, #000 calc(100% - 36px), transparent 100%);
+    mask-image: linear-gradient(to right, transparent 0, #000 36px, #000 calc(100% - 36px), transparent 100%);
   }
 
   .text {
+    flex: 1;
+    min-width: 0;
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
     line-clamp: 2;
     overflow: hidden;
-    margin-top: 4px;
-    font-size: 14px;
+    font-size: 15px;
+    font-weight: 600;
     line-height: 19px;
     overflow-wrap: anywhere;
-    color: var(--text);
-    text-shadow:
-      0 1px 2px rgba(0, 0, 0, 0.85),
-      0 0 1px rgba(0, 0, 0, 0.6);
+    color: #fff;
+    text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.55);
+  }
+
+  .side {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    white-space: nowrap;
+  }
+
+  /* The light pill that says "MVP". */
+  .tag {
+    height: 17px;
+    padding: 0 6px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 17px;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: #123a58;
+    background: #bfe0fb;
+    border-radius: 2px;
+  }
+
+  .reply {
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 15px;
+    font-variant-numeric: tabular-nums;
+    color: #cfe6f8;
   }
 
   /* Cross-fade between two messages, in the direction of the chosen style. */

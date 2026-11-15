@@ -1,9 +1,10 @@
 <script lang="ts">
-  // The smoky glass panel behind the composer and the toast.
+  // The moving layer that holds the chat box or the toast.
   //
-  // In the overlay window it fills the whole viewport edge to edge with square
-  // corners: with blur on, Windows blurs the game behind the entire window
-  // rectangle. No backdrop-filter here (nothing to blur inside that window).
+  // It paints nothing itself: the overlay window is per-pixel transparent,
+  // and the content draws its own CS2-style translucent boxes, leaving
+  // see-through margins. It only sets how dense those fills are and plays
+  // the entry and exit. No backdrop-filter (nothing to blur in that window).
   import type { Snippet } from "svelte";
 
   let {
@@ -14,7 +15,7 @@
   }: {
     /** Mode is `hidden`: play the exit and stay invisible. */
     leave?: boolean;
-    /** No blur behind the window: a denser fill keeps text readable. */
+    /** No blur behind the window (the default): denser fills keep text readable. */
     solid?: boolean;
     /** Fill the viewport (overlay window) instead of the parent box (previews). */
     fixed?: boolean;
@@ -28,28 +29,22 @@
 
 <style>
   .panel {
+    /* With blur behind, the picture is already calm: lighter fills. */
+    --box-fill: rgba(0, 0, 0, 0.42);
+    --frame-fill: rgba(0, 0, 0, 0.2);
     position: absolute;
     inset: 0;
     overflow: hidden;
-    /* Darker edges, slightly lighter centre; about 0.55–0.7 over the blur. */
-    background: var(--glass);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.2),
-      inset 0 0 0 1px rgba(255, 255, 255, 0.08);
   }
 
   .panel.fixed {
     position: fixed;
   }
 
+  /* Like CS2's own chat box: frame and box together are about 0.65 black. */
   .panel.solid {
-    background: linear-gradient(
-      to bottom,
-      rgba(8, 10, 12, 0.93),
-      rgba(18, 21, 25, 0.85) 38%,
-      rgba(18, 21, 25, 0.85) 62%,
-      rgba(8, 10, 12, 0.94)
-    );
+    --box-fill: rgba(0, 0, 0, 0.5);
+    --frame-fill: var(--hud-frame);
   }
 
   .panel.leave {

@@ -8,9 +8,10 @@
 </script>
 
 <script lang="ts">
-  // A person, spectator-card style: a circle picture with a thin coloured
-  // ring. Until the picture has loaded, or if it fails, the circle shows the
-  // first letter of the name.
+  // A person, CS2 style: a square picture with a thin coloured border, as in
+  // the friends list and the scoreboard. `round` gives the circle CS2 uses
+  // for the spectated player. Until the picture has loaded, or if it fails,
+  // the dark tile shows the first letter of the name ("?" without a name).
   import { initial } from "../format";
 
   let {
@@ -18,15 +19,22 @@
     name,
     size,
     ring = "none",
+    tint = "",
+    round = false,
     inline = false,
   }: {
-    /** Image URL, or "" for the letter circle. */
+    /** Image URL, or "" for the letter tile. */
     src?: string;
+    /** "" shows CS2's "?" tile. */
     name: string;
-    /** Diameter in CSS px. */
+    /** Side in CSS px. */
     size: number;
-    /** Ring colour: whisper violet, green (party, online), grey (offline), light blue, gold (selected), or no ring. */
-    ring?: "whisper" | "green" | "offline" | "accent" | "gold" | "none";
+    /** Border colour: whisper blue, green (online), grey (offline), light blue, or none. */
+    ring?: "whisper" | "green" | "offline" | "accent" | "none";
+    /** A CSS colour for the border (a player colour); wins over `ring`. */
+    tint?: string;
+    /** Circle instead of square (the person in focus). */
+    round?: boolean;
     /** Sits in a line of text (chat log) instead of a flex row. */
     inline?: boolean;
   } = $props();
@@ -46,7 +54,14 @@
   }
 </script>
 
-<span class="avatar {ring}" class:inline style:--size="{size}px" aria-hidden="true">
+<span
+  class="avatar {ring}"
+  class:inline
+  class:round
+  style:--size="{size}px"
+  style:--ring={tint || null}
+  aria-hidden="true"
+>
   {#if !ready}<span class="letter">{initial(name)}</span>{/if}
   {#if usable}
     <img {src} alt="" loading="eager" decoding="async" draggable="false" class:ready {onload} {onerror} />
@@ -63,16 +78,20 @@
     justify-content: center;
     width: var(--size);
     height: var(--size);
-    border-radius: 50%;
-    background: #252a31;
-    /* About 1 px on the small sizes, 2 px on the toast. */
+    background: var(--tile);
+    /* About 1 px on the small sizes, 2 px from 44 px up. */
     box-shadow: 0 0 0 max(1px, calc(var(--size) / 22)) var(--ring);
+  }
+
+  .avatar.round,
+  .avatar.round img {
+    border-radius: 50%;
   }
 
   /* Centred on the text of the line it sits in, without making the line taller. */
   .avatar.inline {
-    margin: 0 5px 0 1px;
-    vertical-align: calc(0.3em - var(--size) / 2);
+    margin: 0 6px 0 2px;
+    vertical-align: calc(0.32em - var(--size) / 2);
   }
 
   .whisper {
@@ -91,18 +110,14 @@
     --ring: var(--accent);
   }
 
-  .gold {
-    --ring: var(--gold);
-  }
-
   .letter {
     font-family: var(--font-head);
-    font-size: calc(var(--size) * 0.56);
+    font-size: calc(var(--size) * 0.6);
     font-style: normal;
     font-weight: 700;
     line-height: 1;
     text-shadow: none;
-    color: var(--text-soft);
+    color: #fff;
   }
 
   .offline .letter {
@@ -114,7 +129,6 @@
     inset: 0;
     width: 100%;
     height: 100%;
-    border-radius: 50%;
     object-fit: cover;
     opacity: 0;
   }

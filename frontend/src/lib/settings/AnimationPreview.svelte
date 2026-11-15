@@ -58,7 +58,7 @@
     <div class="window" class:blur={app.config.blur}>
       <Stage {motion}>
         {#key run}
-          <Panel fixed={false} leave={leaving} solid={!app.config.blur}>
+          <Panel fixed={false} leave={leaving}>
             <Toast
               entry={sample}
               hotkey={app.config.hotkeyLabel}
@@ -81,6 +81,7 @@
 <style>
   .preview {
     position: relative;
+    padding-bottom: 12px;
     border-bottom: 1px solid var(--line);
   }
 
@@ -89,7 +90,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 124px;
+    height: 132px;
+    margin-top: 12px;
     overflow: hidden;
     background:
       radial-gradient(60px 60px at 78% 22%, rgba(255, 244, 214, 0.9), rgba(255, 244, 214, 0) 70%),
@@ -115,28 +117,28 @@
 
   .replay {
     position: absolute;
-    top: 8px;
+    top: 20px;
     right: 8px;
     display: flex;
     align-items: center;
     gap: 6px;
-    height: 24px;
-    padding: 0 8px;
+    height: 26px;
+    padding: 0 9px;
     font-family: var(--font-head);
     font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 0.12em;
+    font-weight: 700;
+    letter-spacing: 0.01em;
     text-transform: uppercase;
-    color: var(--text);
-    background: rgba(10, 12, 15, 0.78);
-    border: 1px solid var(--line-strong);
+    color: #fff;
+    background: rgba(0, 0, 0, 0.6);
+    border: 0;
     border-radius: 2px;
     cursor: pointer;
   }
 
   .replay:hover {
     color: var(--accent);
-    border-color: var(--accent-line);
+    background: var(--tab-fill);
   }
 
   .replay:disabled {

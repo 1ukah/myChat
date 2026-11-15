@@ -56,9 +56,13 @@
       onchange={(showAvatars) => set("showAvatars", { showAvatars })}
     />
   </Row>
-  <Row label="Background blur" hint="Turn off on low-end PCs" error={errors.blur}>
+  <Row
+    label="Blur behind (experimental, may look solid)"
+    hint="Windows blur can turn the whole overlay opaque. Leave it off for a see-through chat box."
+    error={errors.blur}
+  >
     <Toggle
-      label="Background blur"
+      label="Blur behind (experimental, may look solid)"
       checked={app.config.blur}
       onchange={(blur) => set("blur", { blur })}
     />

@@ -18,7 +18,7 @@
 // account named "expired" is rejected. Opening the Steam sign-in "signs in"
 // after about 3 s and goes online. The QR is shown but never scanned.
 //
-// Extra switches: &blur=0  &anim=0  &avatars=0  &scale=0.75
+// Extra switches: &blur=1  &anim=0  &avatars=0  &scale=0.75
 //                 &style=fade|slide-up|slide-down|slide-left|slide-right|typewriter
 //                 &speed=fast|normal|slow  &bg=dark|bright|mixed
 //
@@ -159,7 +159,7 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     animationStyle: STYLES.includes(params.get("style") ?? "") ? (params.get("style") as string) : "slide-up",
     animationSpeed: (params.get("speed") ?? "") in SPEEDS ? (params.get("speed") as string) : "normal",
     showAvatars: flag("avatars", true),
-    blur: flag("blur", true),
+    blur: flag("blur", false),
     showToasts: true,
     toastSeconds: 6,
     bottomOffset: 150,
@@ -670,7 +670,7 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
   const seedLog = (): void => {
     const now = Date.now();
     const at = (minutesAgo: number): number => now - minutesAgo * 60_000;
-    // `long` has a broken avatar URL and `sandro` has none: both show the letter circle.
+    // `long` has a broken avatar URL and `sandro` has none: both show the letter tile.
     const [sant1, mira, dmitri, long, sakura, sandro, ahmed] = FRIENDS;
     const lines: Partial<C.Entry>[] = [
       { time: at(34), kind: "system", text: "Connected to Steam as sant1." },

@@ -1,5 +1,6 @@
 <script lang="ts">
-  // On/off switch: CS2 lobby green with a white knob, value text beside it.
+  // On/off setting, CS2 style: the value as bold condensed caps (YES / NO)
+  // and a small pill switch like "Look for Competitive" in the friends rail.
   let {
     checked,
     label,
@@ -24,7 +25,7 @@
   {disabled}
   onclick={() => onchange(!checked)}
 >
-  <span class="state">{checked ? "Enabled" : "Disabled"}</span>
+  <span class="state">{checked ? "Yes" : "No"}</span>
   <span class="track"><span class="knob"></span></span>
 </button>
 
@@ -41,50 +42,43 @@
   }
 
   .state {
-    font-family: var(--font-head);
-    font-size: 16px;
+    font-family: var(--font-cond);
+    font-size: 21px;
     font-weight: 700;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.01em;
     text-transform: uppercase;
-    color: var(--muted);
-  }
-
-  .on .state {
-    color: var(--text);
+    color: #fff;
   }
 
   .track {
     position: relative;
-    width: 44px;
-    height: 22px;
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid var(--line-strong);
-    border-radius: 2px;
+    width: 36px;
+    height: 18px;
+    background: rgba(0, 0, 0, 0.45);
+    border-radius: 9px;
   }
 
   .on .track {
-    background: var(--green);
-    border-color: #6dcc76;
+    background: var(--tab-fill);
   }
 
   .knob {
     position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 16px;
-    height: 16px;
-    background: #fff;
-    border-radius: 1px;
-    opacity: 0.7;
+    top: 3px;
+    left: 3px;
+    width: 12px;
+    height: 12px;
+    background: #8d949b;
+    border-radius: 50%;
   }
 
   .on .knob {
-    opacity: 1;
-    transform: translateX(22px);
+    background: var(--accent);
+    transform: translateX(18px);
   }
 
-  .toggle:hover .track {
-    border-color: rgba(255, 255, 255, 0.6);
+  .toggle:hover .state {
+    color: var(--accent);
   }
 
   .toggle:disabled {
@@ -100,12 +94,13 @@
   :global(.anim) .knob {
     transition:
       transform 120ms var(--ease-out),
-      opacity 120ms;
+      background-color 120ms;
   }
 
-  :global(.anim) .track {
+  :global(.anim) .track,
+  :global(.anim) .state {
     transition:
       background-color 120ms,
-      border-color 120ms;
+      color 120ms;
   }
 </style>

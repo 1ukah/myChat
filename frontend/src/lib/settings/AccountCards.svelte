@@ -1,14 +1,15 @@
 <script lang="ts">
-  // The Steam accounts saved on this PC, as spectator-style player cards:
-  // ringed circle avatar, persona name in condensed caps, account name muted,
-  // gold highlight on the selected card. One primary button uses the selected
-  // account. Accounts the Steam app is not signed in to are muted and offer
-  // "Sign in in Steam" instead.
+  // The Steam accounts saved on this PC, as rows of the CS2 friends list:
+  // square avatar, bold persona name, small grey account line, a pill tag,
+  // and the scoreboard's blue highlight on the selected row. One primary
+  // button uses the selected account. Accounts the Steam app is not signed in
+  // to are muted, show the "?" tile and offer "Sign in in Steam" instead.
   //
   // Used on the login screen and for "Switch account" when logged in.
   import { app, openSteamLogin, useSteamAccount } from "../store.svelte";
   import Avatar from "../ui/Avatar.svelte";
   import Button from "../ui/Button.svelte";
+  import Icon from "../ui/Icon.svelte";
   import Spinner from "../ui/Spinner.svelte";
 
   let {
@@ -84,7 +85,7 @@
         disabled={pending !== ""}
         onclick={() => (picked = a.accountName)}
       >
-        <Avatar size={36} ring={a.accountName === selected ? "gold" : "offline"} {name} />
+        <Avatar size={40} ring={a.accountName === selected ? "accent" : "none"} {name} />
         <span class="who">
           <bdi class="persona">{name}</bdi>
           <span class="account">{a.accountName}</span>
@@ -95,11 +96,12 @@
         {:else if a.mostRecent}
           <span class="tag">Most recent</span>
         {/if}
-        <span class="radio"></span>
+        <span class="radio"><Icon name="check" size={14} /></span>
       </button>
     {:else}
       <div class="card">
-        <span class="muted"><Avatar size={36} ring="offline" {name} /></span>
+        <!-- Not usable yet: CS2's "?" tile. -->
+        <span class="muted"><Avatar size={40} name="" /></span>
         <span class="who">
           <bdi class="persona muted">{name}</bdi>
           <span class="account">{a.accountName} · Not signed in to Steam</span>
@@ -145,14 +147,14 @@
     align-items: center;
     gap: 14px;
     width: 100%;
-    min-height: 56px;
-    padding: 8px 16px;
+    min-height: 58px;
+    margin-bottom: 2px;
+    padding: 8px 14px 8px 10px;
     font: inherit;
     text-align: left;
     color: var(--text);
-    background: var(--row);
+    background: var(--box);
     border: 0;
-    border-bottom: 1px solid var(--line);
   }
 
   button.card {
@@ -160,16 +162,13 @@
   }
 
   button.card:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.1);
   }
 
   /* The scoreboard's highlighted player. */
   button.card.selected {
-    background: var(--gold-wash);
-    box-shadow:
-      inset 3px 0 0 var(--gold),
-      inset 0 1px 0 rgba(224, 178, 82, 0.35),
-      inset 0 -1px 0 rgba(224, 178, 82, 0.35);
+    background: var(--row-pick);
+    box-shadow: inset 0 0 0 1px var(--row-pick-line);
   }
 
   button.card:disabled {
@@ -195,11 +194,9 @@
   .persona {
     overflow: hidden;
     font-family: var(--font-head);
-    font-size: 20px;
+    font-size: 17px;
     font-weight: 700;
     line-height: 22px;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
     white-space: nowrap;
     text-overflow: ellipsis;
     color: #fff;
@@ -207,15 +204,15 @@
 
   .account {
     overflow: hidden;
-    font-size: 13px;
-    line-height: 18px;
+    font-size: 12px;
+    line-height: 17px;
     white-space: nowrap;
     text-overflow: ellipsis;
     color: var(--muted);
   }
 
   .selected .account {
-    color: #d9c08a;
+    color: #c5d6e6;
   }
 
   .error {
@@ -225,48 +222,48 @@
     color: var(--red-text);
   }
 
+  /* A rounded pill, like the country pills in the friends list. */
   .tag {
     flex: none;
-    height: 20px;
-    padding: 0 8px;
+    height: 18px;
+    padding: 0 9px;
     font-family: var(--font-head);
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 700;
     line-height: 18px;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.01em;
     text-transform: uppercase;
-    color: var(--text-soft);
-    border: 1px solid var(--line-strong);
-  }
-
-  .selected .tag {
-    color: #f3dca6;
-    border-color: rgba(224, 178, 82, 0.6);
+    color: #fff;
+    background: #4f7fb8;
+    border-radius: 9px;
   }
 
   .tag.used {
-    color: var(--green-text);
-    border-color: var(--green);
+    background: #3f9a45;
   }
 
   .radio {
     flex: none;
-    width: 16px;
-    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    color: transparent;
     border: 1px solid var(--line-strong);
-    border-radius: 50%;
   }
 
   .selected .radio {
-    background: radial-gradient(circle, var(--gold) 0 4px, transparent 4.5px);
-    border-color: var(--gold);
+    color: #10202c;
+    background: var(--accent);
+    border-color: var(--accent);
   }
 
   .foot {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 12px 16px;
+    padding: 12px 0;
   }
 
   .trust {

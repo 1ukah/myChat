@@ -56,35 +56,31 @@
 </button>
 
 <style>
+  /* The bound key in a thin bordered box, like a CS2 value box. */
   .hotkey {
     display: inline-flex;
     align-items: center;
     justify-content: flex-end;
-    gap: 16px;
-    min-width: 200px;
-    height: 36px;
-    padding: 0 12px;
-    font-family: var(--font-head);
+    gap: 14px;
+    height: 34px;
+    padding: 0;
+    font-family: var(--font-cond);
     font-weight: 700;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.01em;
     text-transform: uppercase;
     white-space: nowrap;
-    color: var(--text);
-    background: rgba(0, 0, 0, 0.25);
-    border: 1px solid var(--line-strong);
-    border-radius: 2px;
+    color: #fff;
+    background: none;
+    border: 0;
     cursor: pointer;
   }
 
-  .hotkey:hover {
-    border-color: rgba(255, 255, 255, 0.6);
-  }
-
   .hotkey.capturing {
+    min-width: 150px;
     justify-content: center;
     color: var(--accent);
-    background: var(--accent-fill);
-    border-color: var(--accent);
+    background: var(--tab-fill);
+    border-radius: 2px;
   }
 
   .hotkey:focus-visible {
@@ -96,31 +92,33 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    margin-right: auto;
   }
 
   kbd {
-    min-width: 24px;
-    height: 22px;
-    padding: 0 7px;
+    min-width: 40px;
+    height: 34px;
+    padding: 0 10px;
     font: inherit;
-    font-size: 16px;
-    line-height: 22px;
+    font-size: 20px;
+    line-height: 32px;
     text-align: center;
-    color: #14161a;
-    background: var(--text);
-    border-radius: 2px;
+    color: #fff;
+    border: 1px solid var(--line-strong);
+  }
+
+  .hotkey:hover kbd {
+    border-color: var(--accent);
   }
 
   .plus {
-    font-size: 14px;
+    font-size: 18px;
     color: var(--muted);
   }
 
   .edit {
+    order: -1;
+    font-family: var(--font-head);
     font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 0.14em;
     color: var(--muted);
   }
 
@@ -129,8 +127,7 @@
   }
 
   .ask {
-    font-size: 15px;
-    letter-spacing: 0.14em;
+    font-size: 20px;
   }
 
   :global(.anim) .hotkey.capturing .ask {

@@ -188,12 +188,12 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 10px 16px;
+    margin-top: 6px;
+    padding: 10px 14px;
     font-size: 13px;
     line-height: 20px;
-    color: #ffd9a8;
-    background: rgba(224, 178, 82, 0.12);
-    border-bottom: 1px solid var(--line);
+    color: #ffe2b0;
+    background: rgba(240, 164, 40, 0.16);
     box-shadow: inset 3px 0 0 var(--gold);
   }
 
@@ -207,15 +207,15 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    height: 36px;
+    height: 44px;
     margin: 0;
-    padding: 0 16px;
+    padding: 6px 0 0;
     font-family: var(--font-head);
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: 0.12em;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
     text-transform: uppercase;
-    color: var(--text-soft);
+    color: #fff;
   }
 
   h3.main {
@@ -233,7 +233,7 @@
 
   .text.empty,
   .text.nosteam {
-    padding: 4px 16px 14px;
+    padding: 4px 0 14px;
   }
 
   .text.nosteam {
@@ -242,7 +242,7 @@
   }
 
   .text.bad {
-    padding: 0 16px 10px;
+    padding: 0 0 10px;
     color: var(--red-text);
   }
 
@@ -251,7 +251,7 @@
     align-items: center;
     gap: 12px;
     min-height: 44px;
-    padding: 0 16px 10px;
+    padding: 0 0 12px;
   }
 
   /* ---------- QR ---------- */
@@ -261,15 +261,15 @@
     align-items: center;
     gap: 8px;
     width: 100%;
-    height: 40px;
-    padding: 0 16px;
+    height: 50px;
+    padding: 0;
     font-family: var(--font-head);
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: 0.12em;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
     text-align: left;
     text-transform: uppercase;
-    color: var(--text-soft);
+    color: #fff;
     background: none;
     border: 0;
     cursor: pointer;
@@ -277,7 +277,6 @@
 
   .fold:hover {
     color: var(--accent);
-    background: rgba(255, 255, 255, 0.04);
   }
 
   .fold:focus-visible,
@@ -288,7 +287,6 @@
 
   .chevron {
     margin-left: auto;
-    color: var(--muted);
   }
 
   .chevron.open {
@@ -299,7 +297,7 @@
     display: flex;
     align-items: center;
     gap: 28px;
-    padding: 8px 16px 20px;
+    padding: 4px 0 20px;
   }
 
   .code {
@@ -312,14 +310,13 @@
     padding: 10px;
     text-align: center;
     background: #fff;
-    border-radius: 2px;
   }
 
   .wait {
     font-family: var(--font-head);
     font-size: 15px;
-    font-weight: 600;
-    letter-spacing: 0.1em;
+    font-weight: 700;
+    letter-spacing: 0.01em;
     text-transform: uppercase;
     color: #6b7279;
   }
@@ -364,13 +361,14 @@
     flex: none;
     width: 24px;
     height: 24px;
-    font-family: var(--font-head);
-    font-size: 16px;
+    font-family: var(--font-cond);
+    font-size: 19px;
     font-weight: 700;
-    line-height: 22px;
+    line-height: 24px;
     text-align: center;
     color: var(--accent);
-    border: 1px solid var(--accent-line);
+    background: var(--tab-fill);
+    border-radius: 2px;
   }
 
   .fine {
@@ -386,13 +384,13 @@
     gap: 8px;
     height: 24px;
     margin-top: 8px;
-    padding: 0 4px;
+    padding: 0;
     font-family: var(--font-head);
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 0.14em;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
     text-transform: uppercase;
-    color: var(--text-soft);
+    color: #fff;
     background: none;
     border: 0;
     cursor: pointer;

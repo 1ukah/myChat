@@ -1,54 +1,69 @@
 /*
- * myChat theme: Counter-Strike 2 Panorama look.
- * Tokens only, plus the few global rules both windows share.
+ * myChat theme: the Counter-Strike 2 look (not CS:GO's Panorama).
+ * Tokens only, plus the few global rules both windows share. The colours are
+ * sampled from the screenshots in reference/cs2/.
  */
 
 :root {
-  /* Type. Segoe UI covers scripts the bundled fonts lack (Arabic, CJK, ...). */
-  --font-head: "Barlow Condensed", "Segoe UI", sans-serif;
+  /* Type. Stratum2 is Valve's; the Saira family is the free stand-in.
+     Noto Sans and Segoe UI cover scripts Saira lacks (Cyrillic, Arabic, CJK). */
+  --font-cond: "Saira Extra Condensed", "Noto Sans", "Segoe UI", sans-serif; /* nav, values, numbers */
+  --font-head: "Saira Semi Condensed", "Noto Sans", "Segoe UI", sans-serif; /* tabs, buttons, names, chat */
+  --font-title: "Saira", "Noto Sans", "Segoe UI", sans-serif; /* italic section titles */
   --font-body: "Noto Sans", "Segoe UI", sans-serif;
 
   /* Text */
-  --text: #e8eaed;
-  --text-soft: #c3c8ce;
-  --muted: #8f979e;
-  --dim: #666d75;
+  --text: #f0f2f4;
+  --text-soft: #d3d8dd; /* row labels ("Display") */
+  --muted: #9aa2ab; /* section titles, placeholders */
+  --dim: #6c747d;
 
-  /* Lines */
-  --line: rgba(255, 255, 255, 0.12);
-  --line-soft: rgba(255, 255, 255, 0.07);
-  --line-strong: rgba(255, 255, 255, 0.3);
+  /* Lines: the thin light rules between settings rows */
+  --line: rgba(255, 255, 255, 0.2);
+  --line-soft: rgba(255, 255, 255, 0.1);
+  --line-strong: rgba(255, 255, 255, 0.34);
 
-  /* Accents */
-  --accent: #86c5ff;
-  --accent-fill: rgba(134, 197, 255, 0.14);
-  --accent-line: rgba(134, 197, 255, 0.5);
-  --green: #3fae49;
-  --green-text: #74d67c;
+  /* The selected tab: a filled steel-blue box with light-blue text */
+  --accent: #8fd3ff;
+  --tab-fill: #375a73;
+  --tab-fill-hover: #44708e;
+  --accent-fill: rgba(72, 124, 160, 0.42);
+  --accent-line: rgba(143, 211, 255, 0.5);
+  /* The scoreboard's highlighted row */
+  --row-pick: rgba(84, 124, 160, 0.5);
+  --row-pick-line: rgba(160, 200, 235, 0.55);
+
+  /* Teams and chat colours (chat box, scoreboard) */
+  --ct: #b4d2ff; /* "[CT] name" */
+  --ct-strong: #5e9bf0; /* "Flashbang!" */
+  --t: #ead28c; /* terrorist gold */
+  --place: #6fe24f; /* "@Connector", "+$3250" */
+  --banner: #9cc9f8; /* "ROUND WON" */
+  --mvp: #1d5b88; /* the MVP strip */
+
+  --green: #4bb14f;
+  --green-text: #8fe36f;
   --red: #c8352f;
-  --red-text: #ff7d73;
-  --gold: #e0b252;
-  /* The scoreboard's highlighted row: a gold wash that fades to the right. */
-  --gold-wash: linear-gradient(90deg, rgba(224, 178, 82, 0.3), rgba(224, 178, 82, 0.07));
+  --red-text: #ff5d52; /* "HE Grenade!" */
+  --gold: #f0a428; /* "Incendiary!" */
 
   /* Chat channels */
-  --whisper: #e58cff;
-  --whisper-out: #d3b4e2;
-  --party: var(--green-text);
+  --whisper: var(--ct);
+  --whisper-out: #c9d3de;
+  --party: var(--t);
 
   /* Surfaces */
-  --bg: #14161a;
-  --panel: rgba(16, 18, 21, 0.62);
-  --panel-strong: rgba(16, 18, 21, 0.9);
-  --row: rgba(255, 255, 255, 0.035);
-  /* Smoky glass: darker at the edges, a little lighter in the middle. */
-  --glass: linear-gradient(
-    to bottom,
-    rgba(8, 10, 12, 0.72),
-    rgba(20, 23, 27, 0.56) 38%,
-    rgba(20, 23, 27, 0.56) 62%,
-    rgba(8, 10, 12, 0.74)
-  );
+  --bg: #272e36;
+  --hud: rgba(0, 0, 0, 0.6); /* a panel over the game */
+  --hud-frame: rgba(0, 0, 0, 0.3);
+  --tile: #1c1e21; /* the "?" avatar tile */
+  --box: rgba(0, 0, 0, 0.22); /* value boxes, buttons at rest */
+  --menu: #1b2026; /* dropdown lists */
+
+  /* Fine dot texture of the round banner. */
+  --dots: radial-gradient(rgba(255, 255, 255, 0.09) 0.6px, transparent 1.1px) 0 0 / 4px 4px;
+  /* Pixel mosaic of the MVP strip: lighter and darker 12 px squares. */
+  --mosaic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='192' height='48'%3E%3Cg fill='%23fff'%3E%3Crect x='0' y='12' width='12' height='12' opacity='.07'/%3E%3Crect x='24' y='0' width='12' height='12' opacity='.05'/%3E%3Crect x='36' y='24' width='12' height='12' opacity='.09'/%3E%3Crect x='60' y='36' width='12' height='12' opacity='.06'/%3E%3Crect x='72' y='12' width='12' height='12' opacity='.1'/%3E%3Crect x='96' y='0' width='12' height='12' opacity='.06'/%3E%3Crect x='108' y='24' width='12' height='12' opacity='.08'/%3E%3Crect x='132' y='12' width='12' height='12' opacity='.05'/%3E%3Crect x='144' y='36' width='12' height='12' opacity='.09'/%3E%3Crect x='168' y='0' width='12' height='12' opacity='.07'/%3E%3Crect x='180' y='24' width='12' height='12' opacity='.06'/%3E%3C/g%3E%3Cg fill='%23000'%3E%3Crect x='12' y='36' width='12' height='12' opacity='.1'/%3E%3Crect x='48' y='0' width='12' height='12' opacity='.12'/%3E%3Crect x='84' y='36' width='12' height='12' opacity='.1'/%3E%3Crect x='120' y='0' width='12' height='12' opacity='.08'/%3E%3Crect x='156' y='24' width='12' height='12' opacity='.12'/%3E%3Crect x='24' y='24' width='12' height='12' opacity='.07'/%3E%3C/g%3E%3C/svg%3E");
 
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
@@ -90,12 +105,12 @@ button {
   margin: 0;
 }
 
-/* Condensed uppercase "Stratum"-style text used for labels and values. */
+/* Small bold caps, as on the CS2 settings tabs. */
 .head {
   font-family: var(--font-head);
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.02em;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,12 +1,13 @@
 <script lang="ts">
-  // One chat log entry, World of Warcraft style:
-  //   [12:41] (o) [SANT1] whispers: text
-  //   [12:41] To (o) [SANT1]: text
-  //   [12:41] [Party] You: text
-  // (o) is the friend's avatar, when avatars are on.
+  // One chat log entry, written like CS2's own chat ("[CT] ● name: text"):
+  //   12:41 [FROM] (o) sant1: text
+  //   12:41 [TO] (o) sant1: text
+  //   12:41 [PARTY] You: text
+  // (o) is the friend's square avatar with a player-colour border, or a
+  // player-colour dot when avatars are off.
   import { untrack } from "svelte";
   import type * as C from "../../../bindings/mychat/internal/chat/models";
-  import { clock } from "../format";
+  import { clock, playerColor } from "../format";
   import { isFresh } from "../store.svelte";
   import Avatar from "../ui/Avatar.svelte";
   import Typed from "./Typed.svelte";
@@ -30,16 +31,17 @@
   const kind = $derived(entry.kind);
   const pending = $derived(entry.status === "pending");
   const failed = $derived(entry.status === "failed");
+  const tint = $derived(playerColor(entry.peerId || entry.peerName));
 </script>
 
-{#snippet face()}{#if avatars}<Avatar inline size={18} ring="whisper" src={entry.peerAvatar} name={entry.peerName} />{/if}{/snippet}
+{#snippet face()}{#if avatars}<Avatar inline size={16} {tint} src={entry.peerAvatar} name={entry.peerName} />{:else}<span class="dot" style:color={tint}>●</span>{" "}{/if}{/snippet}
 
 <!-- String literals carry the spaces and nothing inside .msg is split over
      lines, so the layout never depends on how template whitespace collapses.
      <bdi> keeps right-to-left names and messages from reordering the brackets. -->
 <div class="line {kind}" class:pending class:fresh>
-  <span class="time">[{clock(entry.time)}]</span>
-  <span class="msg">{#if kind === "in"}{@render face()}<span class="who">[<bdi>{entry.peerName}</bdi>]</span>{" whispers: "}{:else if kind === "out"}{"To "}{@render face()}<span class="who">[<bdi>{entry.peerName}</bdi>]</span>{": "}{:else if kind === "party"}{#if avatars}<svg class="group" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M5.5 7a2.25 2.25 0 1 0 0-4.5 2.25 2.25 0 0 0 0 4.5z M1.5 13c.3-2.4 1.9-3.6 4-3.6s3.7 1.2 4 3.6 M10.4 6.9a2 2 0 1 0-.5-3.8 M11.2 9.5c1.8.3 3 1.5 3.3 3.5" /></svg>{/if}<span class="who">[Party]</span>{" You: "}{/if}<bdi>{#if typed}<Typed text={entry.text} />{:else}{entry.text}{/if}</bdi></span>
+  <span class="time">{clock(entry.time)}</span>
+  <span class="msg">{#if kind === "in"}<span class="who">{"[FROM] "}{@render face()}<bdi>{entry.peerName}</bdi></span>{": "}{:else if kind === "out"}<span class="who">{"[TO] "}{@render face()}<bdi>{entry.peerName}</bdi></span>{": "}{:else if kind === "party"}<span class="who">{"[PARTY] "}{#if !avatars}<span class="dot">●</span>{" "}{/if}You</span>{": "}{/if}<bdi class="text">{#if typed}<Typed text={entry.text} />{:else}{entry.text}{/if}</bdi></span>
   {#if pending}
     <span class="dots" role="img" aria-label="sending"><i></i><i></i><i></i></span>
   {:else if failed}
@@ -56,14 +58,16 @@
   .line {
     --c: var(--text);
     flex: none;
+    font-family: var(--font-head);
     font-size: 15px;
+    font-weight: 700;
     line-height: 21px;
     overflow-wrap: anywhere;
-    color: var(--c);
-    /* Keeps thin coloured text legible over bright scenes. */
+    color: #fff;
+    /* CS2 chat: a hard 1 px shadow under bold text. */
     text-shadow:
-      0 1px 2px rgba(0, 0, 0, 0.85),
-      0 0 1px rgba(0, 0, 0, 0.6);
+      1px 1px 0 rgba(0, 0, 0, 0.9),
+      0 0 2px rgba(0, 0, 0, 0.7);
   }
 
   .in {
@@ -74,36 +78,38 @@
     --c: var(--whisper-out);
   }
 
+  .out .text {
+    color: #dfe4e9;
+  }
+
   .party {
     --c: var(--party);
   }
 
   .system {
-    --c: #a7aeb5;
-    font-style: italic;
+    color: #c5ccd3;
+    font-weight: 600;
   }
 
   .error {
-    --c: var(--red-text);
+    color: var(--red-text);
   }
 
   .time {
+    margin-right: 2px;
     font-size: 12px;
-    font-style: normal;
+    font-weight: 600;
     font-variant-numeric: tabular-nums;
     color: var(--muted);
   }
 
   .who {
-    font-weight: 600;
+    color: var(--c);
   }
 
-  .group {
-    margin-right: 4px;
-    vertical-align: -2px;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 1.4;
+  .dot {
+    font-size: 11px;
+    vertical-align: 1px;
   }
 
   /* Dim only the message, so the "sending" dots stay clear. */
@@ -130,8 +136,7 @@
     align-items: center;
     gap: 5px;
     margin-left: 4px;
-    font-size: 12px;
-    font-style: normal;
+    font-size: 13px;
     color: var(--red-text);
   }
 

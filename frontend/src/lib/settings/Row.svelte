@@ -39,9 +39,9 @@
     align-items: center;
     justify-content: space-between;
     gap: 24px;
-    min-height: 60px;
-    padding: 8px 16px;
-    background: var(--row);
+    min-height: 56px;
+    padding: 8px 0;
+    /* No fill: only the thin light rule under each row, as in CS2. */
     border-bottom: 1px solid var(--line);
   }
 
@@ -60,7 +60,7 @@
   }
 
   .note {
-    margin-top: 2px;
+    margin-top: 1px;
     font-size: 12px;
     line-height: 16px;
     color: var(--muted);

@@ -1,6 +1,8 @@
 <script lang="ts">
-  // The chat box (640×360). There is no <input>: the window never has focus,
-  // so the text and the caret are drawn from ComposerState.
+  // The chat box (640×360), built like CS2's own: a translucent black frame
+  // holding the log box and a separate input row with a grey SEND, and key
+  // hints under it. There is no <input>: the window never has focus, so the
+  // text and the caret are drawn from ComposerState.
   import { untrack } from "svelte";
   import type * as C from "../../../bindings/mychat/internal/chat/models";
   import type * as M from "../../../bindings/mychat/models";
@@ -10,6 +12,7 @@
   let {
     composer,
     lines,
+    total = 0,
     status,
     live,
     avatars = false,
@@ -17,6 +20,8 @@
   }: {
     composer: C.ComposerState;
     lines: C.Entry[];
+    /** Entries in the whole log (for the scrollbar). */
+    total?: number;
     status: M.Status;
     /** The composer is the current mode (not fading out). */
     live: boolean;
@@ -39,6 +44,16 @@
 
   const suggestions = $derived((composer.suggestions ?? []).slice(0, 6));
 
+  // CS2 writes "Say to all" in the empty input.
+  const placeholder = $derived(
+    composer.hint ||
+      (kind === "whisper"
+        ? `Say to ${channel.targetName}`
+        : kind === "party"
+          ? "Say to party"
+          : "Type /w name to whisper"),
+  );
+
   const steam = $derived.by(() => {
     switch (status.state) {
       case "online":
@@ -50,6 +65,17 @@
       default:
         return { tone: "bad", text: "Steam offline – reconnecting" };
     }
+  });
+
+  // ---- thin scrollbar, drawn from the scroll position Go reports ----
+
+  /** About how many lines fit in the log box. */
+  const FIT = 12;
+  const bar = $derived.by(() => {
+    if (total <= FIT) return null;
+    const size = Math.max(14, (FIT / total) * 100);
+    const scroll = Math.min(Math.max(composer.scroll, 0), total - 1);
+    return { size, bottom: Math.min(100 - size, (scroll / total) * 100) };
   });
 
   // ---- keep the caret in view when the text is longer than the field ----
@@ -83,92 +109,95 @@
 </script>
 
 <div class="composer" class:live>
-  <div class="log">
-    <div class="lines">
-      {#each lines as entry (entry.id)}
-        <ChatLine {entry} {avatars} {typewriter} />
-      {:else}
-        <div class="empty">No messages yet.</div>
-      {/each}
-    </div>
-
-    {#if composer.scroll > 0}
-      <div class="newer head">↓ {composer.scroll} newer · PgDn</div>
-    {/if}
-
-    {#if suggestions.length > 0 || composer.error}
-      <div class="pop">
-        {#if suggestions.length > 0}
-          <div class="suggest">
-            <div class="shead head">
-              <span>Whisper to</span>
-              <span>{composer.hint}</span>
-            </div>
-            {#each suggestions as s, i (s.id)}
-              <div class="srow" class:sel={i === composer.selected}>
-                {#if avatars}
-                  <Avatar size={22} ring={s.online ? "green" : "offline"} src={s.avatar} name={s.name} />
-                {:else}
-                  <span class="dot" class:on={s.online}></span>
-                {/if}
-                <bdi class="sname">{s.name}</bdi>
-                <span class="sgame">{s.inGame || (s.online ? "Online" : "Offline")}</span>
-              </div>
-            {/each}
-          </div>
-        {/if}
-        {#if composer.error}
-          <div class="error">
-            <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">
-              <path d="M6 1l5.5 10h-11z" fill="none" stroke="currentColor" stroke-width="1.2" />
-              <path d="M6 5v3M6 9.2v.6" fill="none" stroke="currentColor" stroke-width="1.2" />
-            </svg>
-            <span>{composer.error}</span>
-          </div>
-        {/if}
-      </div>
-    {/if}
-  </div>
-
-  <div class="input {kind}">
-    <div class="label">
-      {#if kind === "whisper"}
-        {#if avatars}
-          <Avatar
-            size={18}
-            ring={channel.online ? "whisper" : "offline"}
-            src={channel.avatar}
-            name={channel.targetName}
-          />
+  <div class="frame">
+    <div class="log">
+      <div class="lines">
+        {#each lines as entry (entry.id)}
+          <ChatLine {entry} {avatars} {typewriter} />
         {:else}
-          <span class="dot" class:on={channel.online}></span>
-        {/if}
-        <span>To</span>
-        <bdi class="target">{channel.targetName}</bdi><span class="colon">:</span>
-      {:else if kind === "party"}
-        {#if avatars}
-          <svg class="group" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
-            <path
-              d="M5.5 7a2.25 2.25 0 1 0 0-4.5 2.25 2.25 0 0 0 0 4.5z M1.5 13c.3-2.4 1.9-3.6 4-3.6s3.7 1.2 4 3.6 M10.4 6.9a2 2 0 1 0-.5-3.8 M11.2 9.5c1.8.3 3 1.5 3.3 3.5"
-            />
-          </svg>
-        {/if}
-        <span>Party</span><span class="colon">:</span>
-      {:else}
-        <span>Chat</span><span class="colon">:</span>
+          <div class="empty">No messages yet.</div>
+        {/each}
+      </div>
+
+      {#if bar}
+        <div class="bar" style:height="{bar.size}%" style:bottom="{bar.bottom}%"></div>
+      {/if}
+
+      {#if composer.scroll > 0}
+        <div class="newer">↓ {composer.scroll} newer · [PGDN]</div>
+      {/if}
+
+      {#if suggestions.length > 0 || composer.error}
+        <div class="pop">
+          {#if suggestions.length > 0}
+            <div class="suggest">
+              <div class="shead">
+                <span>Whisper to</span>
+                <span>{composer.hint}</span>
+              </div>
+              {#each suggestions as s, i (s.id)}
+                <div class="srow" class:sel={i === composer.selected} class:off={!s.online}>
+                  {#if avatars}
+                    <Avatar size={20} ring={s.online ? "green" : "offline"} src={s.avatar} name={s.name} />
+                  {:else}
+                    <span class="dot" class:on={s.online}></span>
+                  {/if}
+                  <bdi class="sname">{s.name}</bdi>
+                  <span class="sgame">{s.inGame || (s.online ? "Online" : "Offline")}</span>
+                </div>
+              {/each}
+            </div>
+          {/if}
+          {#if composer.error}
+            <div class="error">
+              <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">
+                <path d="M6 1l5.5 10h-11z" fill="none" stroke="currentColor" stroke-width="1.2" />
+                <path d="M6 5v3M6 9.2v.6" fill="none" stroke="currentColor" stroke-width="1.2" />
+              </svg>
+              <span>{composer.error}</span>
+            </div>
+          {/if}
+        </div>
       {/if}
     </div>
 
-    <div class="field" class:scrolled={shift > 0} bind:this={fieldEl}>
-      <div
-        class="text"
-        bind:this={textEl}
-        style:transform={shift > 0 ? `translateX(${-shift}px)` : null}
-      >
-        <span>{before}</span><span class="caret" class:beat bind:this={caretEl}></span><span
-          >{after}</span
-        >{#if chars.length === 0 && composer.hint}<span class="hint">{composer.hint}</span>{/if}
+    <div class="input {kind}">
+      {#if kind !== "none"}
+        <div class="label">
+          {#if kind === "whisper"}
+            <span>[TO]</span>
+            {#if avatars}
+              <!-- The person in focus gets CS2's circle, as the spectated player does. -->
+              <Avatar
+                round
+                size={22}
+                ring={channel.online ? "whisper" : "offline"}
+                src={channel.avatar}
+                name={channel.targetName}
+              />
+            {:else}
+              <span class="dot" class:on={channel.online}></span>
+            {/if}
+            <bdi class="target">{channel.targetName}</bdi><span class="colon">:</span>
+          {:else}
+            <span>[PARTY]</span><span class="colon">:</span>
+          {/if}
+        </div>
+      {/if}
+
+      <div class="field" class:scrolled={shift > 0} bind:this={fieldEl}>
+        <div
+          class="text"
+          bind:this={textEl}
+          style:transform={shift > 0 ? `translateX(${-shift}px)` : null}
+        >
+          <span>{before}</span><span class="caret" class:beat bind:this={caretEl}></span><span
+            >{after}</span
+          >{#if chars.length === 0}<span class="hint">{placeholder}</span>{/if}
+        </div>
       </div>
+
+      <div class="send" class:ready={chars.length > 0}>Send</div>
     </div>
   </div>
 
@@ -179,12 +208,12 @@
         <span>{steam.text}</span>
       {/if}
     </div>
-    <!-- Key hints as in the CS2 scoreboard footer: small boxed keys. -->
+    <!-- Key hints as CS2 writes them: "[CTRL] Close". -->
     <div class="keys">
-      <span><kbd>Enter</kbd>Send</span>
-      <span><kbd>Esc</kbd>Close</span>
-      <span><kbd>Tab</kbd>Next</span>
-      <span><kbd>/help</kbd></span>
+      <span>[ENTER] Send</span>
+      <span>[ESC] Close</span>
+      <span>[TAB] Next</span>
+      <span>/help</span>
     </div>
   </div>
 </div>
@@ -195,6 +224,18 @@
     inset: 0;
     display: flex;
     flex-direction: column;
+    font-family: var(--font-head);
+  }
+
+  /* The outer frame: a lighter black that holds the two darker boxes. */
+  .frame {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 6px;
+    background: var(--frame-fill);
   }
 
   /* ---------- log ---------- */
@@ -203,6 +244,7 @@
     position: relative;
     flex: 1;
     min-height: 0;
+    background: var(--box-fill);
   }
 
   .lines {
@@ -212,30 +254,39 @@
     flex-direction: column;
     justify-content: flex-end;
     overflow: hidden;
-    padding: 0 16px 8px;
-    /* Old lines melt away towards the top. */
-    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 56px);
-    mask-image: linear-gradient(to bottom, transparent 0, #000 56px);
+    padding: 0 18px 6px 12px;
   }
 
   .empty {
-    font-size: 14px;
-    font-style: italic;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 21px;
     color: var(--muted);
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+    text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.9);
+  }
+
+  /* CS2's thin light scrollbar at the right edge. */
+  .bar {
+    position: absolute;
+    right: 5px;
+    width: 4px;
+    margin: 6px 0;
+    background: rgba(255, 255, 255, 0.55);
   }
 
   .newer {
     position: absolute;
-    right: 12px;
-    bottom: 8px;
+    right: 16px;
+    bottom: 6px;
     height: 20px;
     padding: 0 8px;
     font-size: 12px;
+    font-weight: 700;
     line-height: 20px;
-    color: var(--text);
-    background: rgba(10, 12, 15, 0.9);
-    box-shadow: inset 0 0 0 1px var(--line-strong);
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--tab-fill);
   }
 
   /* ---------- suggestions and error, stacked just above the input ---------- */
@@ -248,9 +299,9 @@
   }
 
   .suggest {
-    padding-bottom: 4px;
-    background: rgba(10, 12, 15, 0.94);
-    border-top: 1px solid var(--line);
+    padding-bottom: 2px;
+    /* Opaque: the log lines behind must not show through the names. */
+    background: #121417;
   }
 
   .shead {
@@ -258,9 +309,12 @@
     justify-content: space-between;
     gap: 16px;
     height: 24px;
-    padding: 0 16px;
+    padding: 0 12px;
     font-size: 12px;
+    font-weight: 700;
     line-height: 24px;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
     color: var(--muted);
     white-space: nowrap;
   }
@@ -269,46 +323,46 @@
     display: flex;
     align-items: center;
     gap: 9px;
-    height: 28px;
-    padding: 0 16px;
-    font-size: 14px;
-    line-height: 28px;
-    color: var(--text-soft);
+    height: 26px;
+    margin: 0 4px 2px;
+    padding: 0 8px;
+    font-size: 15px;
+    line-height: 26px;
+    color: var(--text);
     white-space: nowrap;
+    /* Row bands, as in the scoreboard. */
+    background: rgba(255, 255, 255, 0.07);
   }
 
-  /* Faint bands, as in the scoreboard. */
-  .srow:nth-child(even) {
-    background: rgba(255, 255, 255, 0.04);
+  .srow.off {
+    color: var(--muted);
   }
 
-  /* The selected row gets the scoreboard's gold highlight. */
+  /* The selected row is the scoreboard's highlighted player. */
   .srow.sel {
     color: #fff;
-    background: var(--gold-wash);
-    box-shadow:
-      inset 3px 0 0 var(--gold),
-      inset 0 1px 0 rgba(224, 178, 82, 0.35),
-      inset 0 -1px 0 rgba(224, 178, 82, 0.35);
-  }
-
-  .srow.sel .sgame {
-    color: #d9c08a;
+    background: var(--row-pick);
+    box-shadow: inset 0 0 0 1px var(--row-pick-line);
   }
 
   .sname {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-weight: 600;
+    font-weight: 700;
   }
 
   .sgame {
     flex: none;
     margin-left: auto;
     padding-left: 16px;
-    font-size: 12px;
+    font-size: 13px;
+    font-weight: 600;
     color: var(--muted);
+  }
+
+  .srow.sel .sgame {
+    color: var(--ct);
   }
 
   .error {
@@ -316,13 +370,14 @@
     align-items: center;
     gap: 8px;
     height: 26px;
-    padding: 0 16px;
-    font-size: 13px;
+    padding: 0 12px;
+    font-size: 14px;
+    font-weight: 700;
     line-height: 26px;
-    color: #ffb1aa;
+    color: #ffc2bc;
     white-space: nowrap;
-    background: rgba(58, 16, 14, 0.94);
-    box-shadow: inset 3px 0 0 var(--red);
+    background: #47110f;
+    box-shadow: inset 3px 0 0 var(--red-text);
   }
 
   .error svg {
@@ -339,8 +394,8 @@
 
   .dot {
     flex: none;
-    width: 7px;
-    height: 7px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     box-shadow: inset 0 0 0 1px var(--dim);
   }
@@ -356,24 +411,21 @@
   }
 
   .dot.bad {
-    background: var(--red);
+    background: var(--red-text);
     box-shadow: none;
   }
 
-  /* ---------- input bar ---------- */
+  /* ---------- input row ---------- */
 
   .input {
     --chan: var(--muted);
-    position: relative;
     flex: none;
     display: flex;
     align-items: center;
-    gap: 10px;
-    height: 46px;
-    padding: 0 16px;
-    background: rgba(0, 0, 0, 0.4);
-    border-top: 1px solid rgba(255, 255, 255, 0.16);
-    box-shadow: inset 3px 0 0 var(--chan);
+    gap: 8px;
+    height: 44px;
+    padding: 0 16px 0 12px;
+    background: var(--box-fill);
   }
 
   .input.whisper {
@@ -390,15 +442,12 @@
     align-items: center;
     gap: 6px;
     max-width: 50%;
-    font-family: var(--font-head);
-    font-size: 19px;
+    font-size: 16px;
     font-weight: 700;
     line-height: 24px;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
     white-space: nowrap;
     color: var(--chan);
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+    text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.9);
   }
 
   .target {
@@ -427,14 +476,20 @@
     display: inline-block;
     vertical-align: top;
     font-size: 16px;
+    font-weight: 600;
     line-height: 24px;
     white-space: pre;
     color: #fff;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+    text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.9);
   }
 
+  /* "Say to all": regular-weight grey. */
   .hint {
+    font-family: var(--font-body);
+    font-size: 15px;
+    font-weight: 400;
     color: var(--muted);
+    text-shadow: none;
   }
 
   /* A drawn caret: a thin bar that takes no room in the line. */
@@ -445,6 +500,20 @@
     margin: 0 -1px;
     vertical-align: -4px;
     background: #fff;
+  }
+
+  .send {
+    flex: none;
+    padding-left: 8px;
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #868c93;
+  }
+
+  .send.ready {
+    color: #fff;
   }
 
   /* Blink is CSS only, and only while the composer is open with animations
@@ -477,7 +546,7 @@
     }
   }
 
-  /* ---------- footer strip ---------- */
+  /* ---------- key hints under the box, straight over the game ---------- */
 
   .foot {
     flex: none;
@@ -485,14 +554,20 @@
     align-items: center;
     justify-content: space-between;
     gap: 16px;
-    height: 24px;
-    padding: 0 16px;
+    height: 22px;
+    padding: 0 8px;
     font-size: 12px;
-    line-height: 24px;
+    font-weight: 700;
+    line-height: 22px;
     white-space: nowrap;
-    color: var(--muted);
-    background: rgba(0, 0, 0, 0.5);
-    border-top: 1px solid var(--line-soft);
+    color: #e6e9ec;
+    /* An outline, so the hints read over bright and dark scenes alike. */
+    text-shadow:
+      1px 1px 0 #000,
+      -1px 1px 0 #000,
+      1px -1px 0 #000,
+      -1px -1px 0 #000,
+      0 0 3px rgba(0, 0, 0, 0.9);
   }
 
   .steam {
@@ -500,44 +575,17 @@
     align-items: center;
     gap: 6px;
     min-width: 0;
-    color: var(--text-soft);
+  }
+
+  .steam .dot {
+    box-shadow: 0 0 0 1px #000;
   }
 
   .keys {
     flex: none;
     display: flex;
-    align-items: center;
-    gap: 12px;
-    font-family: var(--font-head);
-    font-size: 13px;
-    font-weight: 500;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-  }
-
-  .keys span {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-  }
-
-  .keys kbd {
-    height: 16px;
-    padding: 0 5px;
-    font: inherit;
-    font-size: 12px;
-    font-weight: 700;
-    line-height: 16px;
-    color: var(--text);
-    background: rgba(255, 255, 255, 0.08);
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.34);
-  }
-
-  .group {
-    flex: none;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 1.5;
+    gap: 14px;
+    margin-left: auto;
   }
 
   /* ---------- motion ---------- */

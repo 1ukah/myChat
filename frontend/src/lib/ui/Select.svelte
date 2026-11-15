@@ -1,7 +1,7 @@
 <script lang="ts" generics="T extends string">
-  // CS2-style dropdown: the value in condensed uppercase with a chevron, and
-  // a flat list that opens below. The option under the pointer or the
-  // keyboard gets the gold highlight.
+  // CS2-style dropdown: the value in bold condensed caps with a chevron
+  // ("FULLSCREEN WINDOWED ⌄"), and a flat list that opens below. The chosen
+  // option is the steel-blue box of the selected tab.
   import { tick } from "svelte";
   import Icon from "./Icon.svelte";
 
@@ -82,7 +82,7 @@
     {onkeydown}
   >
     <span>{current?.label ?? value}</span>
-    <span class="chevron"><Icon name="chevron" /></span>
+    <span class="chevron"><Icon name="chevron" size={20} /></span>
   </button>
 
   {#if open}
@@ -107,44 +107,38 @@
 <style>
   .select {
     position: relative;
-    width: 220px;
-    font-family: var(--font-head);
-    font-size: 16px;
+    font-family: var(--font-cond);
+    font-size: 21px;
     font-weight: 700;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.01em;
     text-transform: uppercase;
   }
 
+  /* No box: just the value and a chevron, right-aligned in the row. */
   .value {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: 12px;
-    width: 100%;
     height: 32px;
-    padding: 0 8px 0 12px;
+    padding: 0 0 0 8px;
     font: inherit;
     letter-spacing: inherit;
     text-transform: inherit;
-    color: var(--text);
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid var(--line-strong);
-    border-radius: 2px;
+    white-space: nowrap;
+    color: #fff;
+    background: none;
+    border: 0;
     cursor: pointer;
   }
 
   .value:hover,
   .open .value {
-    border-color: rgba(255, 255, 255, 0.6);
+    color: var(--accent);
   }
 
   .value:disabled {
     opacity: 0.4;
     pointer-events: none;
-  }
-
-  .chevron {
-    color: var(--muted);
   }
 
   .open .chevron {
@@ -155,11 +149,11 @@
     position: absolute;
     top: calc(100% + 2px);
     right: 0;
-    left: 0;
     z-index: 20;
-    padding: 2px 0;
-    background: #171a1e;
-    border: 1px solid var(--line-strong);
+    min-width: 180px;
+    padding: 4px;
+    background: var(--menu);
+    border: 1px solid var(--line);
     box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55);
   }
 
@@ -167,27 +161,27 @@
     display: block;
     width: 100%;
     height: 30px;
-    padding: 0 12px;
+    padding: 0 10px;
     font: inherit;
-    font-weight: 600;
     letter-spacing: inherit;
     text-align: left;
     text-transform: inherit;
-    color: var(--text-soft);
+    white-space: nowrap;
+    color: #fff;
     background: none;
     border: 0;
+    border-radius: 2px;
     cursor: pointer;
   }
 
   .option.selected {
     color: var(--accent);
+    background: var(--tab-fill);
   }
 
   .option:hover,
   .option:focus-visible {
-    color: #fff;
-    background: var(--gold-wash);
-    box-shadow: inset 3px 0 0 var(--gold);
+    background: var(--tab-fill-hover);
     outline: none;
   }
 

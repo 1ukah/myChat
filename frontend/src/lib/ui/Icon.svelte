@@ -1,5 +1,5 @@
 <script lang="ts" module>
-  // Inline line icons on a 16 px grid, drawn square like the Panorama UI.
+  // Inline line icons on a 16 px grid, in the plain white style of CS2's menus.
   const paths = {
     close: "M3.5 3.5l9 9 M12.5 3.5l-9 9",
     chevron: "M4 6l4 4 4-4",
@@ -15,6 +15,13 @@
     eye: "M1.5 8s2.5-4.5 6.5-4.5 6.5 4.5 6.5 4.5-2.5 4.5-6.5 4.5-6.5-4.5-6.5-4.5z M10 8a2 2 0 1 1-4 0 2 2 0 0 1 4 0z",
     user: "M8 8a2.75 2.75 0 1 0 0-5.5 2.75 2.75 0 0 0 0 5.5z M2.5 14c.5-2.8 2.7-4 5.5-4s5 1.2 5.5 4",
     retry: "M1.5 2.5v4h4 M3 10a5.5 5.5 0 1 0 1.3-5.7l-2.8 2.2",
+    search: "M6.75 11a4.25 4.25 0 1 0 0-8.5 4.25 4.25 0 0 0 0 8.5z M10 10l4 4",
+    // CS2's RESET icon: a clock inside an arrow that turns back.
+    history: "M1.5 3v3.5h3.5 M2.6 10.2a5.75 5.75 0 1 0 .3-5.2l-1.4 1.5 M8 5v3.2l2.2 1.4",
+    // Friends rail: a broadcast mast.
+    signal: "M8 9.5v5 M8 8.2a.9.9 0 1 0 0-1.8.9.9 0 0 0 0 1.8z M5.3 9.9a3.6 3.6 0 1 1 5.4 0 M3.2 11.6a6.3 6.3 0 1 1 9.6 0",
+    group: "M5.5 7a2.25 2.25 0 1 0 0-4.5 2.25 2.25 0 0 0 0 4.5z M1.5 13c.3-2.4 1.9-3.6 4-3.6s3.7 1.2 4 3.6 M10.4 6.9a2 2 0 1 0-.5-3.8 M11.2 9.5c1.8.3 3 1.5 3.3 3.5",
+    check: "M3.5 8.5l3 3 6-7",
   } as const;
 
   export type IconName = keyof typeof paths;

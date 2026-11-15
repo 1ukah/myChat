@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Thin track, small white handle, boxed value on the right ("93%").
+  // CS2 slider: thin track, small square handle, value in a bordered box ("93%").
   // The value box follows the handle while dragging; `onchange` fires once,
   // when the handle is released, so each drag saves a single time.
   let {
@@ -71,36 +71,37 @@
   }
 
   input {
-    --thumb: 8px;
+    --thumb: 12px;
     -webkit-appearance: none;
     appearance: none;
-    width: 220px;
+    width: 200px;
     height: 28px;
     margin: 0;
     background: transparent;
     cursor: pointer;
   }
 
-  /* The filled part ends at the centre of the handle. */
+  /* A thin grey track; the part left of the handle is lighter. It ends at
+     the centre of the handle. */
   input::-webkit-slider-runnable-track {
-    height: 2px;
+    height: 4px;
     background: linear-gradient(
       to right,
-      var(--text) calc(var(--thumb) / 2 + (100% - var(--thumb)) * var(--p)),
-      rgba(255, 255, 255, 0.24) 0
+      #c4c9ce calc(var(--thumb) / 2 + (100% - var(--thumb)) * var(--p)),
+      rgba(255, 255, 255, 0.3) 0
     );
   }
 
+  /* CS2's small squarish handle. */
   input::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
     width: var(--thumb);
-    height: 18px;
-    margin-top: -8px;
-    background: #fff;
+    height: 10px;
+    margin-top: -3px;
+    background: #e3e6e9;
     border: 0;
     border-radius: 1px;
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
   }
 
   input:hover::-webkit-slider-thumb {
@@ -112,20 +113,19 @@
     outline-offset: 2px;
   }
 
+  /* The value in a thin bordered box. */
   .value {
     width: 72px;
-    height: 28px;
-    font-family: var(--font-head);
-    font-size: 16px;
+    height: 34px;
+    font-family: var(--font-cond);
+    font-size: 20px;
     font-weight: 700;
-    line-height: 26px;
-    letter-spacing: 0.06em;
+    line-height: 32px;
+    letter-spacing: 0.01em;
     text-align: center;
     text-transform: uppercase;
     font-variant-numeric: tabular-nums;
-    color: var(--text);
-    background: rgba(0, 0, 0, 0.25);
+    color: #fff;
     border: 1px solid var(--line-strong);
-    border-radius: 2px;
   }
 </style>

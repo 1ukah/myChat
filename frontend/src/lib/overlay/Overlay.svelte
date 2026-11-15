@@ -45,13 +45,15 @@
     return heldLines;
   });
 
+  let heldTotal = 0;
+  const total = $derived.by(() => (open ? (heldTotal = app.log.length) : heldTotal));
+
   function fontsReady(): Promise<unknown> {
     const faces = [
-      '600 16px "Barlow Condensed"',
-      '700 16px "Barlow Condensed"',
+      '600 16px "Saira Semi Condensed"',
+      '700 16px "Saira Semi Condensed"',
       '400 16px "Noto Sans"',
-      '600 16px "Noto Sans"',
-      'italic 400 16px "Noto Sans"',
+      '700 16px "Noto Sans"',
     ];
     const loaded = Promise.all(faces.map((f) => document.fonts.load(f))).catch(() => undefined);
     const timeout = new Promise((resolve) => setTimeout(resolve, 1500));
@@ -75,6 +77,7 @@
           <Composer
             {composer}
             {lines}
+            {total}
             {status}
             live={open}
             avatars={app.mode.showAvatars}

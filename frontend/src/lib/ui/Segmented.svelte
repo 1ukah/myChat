@@ -1,5 +1,6 @@
 <script lang="ts" generics="T extends string">
-  // A row of joined boxes; one is selected (FAST / NORMAL / SLOW).
+  // A row of small tabs; the selected one is the filled steel-blue box
+  // (FAST / NORMAL / SLOW).
   let {
     value,
     options,
@@ -34,45 +35,32 @@
 <style>
   .segmented {
     display: inline-flex;
+    gap: 4px;
   }
 
+  /* Small tabs, like the CS2 sub-tab row. */
   button {
-    min-width: 72px;
-    height: 32px;
-    padding: 0 14px;
+    height: 28px;
+    padding: 0 9px;
     font-family: var(--font-head);
     font-size: 15px;
-    font-weight: 600;
-    letter-spacing: 0.1em;
+    font-weight: 700;
+    letter-spacing: 0.01em;
     text-transform: uppercase;
-    color: var(--muted);
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid var(--line-strong);
+    color: #fff;
+    background: none;
+    border: 0;
+    border-radius: 2px;
     cursor: pointer;
   }
 
-  /* Neighbours share one border line. */
-  button + button {
-    margin-left: -1px;
-  }
-
-  button:first-child {
-    border-radius: 2px 0 0 2px;
-  }
-
-  button:last-child {
-    border-radius: 0 2px 2px 0;
-  }
-
   button:hover {
-    color: var(--text);
+    background: rgba(255, 255, 255, 0.12);
   }
 
   button.on {
-    position: relative;
-    color: #fff;
-    background: var(--accent-fill);
-    border-color: var(--accent-line);
+    color: var(--accent);
+    background: var(--tab-fill);
   }
 
   button:disabled {
@@ -89,7 +77,6 @@
   :global(.anim) button {
     transition:
       color 120ms,
-      background-color 120ms,
-      border-color 120ms;
+      background-color 120ms;
   }
 </style>

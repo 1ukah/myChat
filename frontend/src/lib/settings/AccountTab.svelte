@@ -51,9 +51,10 @@
   </Section>
 {:else}
   <Section id="steam" title="Steam">
-    <!-- Status card, in the style of a CS2 spectator player card. -->
+    <!-- Status card, in the style of the CS2 spectator bar: the player in
+         focus gets the circle avatar with a coloured ring. -->
     <div class="card">
-      <Avatar size={64} ring={conn.ring} {name} />
+      <Avatar round size={64} ring={conn.ring} {name} />
       <div class="who">
         <div class="name"><bdi>{name}</bdi></div>
         <div class="state">
@@ -117,9 +118,9 @@
     align-items: center;
     gap: 18px;
     min-height: 104px;
-    padding: 16px 16px 16px 20px;
-    background: var(--row);
-    border-bottom: 1px solid var(--line);
+    margin-top: 6px;
+    padding: 16px 0 16px 20px;
+    background: var(--box);
   }
 
   .who {
@@ -129,8 +130,9 @@
 
   .name {
     overflow: hidden;
-    font-size: 20px;
-    font-weight: 600;
+    font-family: var(--font-head);
+    font-size: 22px;
+    font-weight: 700;
     line-height: 28px;
     white-space: nowrap;
     text-overflow: ellipsis;
@@ -149,11 +151,11 @@
 
   .state .label {
     font-family: var(--font-head);
-    font-size: 15px;
-    font-weight: 600;
-    letter-spacing: 0.1em;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
     text-transform: uppercase;
-    color: var(--text-soft);
+    color: #fff;
   }
 
   .account {
@@ -203,20 +205,20 @@
   }
 
   .num {
-    font-family: var(--font-head);
-    font-size: 32px;
+    font-family: var(--font-cond);
+    font-size: 38px;
     font-weight: 700;
-    line-height: 36px;
+    line-height: 38px;
     font-variant-numeric: tabular-nums;
-    color: var(--text);
+    color: #fff;
   }
 
   .cap {
-    font-family: var(--font-head);
-    font-size: 13px;
-    font-weight: 600;
-    line-height: 16px;
-    letter-spacing: 0.1em;
+    font-family: var(--font-cond);
+    font-size: 17px;
+    font-weight: 500;
+    line-height: 18px;
+    letter-spacing: 0.02em;
     text-transform: uppercase;
     white-space: nowrap;
     color: var(--muted);
@@ -227,14 +229,14 @@
   }
 
   h3 {
-    height: 36px;
+    height: 40px;
     margin: 0;
-    padding: 0 16px;
+    padding-top: 8px;
     font-family: var(--font-head);
     font-size: 14px;
-    font-weight: 600;
-    line-height: 36px;
-    letter-spacing: 0.12em;
+    font-weight: 700;
+    line-height: 32px;
+    letter-spacing: 0.01em;
     text-transform: uppercase;
     color: var(--accent);
   }
