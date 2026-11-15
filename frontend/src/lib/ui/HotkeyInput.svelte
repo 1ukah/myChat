@@ -61,12 +61,12 @@
     display: inline-flex;
     align-items: center;
     justify-content: flex-end;
-    gap: 14px;
-    height: 34px;
+    gap: 12px;
+    height: 32px;
     padding: 0;
-    font-family: var(--font-cond);
-    font-weight: 700;
-    letter-spacing: 0.01em;
+    font-family: var(--font-ui);
+    font-size: var(--fs-sm);
+    font-weight: 600;
     white-space: nowrap;
     color: #fff;
     background: none;
@@ -94,15 +94,15 @@
   }
 
   kbd {
-    min-width: 40px;
-    height: 34px;
+    min-width: 34px;
+    height: 32px;
     padding: 0 10px;
     font: inherit;
-    font-size: 20px;
-    line-height: 32px;
+    line-height: 30px;
     text-align: center;
     color: #fff;
     border: 1px solid var(--line-strong);
+    border-radius: 2px;
   }
 
   .hotkey:hover kbd {
@@ -110,23 +110,19 @@
   }
 
   .plus {
-    font-size: 18px;
+    font-weight: 500;
     color: var(--muted);
   }
 
   .edit {
     order: -1;
-    font-family: var(--font-head);
-    font-size: 13px;
+    font-size: var(--fs-xs);
+    font-weight: 500;
     color: var(--muted);
   }
 
   .hotkey:hover .edit {
     color: var(--accent);
-  }
-
-  .ask {
-    font-size: 20px;
   }
 
   :global(.anim) .hotkey.capturing .ask {

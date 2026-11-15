@@ -102,9 +102,9 @@
   }
 
   code {
-    font-family: var(--font-head);
-    font-size: 17px;
-    font-weight: 700;
+    font-family: var(--font-ui);
+    font-size: var(--fs-md);
+    font-weight: 600;
     color: var(--accent);
   }
 
@@ -113,20 +113,19 @@
     gap: 6px;
   }
 
-  /* Keys in thin bordered boxes, like CS2 value boxes. */
+  /* Keys in thin bordered boxes, like the value boxes. */
   kbd {
     min-width: 32px;
     height: 28px;
     padding: 0 8px;
-    font-family: var(--font-cond);
-    font-size: 18px;
-    font-weight: 700;
+    font-family: var(--font-ui);
+    font-size: var(--fs-sm);
+    font-weight: 600;
     line-height: 26px;
-    letter-spacing: 0.01em;
     text-align: center;
-    text-transform: uppercase;
     color: #fff;
     border: 1px solid var(--line-strong);
+    border-radius: 2px;
   }
 
   .note {

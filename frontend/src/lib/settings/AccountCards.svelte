@@ -194,9 +194,8 @@
 
   .persona {
     overflow: hidden;
-    font-family: var(--font-head);
-    font-size: 17px;
-    font-weight: 700;
+    font-size: var(--fs-md);
+    font-weight: 600;
     line-height: 22px;
     white-space: nowrap;
     text-overflow: ellipsis;
@@ -226,17 +225,14 @@
   /* A rounded pill, like the country pills in the friends list. */
   .tag {
     flex: none;
-    height: 18px;
+    height: 20px;
     padding: 0 9px;
-    font-family: var(--font-head);
-    font-size: 12px;
-    font-weight: 700;
-    line-height: 18px;
-    letter-spacing: 0.01em;
-    text-transform: uppercase;
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    line-height: 20px;
     color: #fff;
     background: #4f7fb8;
-    border-radius: 9px;
+    border-radius: 10px;
   }
 
   .tag.used {

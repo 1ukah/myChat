@@ -115,16 +115,16 @@
 
   /* The value in a thin bordered box. */
   .value {
-    width: 72px;
-    height: 34px;
-    font-family: var(--font-cond);
-    font-size: 20px;
-    font-weight: 700;
-    line-height: 32px;
-    letter-spacing: 0.01em;
+    width: 68px;
+    height: 32px;
+    font-family: var(--font-ui);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    line-height: 30px;
     text-align: center;
     font-variant-numeric: tabular-nums;
     color: #fff;
     border: 1px solid var(--line-strong);
+    border-radius: 2px;
   }
 </style>

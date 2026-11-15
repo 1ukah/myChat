@@ -1,6 +1,7 @@
 <script lang="ts">
-  // On/off setting, CS2 style: the value in bold condensed type (Yes / No)
-  // and a small pill switch like "Look for Competitive" in the friends rail.
+  // On/off setting: a pill switch. Its position and colour say on or off, so
+  // there is no text next to it; screen readers get `role="switch"` with
+  // `aria-checked` and the row's label.
   let {
     checked,
     label,
@@ -25,7 +26,6 @@
   {disabled}
   onclick={() => onchange(!checked)}
 >
-  <span class="state">{checked ? "Yes" : "No"}</span>
   <span class="track"><span class="knob"></span></span>
 </button>
 
@@ -33,40 +33,34 @@
   .toggle {
     display: inline-flex;
     align-items: center;
-    gap: 12px;
     height: 32px;
     padding: 0;
     background: none;
     border: 0;
+    border-radius: 11px;
     cursor: pointer;
-  }
-
-  .state {
-    font-family: var(--font-cond);
-    font-size: 21px;
-    font-weight: 700;
-    letter-spacing: 0.01em;
-    color: #fff;
   }
 
   .track {
     position: relative;
-    width: 36px;
-    height: 18px;
+    width: 40px;
+    height: 22px;
     background: rgba(0, 0, 0, 0.45);
-    border-radius: 9px;
+    border-radius: 11px;
+    box-shadow: inset 0 0 0 1px var(--line-soft);
   }
 
   .on .track {
     background: var(--tab-fill);
+    box-shadow: inset 0 0 0 1px var(--accent-line);
   }
 
   .knob {
     position: absolute;
-    top: 3px;
-    left: 3px;
-    width: 12px;
-    height: 12px;
+    top: 4px;
+    left: 4px;
+    width: 14px;
+    height: 14px;
     background: #8d949b;
     border-radius: 50%;
   }
@@ -76,8 +70,16 @@
     transform: translateX(18px);
   }
 
-  .toggle:hover .state {
-    color: var(--accent);
+  .toggle:hover .knob {
+    background: #b4bac0;
+  }
+
+  .toggle.on:hover .knob {
+    background: #b9e3ff;
+  }
+
+  .toggle.on:hover .track {
+    background: var(--tab-fill-hover);
   }
 
   .toggle:disabled {
@@ -87,7 +89,7 @@
 
   .toggle:focus-visible {
     outline: 2px solid var(--accent);
-    outline-offset: 4px;
+    outline-offset: 0;
   }
 
   :global(.anim) .knob {
@@ -96,10 +98,9 @@
       background-color 120ms;
   }
 
-  :global(.anim) .track,
-  :global(.anim) .state {
+  :global(.anim) .track {
     transition:
       background-color 120ms,
-      color 120ms;
+      box-shadow 120ms;
   }
 </style>

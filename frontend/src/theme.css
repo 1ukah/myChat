@@ -5,12 +5,20 @@
  */
 
 :root {
-  /* Type. Stratum2 is Valve's; the Saira family is the free stand-in.
-     Noto Sans and Segoe UI cover scripts Saira lacks (Cyrillic, Arabic, CJK). */
-  --font-cond: "Saira Extra Condensed", "Noto Sans", "Segoe UI", sans-serif; /* nav, values, numbers */
-  --font-head: "Saira Semi Condensed", "Noto Sans", "Segoe UI", sans-serif; /* tabs, buttons, names, chat */
-  --font-title: "Saira", "Noto Sans", "Segoe UI", sans-serif; /* italic section titles */
-  --font-body: "Noto Sans", "Segoe UI", sans-serif;
+  /* Type. The settings window and the overlay's Minimal look are set in
+     Inter. The overlay's Legacy look keeps the CS2 stand-ins (Stratum2 is
+     Valve's; Saira Semi Condensed is the free look-alike). Noto Sans and
+     Segoe UI cover scripts the others lack (Arabic, CJK). */
+  --font-ui: "Inter Variable", "Noto Sans", "Segoe UI", sans-serif;
+  --font-head: "Saira Semi Condensed", "Noto Sans", "Segoe UI", sans-serif; /* Legacy: names, chat */
+  --font-body: "Noto Sans", "Segoe UI", sans-serif; /* Legacy: body text */
+
+  /* The settings type scale (px): small notes, controls, body, headings. */
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-md: 14px;
+  --fs-lg: 18px;
+  --fs-xl: 20px;
 
   /* Text */
   --text: #f0f2f4;
@@ -102,14 +110,6 @@ button {
   font: inherit;
   color: inherit;
   margin: 0;
-}
-
-/* Small bold caps, as on the CS2 settings tabs. */
-.head {
-  font-family: var(--font-head);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
 }
 
 @media (prefers-reduced-motion: reduce) {

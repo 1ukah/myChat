@@ -131,18 +131,16 @@
   }
 
   .cap {
-    font-family: var(--font-head);
-    font-size: 15px;
-    font-weight: 700;
-    letter-spacing: 0.01em;
-    text-transform: uppercase;
+    font-size: var(--fs-sm);
+    font-weight: 600;
     color: var(--accent);
   }
 
   h3 {
     margin: 8px 0 0;
-    font-size: 17px;
+    font-size: var(--fs-lg);
     font-weight: 600;
+    letter-spacing: -0.01em;
     line-height: 24px;
     color: #fff;
   }
@@ -186,9 +184,9 @@
   .box {
     width: 48px;
     height: 60px;
-    font-family: var(--font-cond);
-    font-size: 38px;
-    font-weight: 700;
+    font-size: 28px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
     line-height: 58px;
     text-align: center;
     color: #fff;
@@ -253,11 +251,9 @@
     height: 28px;
     margin-top: 16px;
     padding: 0 8px;
-    font-family: var(--font-head);
-    font-size: 15px;
-    font-weight: 700;
-    letter-spacing: 0.01em;
-    text-transform: uppercase;
+    font-family: var(--font-ui);
+    font-size: var(--fs-sm);
+    font-weight: 600;
     color: #fff;
     background: none;
     border: 0;

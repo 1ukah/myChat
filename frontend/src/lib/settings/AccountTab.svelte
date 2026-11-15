@@ -148,10 +148,10 @@
 
   .name {
     overflow: hidden;
-    font-family: var(--font-head);
-    font-size: 22px;
-    font-weight: 700;
+    font-size: var(--fs-xl);
+    font-weight: 600;
     line-height: 28px;
+    letter-spacing: -0.01em;
     white-space: nowrap;
     text-overflow: ellipsis;
     color: #fff;
@@ -168,10 +168,7 @@
   }
 
   .state .label {
-    font-family: var(--font-head);
-    font-size: 14px;
-    font-weight: 700;
-    letter-spacing: 0.01em;
+    font-weight: 600;
     color: #fff;
   }
 
@@ -256,12 +253,9 @@
     height: 40px;
     margin: 0;
     padding-top: 8px;
-    font-family: var(--font-head);
-    font-size: 14px;
-    font-weight: 700;
+    font-size: var(--fs-md);
+    font-weight: 600;
     line-height: 32px;
-    letter-spacing: 0.01em;
-    text-transform: uppercase;
     color: var(--accent);
   }
 

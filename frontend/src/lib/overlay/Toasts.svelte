@@ -366,7 +366,7 @@
       rgba(0, 0, 0, 0.26) calc(100% - var(--fade) * 0.4),
       transparent 100%
     );
-    font-family: var(--font-body);
+    font-family: var(--font-ui);
   }
 
   .minimal .box {

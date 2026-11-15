@@ -7,8 +7,8 @@
 </script>
 
 <script lang="ts">
-  // A titled group of rows. The title is grey bold italic, like "Video" in
-  // the CS2 settings; the section picked in the sub-tab row is lit.
+  // A titled group of rows. The title is a plain semibold heading; the
+  // section picked in the sub-tab row is lit.
   import { getContext, type Snippet } from "svelte";
 
   let { id, title, children }: { id: string; title: string; children: Snippet } = $props();
@@ -29,17 +29,16 @@
 
   h2 {
     margin: 0;
-    padding: 0 0 4px;
-    font-family: var(--font-title);
-    font-size: 23px;
-    font-style: italic;
-    font-weight: 700;
-    line-height: 30px;
-    color: var(--muted);
+    padding: 0 0 6px;
+    font-size: var(--fs-lg);
+    font-weight: 600;
+    line-height: 28px;
+    letter-spacing: -0.01em;
+    color: #b6bec6;
   }
 
   .active h2 {
-    color: #c3cad1;
+    color: #fff;
   }
 
   :global(.anim) h2 {

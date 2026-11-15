@@ -146,7 +146,7 @@
      with a pale glow instead of the hard shadow ---------- */
 
   .minimal {
-    font-family: var(--font-body);
+    font-family: var(--font-ui);
     font-size: 14px;
     font-weight: 400;
     line-height: 20px;

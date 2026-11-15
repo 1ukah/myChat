@@ -41,12 +41,13 @@
   /* Small tabs, like the CS2 sub-tab row. */
   button {
     height: 28px;
-    padding: 0 9px;
-    font-family: var(--font-head);
-    font-size: 15px;
-    font-weight: 700;
-    letter-spacing: 0.01em;
-    color: #fff;
+    min-width: 30px;
+    padding: 0 10px;
+    font-family: var(--font-ui);
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-soft);
     background: none;
     border: 0;
     border-radius: 2px;
@@ -54,10 +55,12 @@
   }
 
   button:hover {
+    color: #fff;
     background: rgba(255, 255, 255, 0.12);
   }
 
   button.on {
+    font-weight: 600;
     color: var(--accent);
     background: var(--tab-fill);
   }

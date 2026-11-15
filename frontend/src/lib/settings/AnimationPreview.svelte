@@ -91,7 +91,8 @@
     border-bottom: 1px solid var(--line);
   }
 
-  /* A stand-in game picture with dark and bright areas behind the toast. */
+  /* A stand-in game picture behind the pop-ups: the "Bliss" hill, placed so
+     the line where the hill meets the sky runs behind them. */
   .scene {
     display: flex;
     align-items: center;
@@ -99,10 +100,7 @@
     height: 150px;
     margin-top: 12px;
     overflow: hidden;
-    background:
-      radial-gradient(60px 60px at 78% 22%, rgba(255, 244, 214, 0.9), rgba(255, 244, 214, 0) 70%),
-      linear-gradient(100deg, rgba(0, 0, 0, 0) 58%, #cdbb93 58%, #efe4c8 100%),
-      linear-gradient(#34495f 0%, #6f8799 52%, #2a241b 52%, #14110d 100%);
+    background: #5b8fd6 url("../../assets/preview-bg.jpg") center 62% / cover no-repeat;
   }
 
   /* The bottom of the overlay window in miniature, at 75 %. */
@@ -129,15 +127,16 @@
     align-items: center;
     gap: 6px;
     height: 26px;
-    padding: 0 9px;
-    font-family: var(--font-head);
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.01em;
+    padding: 0 10px;
+    font-family: var(--font-ui);
+    font-size: var(--fs-xs);
+    font-weight: 600;
     color: #fff;
-    background: rgba(0, 0, 0, 0.6);
+    /* Dark enough to read on the bright sky. */
+    background: rgba(16, 22, 30, 0.82);
     border: 0;
     border-radius: 2px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
     cursor: pointer;
   }
 
@@ -147,7 +146,7 @@
   }
 
   .replay:disabled {
-    color: var(--muted);
+    color: #b3bbc3;
     pointer-events: none;
   }
 

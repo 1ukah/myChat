@@ -58,12 +58,15 @@
   const total = $derived.by(() => (open ? (heldTotal = app.log.length) : heldTotal));
 
   function fontsReady(): Promise<unknown> {
+    // Legacy is set in Saira and Noto Sans, Minimal in Inter (one variable
+    // file covers every weight). Both are loaded: the look can change later.
     const faces = [
       '600 16px "Saira Semi Condensed"',
       '700 16px "Saira Semi Condensed"',
       '400 16px "Noto Sans"',
       '600 16px "Noto Sans"',
       '700 16px "Noto Sans"',
+      '400 16px "Inter Variable"',
     ];
     const loaded = Promise.all(faces.map((f) => document.fonts.load(f))).catch(() => undefined);
     const timeout = new Promise((resolve) => setTimeout(resolve, 1500));

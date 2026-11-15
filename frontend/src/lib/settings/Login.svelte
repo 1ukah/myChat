@@ -284,11 +284,8 @@
     height: 44px;
     margin: 0;
     padding: 6px 0 0;
-    font-family: var(--font-head);
-    font-size: 15px;
-    font-weight: 700;
-    letter-spacing: 0.01em;
-    text-transform: uppercase;
+    font-size: var(--fs-md);
+    font-weight: 600;
     color: #fff;
   }
 
@@ -312,12 +309,9 @@
 
   .cap {
     display: block;
-    font-family: var(--font-head);
-    font-size: 13px;
-    font-weight: 700;
+    font-size: var(--fs-xs);
+    font-weight: 500;
     line-height: 20px;
-    letter-spacing: 0.01em;
-    text-transform: uppercase;
     color: var(--muted);
   }
 
@@ -327,8 +321,8 @@
     height: 36px;
     margin-top: 4px;
     padding: 0 12px;
-    font-family: var(--font-body);
-    font-size: 14px;
+    font-family: var(--font-ui);
+    font-size: var(--fs-md);
     color: #fff;
     background: var(--box);
     border: 1px solid var(--line);
@@ -393,12 +387,10 @@
     width: 100%;
     height: 50px;
     padding: 0;
-    font-family: var(--font-head);
-    font-size: 15px;
-    font-weight: 700;
-    letter-spacing: 0.01em;
+    font-family: var(--font-ui);
+    font-size: var(--fs-md);
+    font-weight: 600;
     text-align: left;
-    text-transform: uppercase;
     color: #fff;
     background: none;
     border: 0;
@@ -443,21 +435,14 @@
   }
 
   .wait {
-    font-family: var(--font-head);
-    font-size: 15px;
-    font-weight: 700;
-    letter-spacing: 0.01em;
-    text-transform: uppercase;
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    line-height: 18px;
     color: #6b7279;
   }
 
   .wait.bad {
-    font-family: var(--font-body);
-    font-size: 13px;
     font-weight: 400;
-    line-height: 18px;
-    letter-spacing: 0;
-    text-transform: none;
     color: #a3221d;
   }
 
@@ -491,9 +476,9 @@
     flex: none;
     width: 24px;
     height: 24px;
-    font-family: var(--font-cond);
-    font-size: 19px;
-    font-weight: 700;
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
     line-height: 24px;
     text-align: center;
     color: var(--accent);
@@ -508,11 +493,9 @@
     height: 24px;
     margin-top: 8px;
     padding: 0;
-    font-family: var(--font-head);
-    font-size: 14px;
-    font-weight: 700;
-    letter-spacing: 0.01em;
-    text-transform: uppercase;
+    font-family: var(--font-ui);
+    font-size: var(--fs-sm);
+    font-weight: 600;
     color: #fff;
     background: none;
     border: 0;

@@ -641,7 +641,7 @@
     );
     align-items: center;
     justify-content: flex-end;
-    font-family: var(--font-body);
+    font-family: var(--font-ui);
   }
 
   .minimal .frame {
@@ -867,6 +867,7 @@
   }
 
   .minimal .hint {
+    font-family: var(--font-ui);
     font-size: 14px;
   }
 

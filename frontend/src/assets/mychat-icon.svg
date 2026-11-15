@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>myChat</title>
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#171a21"/>
+      <stop offset="1" stop-color="#1b2838"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.6" cy="0.62" r="0.6">
+      <stop offset="0" stop-color="#2a475e" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#2a475e" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Steam's dark navy tile with a soft glow behind the figures. -->
+  <rect width="1024" height="1024" rx="64" fill="url(#tile)"/>
+  <rect width="1024" height="1024" rx="64" fill="url(#glow)"/>
+
+  <!-- Three people side by side, growing from left to right. Each body has a
+       rounded top; the bodies overlap and their bottoms step down. Each head
+       is a "?", drawn as a thick hook and a dot. -->
+  <g transform="translate(-28 -44)">
+    <!-- left, the smallest -->
+    <g fill="#c7d5e0" stroke="#c7d5e0">
+      <path stroke="none" d="M144.5 785V724A117.5 106 0 0 1 379.5 724V785Z"/>
+      <g transform="translate(262 516) scale(1.32)">
+        <path fill="none" stroke-width="34" stroke-linejoin="round" d="M-36 -70A36 36 0 1 1 25.5 -44.5Q0 -19 0 6"/>
+        <circle stroke="none" cx="0" cy="43" r="20"/>
+      </g>
+    </g>
+    <!-- middle -->
+    <g fill="#96cbea" stroke="#96cbea">
+      <path stroke="none" d="M350 840V740A145 130 0 0 1 640 740V840Z"/>
+      <g transform="translate(495 485) scale(1.62)">
+        <path fill="none" stroke-width="34" stroke-linejoin="round" d="M-36 -70A36 36 0 1 1 25.5 -44.5Q0 -19 0 6"/>
+        <circle stroke="none" cx="0" cy="43" r="20"/>
+      </g>
+    </g>
+    <!-- right, the biggest, in front -->
+    <g fill="#66c0f4" stroke="#66c0f4">
+      <path stroke="none" d="M585 900V757.5A175 157.5 0 0 1 935 757.5V900Z"/>
+      <g transform="translate(760 449) scale(1.95)">
+        <path fill="none" stroke-width="34" stroke-linejoin="round" d="M-36 -70A36 36 0 1 1 25.5 -44.5Q0 -19 0 6"/>
+        <circle stroke="none" cx="0" cy="43" r="20"/>
+      </g>
+    </g>
+  </g>
+</svg>

@@ -1,10 +1,11 @@
 <script lang="ts">
-  // The settings window (frameless, 980×680, resizable), laid out like the
-  // CS2 settings screen: a top bar with the big condensed nav, a tab row with
-  // the search button, a second row of sub-tabs, a centred column of rows on
-  // a smoky blue-grey background, and RESET at the bottom right.
+  // The settings window (frameless, 980×680, resizable): a top bar with the
+  // icon, the nav and the account, a tab row with the search button, a second
+  // row of sub-tabs, a centred column of rows on a smoky blue-grey
+  // background, and Reset at the bottom right. Set in Inter throughout.
   import { onDestroy, setContext, tick } from "svelte";
   import * as Cfg from "../../../bindings/mychat/internal/config/models";
+  import iconUrl from "../../assets/mychat-icon.svg";
   import { app, hideSettings, minimiseSettings, saveConfig } from "../store.svelte";
   import Avatar from "../ui/Avatar.svelte";
   import Icon from "../ui/Icon.svelte";
@@ -49,7 +50,7 @@
   type Tab = (typeof TABS)[number];
   type TabId = Tab["id"];
 
-  /** The tabs under SETTINGS in the top nav; HELP is the other nav entry. */
+  /** The tabs under Settings in the top nav; Help is the other nav entry. */
   const SETTINGS_TABS = TABS.filter((t) => t.id !== "help");
 
   // `?tab=chat` opens a given tab (handy for previews).
@@ -249,7 +250,10 @@
 
 <div class="settings" class:anim={app.config.animations} style:--topo="url({topo})">
   <header class="top">
-    <div class="mark"><span>my</span>Chat</div>
+    <div class="mark">
+      <img src={iconUrl} alt="" width="24" height="24" draggable="false" />
+      <span>myChat</span>
+    </div>
 
     <nav class="nav" aria-label="myChat">
       <button
@@ -403,7 +407,7 @@
     </div>
     {#if canReset}
       <button type="button" class="reset" onclick={resetDefaults}>
-        <Icon name="history" size={24} />
+        <Icon name="history" size={18} />
         <span>Reset</span>
       </button>
     {/if}
@@ -422,6 +426,9 @@
       "tabs"
       "content"
       "bottom";
+    font-family: var(--font-ui);
+    font-size: var(--fs-md);
+    line-height: 20px;
     color: var(--text);
     /* Cool blue-grey smoke: soft dark and light clouds over a slate base. */
     background:
@@ -450,16 +457,22 @@
   }
 
   .mark {
-    font-family: var(--font-title);
-    font-size: 18px;
-    font-style: italic;
-    font-weight: 700;
-    line-height: 52px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 24px;
+    letter-spacing: -0.01em;
     color: #fff;
   }
 
-  .mark span {
-    color: var(--accent);
+  .mark img {
+    flex: none;
+    display: block;
+    width: 24px;
+    height: 24px;
+    border-radius: 2px;
   }
 
   /* Centred in the window, whatever sits left and right of it. */
@@ -477,14 +490,13 @@
     --wails-draggable: no-drag;
     position: relative;
     height: 100%;
-    padding: 0 22px;
-    font-family: var(--font-cond);
-    font-size: 30px;
-    font-weight: 500;
+    padding: 0 20px;
+    font-family: var(--font-ui);
+    font-size: 16px;
+    font-weight: 600;
     line-height: 52px;
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
-    color: #e3e7ea;
+    letter-spacing: -0.01em;
+    color: #c3cad1;
     background: none;
     border: 0;
     cursor: pointer;
@@ -494,8 +506,8 @@
   .navitem + .navitem::before {
     content: "";
     position: absolute;
-    top: 15px;
-    bottom: 15px;
+    top: 18px;
+    bottom: 18px;
     left: 0;
     width: 1px;
     background: rgba(255, 255, 255, 0.3);
@@ -546,9 +558,8 @@
   .name {
     max-width: 170px;
     overflow: hidden;
-    font-family: var(--font-head);
-    font-size: 14px;
-    font-weight: 700;
+    font-size: var(--fs-sm);
+    font-weight: 600;
     line-height: 17px;
     white-space: nowrap;
     text-overflow: ellipsis;
@@ -651,27 +662,33 @@
 
   .tab {
     height: 28px;
-    padding: 0 9px;
-    font-family: var(--font-head);
-    font-size: 15px;
-    font-weight: 700;
+    padding: 0 12px;
+    font-family: var(--font-ui);
+    font-size: var(--fs-sm);
+    font-weight: 500;
     line-height: 28px;
-    letter-spacing: 0.01em;
-    text-transform: uppercase;
     white-space: nowrap;
-    color: #fff;
+    color: var(--text-soft);
     background: none;
     border: 0;
     border-radius: 2px;
     cursor: pointer;
   }
 
+  /* The main tabs are a step heavier than the sub-tabs under them. */
+  .tablist .tab {
+    font-size: var(--fs-md);
+    font-weight: 600;
+  }
+
   .tab:hover {
+    color: #fff;
     background: rgba(255, 255, 255, 0.12);
   }
 
   /* The selected tab: a filled steel-blue box with light-blue text. */
   .tab.active {
+    font-weight: 600;
     color: var(--accent);
     background: var(--tab-fill);
   }
@@ -700,8 +717,8 @@
     width: 360px;
     height: 30px;
     padding: 0 10px;
-    font-family: var(--font-body);
-    font-size: 15px;
+    font-family: var(--font-ui);
+    font-size: var(--fs-md);
     color: #fff;
     background: rgba(0, 0, 0, 0.35);
     border: 1px solid var(--line-strong);
@@ -753,12 +770,11 @@
   .found {
     margin: 0;
     padding: 24px 0 6px;
-    font-family: var(--font-title);
-    font-size: 23px;
-    font-style: italic;
-    font-weight: 700;
-    line-height: 30px;
-    color: var(--muted);
+    font-size: var(--fs-lg);
+    font-weight: 600;
+    line-height: 28px;
+    letter-spacing: -0.01em;
+    color: #fff;
   }
 
   .result {
@@ -778,18 +794,16 @@
   .rlabel {
     flex: 1;
     min-width: 0;
-    font-size: 15px;
-    color: var(--text-soft);
+    font-size: var(--fs-md);
+    font-weight: 500;
+    color: var(--text);
   }
 
   .rwhere {
-    font-family: var(--font-cond);
-    font-size: 20px;
-    font-weight: 700;
-    letter-spacing: 0.01em;
-    text-transform: uppercase;
+    font-size: var(--fs-sm);
+    font-weight: 500;
     white-space: nowrap;
-    color: #fff;
+    color: var(--muted);
   }
 
   .rgo {
@@ -806,7 +820,7 @@
   .none {
     margin: 0;
     padding: 14px 0;
-    font-size: 15px;
+    font-size: var(--fs-md);
     color: var(--muted);
     border-bottom: 1px solid var(--line);
   }
@@ -836,20 +850,19 @@
     color: var(--red-text);
   }
 
-  /* RESET with the history icon, bottom right. */
+  /* Reset with the history icon, bottom right. */
   .reset {
     flex: none;
     display: flex;
     align-items: center;
-    gap: 12px;
-    height: 36px;
-    padding: 0 6px;
-    font-family: var(--font-cond);
-    font-size: 24px;
-    font-weight: 700;
-    letter-spacing: 0.01em;
-    text-transform: uppercase;
+    gap: 8px;
+    height: 32px;
+    padding: 0 10px;
+    font-family: var(--font-ui);
+    font-size: var(--fs-md);
+    font-weight: 600;
     color: #fff;
+    border-radius: 2px;
     background: none;
     border: 0;
     cursor: pointer;

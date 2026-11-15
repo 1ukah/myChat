@@ -112,7 +112,9 @@
   }
 
   .letter {
-    font-family: var(--font-head);
+    /* The font of the place it sits in: Inter in the settings window and the
+       Minimal look, the CS2 face in the Legacy look. */
+    font-family: inherit;
     font-size: calc(var(--size) * 0.6);
     font-style: normal;
     font-weight: 700;

@@ -1,5 +1,5 @@
 <script lang="ts" generics="T extends string">
-  // CS2-style dropdown: the value in bold condensed type with a chevron
+  // Dropdown: the value in semibold type with a chevron
   // ("Slide up ⌄"), and a flat list that opens below. The chosen
   // option is the steel-blue box of the selected tab.
   import { tick } from "svelte";
@@ -107,21 +107,19 @@
 <style>
   .select {
     position: relative;
-    font-family: var(--font-cond);
-    font-size: 21px;
-    font-weight: 700;
-    letter-spacing: 0.01em;
+    font-family: var(--font-ui);
+    font-size: var(--fs-md);
+    font-weight: 600;
   }
 
   /* No box: just the value and a chevron, right-aligned in the row. */
   .value {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     height: 32px;
     padding: 0 0 0 8px;
     font: inherit;
-    letter-spacing: inherit;
     white-space: nowrap;
     color: #fff;
     background: none;
@@ -161,7 +159,7 @@
     height: 30px;
     padding: 0 10px;
     font: inherit;
-    letter-spacing: inherit;
+    font-weight: 500;
     text-align: left;
     white-space: nowrap;
     color: #fff;

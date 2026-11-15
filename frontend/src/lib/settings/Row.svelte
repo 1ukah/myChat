@@ -54,14 +54,15 @@
   }
 
   .label {
-    font-size: 15px;
+    font-size: var(--fs-md);
+    font-weight: 500;
     line-height: 20px;
-    color: var(--text-soft);
+    color: var(--text);
   }
 
   .note {
-    margin-top: 1px;
-    font-size: 12px;
+    margin-top: 2px;
+    font-size: var(--fs-xs);
     line-height: 16px;
     color: var(--muted);
   }
