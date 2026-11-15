@@ -8,6 +8,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"mychat/internal/chat"
+	"mychat/internal/win"
 )
 
 // demo shows the overlay with sample content for visual checks, without a
@@ -27,6 +28,19 @@ func (a *App) demo() {
 		a.cfg.ToastSeconds = 3600
 		a.mu.Unlock()
 		a.toast(sample)
+	case "typing":
+		// Real key capture: open, inject H and I, report what arrived.
+		a.openComposer()
+		time.Sleep(400 * time.Millisecond)
+		for _, vk := range []byte{'H', 'I'} {
+			win.KeyEvent(vk, false)
+			win.KeyEvent(vk, true)
+			time.Sleep(60 * time.Millisecond)
+		}
+		time.Sleep(500 * time.Millisecond)
+		log.Printf("demo typing: composer text=%q", a.engine.Composer().Text)
+		time.Sleep(4 * time.Second)
+		a.closeComposer("demo")
 	case "composer":
 		a.engine.System("Demo: chat box without key capture.")
 		a.engine.Incoming(1, sample.Text, time.Now(), false)

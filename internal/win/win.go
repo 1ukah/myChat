@@ -41,6 +41,9 @@ var (
 	pDwmSetWindowAttribute    = dwmapi.NewProc("DwmSetWindowAttribute")
 	pGetDpiForMonitor         = shcore.NewProc("GetDpiForMonitor")
 	pGetCurrentThreadId       = kernel3.NewProc("GetCurrentThreadId")
+	pGetModuleHandleW         = kernel3.NewProc("GetModuleHandleW")
+	pKeybdEvent               = user32.NewProc("keybd_event")
+	pGetWindowTextW           = user32.NewProc("GetWindowTextW")
 )
 
 const (
@@ -136,9 +139,34 @@ func CurrentThreadID() uint32 {
 	return uint32(r)
 }
 
-func SetWindowsHookEx(idHook int, fn uintptr, mod uintptr, threadID uint32) uintptr {
-	r, _, _ := pSetWindowsHookExW.Call(uintptr(idHook), fn, mod, uintptr(threadID))
+func SetWindowsHookEx(idHook int, fn uintptr, mod uintptr, threadID uint32) (uintptr, error) {
+	r, _, err := pSetWindowsHookExW.Call(uintptr(idHook), fn, mod, uintptr(threadID))
+	if r == 0 {
+		return 0, err
+	}
+	return r, nil
+}
+
+// WindowTitle returns a window's title.
+func WindowTitle(hwnd uintptr) string {
+	var buf [256]uint16
+	n, _, _ := pGetWindowTextW.Call(hwnd, uintptr(unsafe.Pointer(&buf[0])), uintptr(len(buf)))
+	return windows.UTF16ToString(buf[:n])
+}
+
+// ModuleHandle returns the handle of the running executable.
+func ModuleHandle() uintptr {
+	r, _, _ := pGetModuleHandleW.Call(0)
 	return r
+}
+
+// KeyEvent injects one key press or release (tests only).
+func KeyEvent(vk byte, up bool) {
+	var flags uintptr
+	if up {
+		flags = 2 // KEYEVENTF_KEYUP
+	}
+	pKeybdEvent.Call(uintptr(vk), 0, flags, 0)
 }
 
 func UnhookWindowsHookEx(h uintptr) bool {

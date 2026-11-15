@@ -8,8 +8,10 @@ package input
 
 import (
 	"errors"
+	"log"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"unicode/utf16"
 	"unsafe"
 
@@ -251,7 +253,15 @@ func startHook(events chan Event) {
 	st.num = win.KeyToggled(vkNumLock)
 	st.hkl = win.ForegroundLayout()
 	st.events = events
-	hookHandle = win.SetWindowsHookEx(win.WH_KEYBOARD_LL, hookCB, 0, 0)
+	h, err := win.SetWindowsHookEx(win.WH_KEYBOARD_LL, hookCB, win.ModuleHandle(), 0)
+	if err != nil {
+		log.Printf("keyboard hook: %v", err)
+		return
+	}
+	hookHandle = h
+	keysCaught.Store(0)
+	keysPassed.Store(0)
+	hookActive.Store(true)
 }
 
 func stopHook() {
@@ -259,6 +269,7 @@ func stopHook() {
 		win.UnhookWindowsHookEx(hookHandle)
 		hookHandle = 0
 	}
+	hookActive.Store(false)
 	st.pass = [256]bool{}
 	st.down = [256]bool{}
 }
@@ -270,6 +281,16 @@ func emit(e Event) {
 	}
 }
 
+// Key-down counters for diagnostics (no key contents are kept).
+var keysCaught, keysPassed atomic.Int64
+
+// Stats returns and resets the key counters, and whether the hook is active.
+func (m *Manager) Stats() (caught, passed int64, hooked bool) {
+	return keysCaught.Swap(0), keysPassed.Swap(0), hookActive.Load()
+}
+
+var hookActive atomic.Bool
+
 // hookProc must return fast: Windows removes slow low-level hooks.
 func hookProc(nCode, wParam, lParam uintptr) uintptr {
 	if int32(nCode) < 0 || hookHandle == 0 {
@@ -279,6 +300,13 @@ func hookProc(nCode, wParam, lParam uintptr) uintptr {
 	vk := kb.VkCode & 0xff
 	up := kb.Flags&win.LLKHF_UP != 0
 
+	if !up {
+		if st.pass[vk] {
+			keysPassed.Add(1)
+		} else {
+			keysCaught.Add(1)
+		}
+	}
 	if st.pass[vk] {
 		st.down[vk] = !up
 		if up {

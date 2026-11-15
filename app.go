@@ -191,7 +191,7 @@ func (a *App) pump() {
 			a.mu.Unlock()
 			// Close if the user left the game window some other way.
 			if open && want != 0 && win.ForegroundWindow() != want {
-				a.closeComposer()
+				a.closeComposer("game window lost focus")
 			}
 		}
 	}
@@ -206,7 +206,7 @@ func (a *App) onKey(ev input.Event) {
 	}
 	switch ev.Key {
 	case input.KeyFocusLost:
-		a.closeComposer()
+		a.closeComposer("alt+tab or windows key")
 		return
 	case input.KeyPaste:
 		if text, ok := a.app.Clipboard.Text(); ok {
@@ -216,13 +216,13 @@ func (a *App) onKey(ev input.Event) {
 	}
 	switch a.engine.HandleKey(ev.Text, string(ev.Key), ev.Shift) {
 	case chat.ActClose:
-		a.closeComposer()
+		a.closeComposer("esc or enter on empty line")
 	case chat.ActSent:
 		a.mu.Lock()
 		closeAfter := a.cfg.CloseAfterSend
 		a.mu.Unlock()
 		if closeAfter {
-			a.closeComposer()
+			a.closeComposer("sent")
 		}
 	}
 }
@@ -320,6 +320,7 @@ func (a *App) openComposer() {
 	}
 	a.mu.Unlock()
 
+	log.Printf("chat box opened over %q", win.WindowTitle(win.ForegroundWindow()))
 	a.engine.Reset()
 	a.inp.Capture(true)
 	application.InvokeSync(func() {
@@ -333,12 +334,14 @@ func (a *App) openComposer() {
 }
 
 // closeComposer stops catching keys and hides the chat box.
-func (a *App) closeComposer() {
+func (a *App) closeComposer(reason string) {
 	a.mu.Lock()
 	if a.mode != ModeComposer {
 		a.mu.Unlock()
 		return
 	}
+	caught, passed, hooked := a.inp.Stats()
+	log.Printf("chat box closed (%s): hook active=%v, keys caught=%d, keys passed to game=%d", reason, hooked, caught, passed)
 	a.mode = ModeHidden
 	a.openFG = 0
 	info := a.modeInfoLocked()
