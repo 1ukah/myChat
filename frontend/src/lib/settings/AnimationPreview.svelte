@@ -1,23 +1,28 @@
 <script lang="ts">
-  // Live preview tile: the real toast, at reduced size, replaying the chosen
+  // Live preview tile: the real pop-ups, at reduced size, replaying the chosen
   // animation style and speed. It uses the overlay's own Stage, Panel and
-  // Toast components, so what plays here is what plays in game.
+  // Toasts components, so what plays here is what plays in game. Three sample
+  // messages from two people show the "multiple messages" layout as well.
   import { onDestroy, untrack } from "svelte";
   import * as C from "../../../bindings/mychat/internal/chat/models";
   import { motionOf } from "../overlay/motion";
   import Panel from "../overlay/Panel.svelte";
   import Stage from "../overlay/Stage.svelte";
-  import Toast from "../overlay/Toast.svelte";
+  import Toasts from "../overlay/Toasts.svelte";
   import { app } from "../store.svelte";
   import Icon from "../ui/Icon.svelte";
 
-  const sample = new C.Entry({
-    id: 1,
-    time: Date.now(),
-    kind: "in",
-    peerName: "sant1",
-    text: "one more after this? gg wp, that last round was close",
-  });
+  const now = Date.now();
+  const sample = (id: number, peerId: string, peerName: string, text: string): C.Entry =>
+    new C.Entry({ id, time: now, kind: "in", peerId, peerName, text });
+  const SAMPLES = [
+    sample(1, "preview-1", "sant1", "gg wp, that last round was close"),
+    sample(2, "preview-1", "sant1", "one more after this?"),
+    sample(3, "preview-4", "Mira", "count me in"),
+  ];
+
+  /** As in game: only the newest `toastMax` messages show. */
+  const samples = $derived(SAMPLES.slice(-Math.min(5, Math.max(1, app.config.toastMax || 3))));
 
   const motion = $derived(motionOf(app.config));
 
@@ -58,14 +63,14 @@
     <div class="window" class:blur={app.config.blur}>
       <Stage {motion}>
         {#key run}
-          <Panel fixed={false} leave={leaving}>
-            <Toast
-              entry={sample}
+          <Panel fixed={false} leave={leaving} solid={!app.config.blur}>
+            <Toasts
+              entries={samples}
+              layout={app.config.toastLayout}
               hotkey={app.config.hotkeyLabel}
               live={!leaving}
               avatars={app.config.showAvatars}
-              typewriter={motion.typewriter}
-              typeDelay={Math.round(motion.enterMs * 0.6)}
+              {motion}
             />
           </Panel>
         {/key}
@@ -90,7 +95,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 132px;
+    height: 150px;
     margin-top: 12px;
     overflow: hidden;
     background:
@@ -99,12 +104,12 @@
       linear-gradient(#34495f 0%, #6f8799 52%, #2a241b 52%, #14110d 100%);
   }
 
-  /* The overlay window in miniature: 640×92 at 75 %. */
+  /* The bottom of the overlay window in miniature, at 75 %. */
   .window {
     position: relative;
     flex: none;
     width: 640px;
-    height: 92px;
+    height: 176px;
     zoom: 0.75;
     contain: layout paint;
   }

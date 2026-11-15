@@ -3,7 +3,8 @@
 // of this is on the real app's path.
 //
 //   ?view=overlay&mock=composer   chat box with a sample log (you can type)
-//   ?view=overlay&mock=toast      incoming-message pop-ups, one after another
+//   ?view=overlay&mock=toast      four pop-up messages (A, A, B, A), standing still
+//   ?view=overlay&mock=toaststream  a new pop-up message every 2 s
 //   ?view=overlay&mock=suggest    chat box while typing "/w s", with an error
 //   ?view=overlay&mock=offline    chat box while Steam is reconnecting
 //   ?view=settings&mock=login     logged out: three Steam accounts on this PC
@@ -21,6 +22,7 @@
 // Extra switches: &blur=1  &anim=0  &avatars=0  &scale=0.75
 //                 &style=fade|slide-up|slide-down|slide-left|slide-right|typewriter
 //                 &speed=fast|normal|slow  &bg=dark|bright|mixed
+//                 &layout=stack|group  &max=1..5  &long=1 (a long pop-up message)
 //
 // The chat engine below is a small imitation of internal/chat, good enough to
 // try the keys: text, arrows, Tab, /w name, /r, /p, /help, /clear, PgUp/PgDn,
@@ -83,12 +85,28 @@ const peer = (f: Friend): Pick<C.Entry, "peerId" | "peerName" | "peerAvatar"> =>
 const STYLES = ["fade", "slide-up", "slide-down", "slide-left", "slide-right", "typewriter"];
 const SPEEDS: Record<string, number> = { fast: 120, normal: 200, slow: 320 };
 
+const LONG =
+  "this is a deliberately long message to show how a pop-up clamps its text to two lines and ends with an ellipsis instead of growing or pushing anything around";
+
+/** `mock=toaststream`: who writes what, in turn. People repeat, so groups form. */
 const INCOMING: [number, string][] = [
   [1, "we need one more for premier, you in?"],
+  [1, "queue pops in 2 min"],
   [0, "gg, that last round was insane"],
   [2, "ты где? заходи в лобби"],
-  [3, "this is a deliberately long message to show how a pop-up clamps its text to two lines and ends with an ellipsis instead of growing or pushing anything around"],
+  [2, "жду"],
+  [2, "ну давай быстрее"],
+  [3, LONG],
   [4, "おつかれ！また明日"],
+  [0, "one more?"],
+];
+
+/** `mock=toast`: A, A, B, A. */
+const STILL: [number, string][] = [
+  [0, "gg, that last round was insane"],
+  [0, "one more after this?"],
+  [1, "we need one more for premier, you in?"],
+  [0, "ok queueing"],
 ];
 
 const HELP = [
@@ -143,6 +161,7 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
   const flag = (name: string, fallback: boolean): boolean =>
     params.has(name) ? params.get(name) !== "0" : fallback;
   const scale = Number(params.get("scale"));
+  const max = Math.round(Number(params.get("max")));
 
   let handlers: Handlers | null = null;
   const emit = <K extends keyof Handlers>(name: K, ...args: Parameters<Handlers[K]>): void => {
@@ -162,6 +181,9 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     blur: flag("blur", false),
     showToasts: true,
     toastSeconds: 6,
+    toastLayout: params.get("layout") === "stack" ? "stack" : "group",
+    // The real default is 3; the overlay mocks show more unless told otherwise.
+    toastMax: max >= 1 && max <= 5 ? max : view === "overlay" ? 5 : 3,
     bottomOffset: 150,
     scale: scale >= 0.75 && scale <= 1.5 ? scale : 1,
     machineSeed: "mock",
@@ -283,6 +305,9 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
   let error = "";
   let scroll = 0;
   let toastTimer = 0;
+  let toasts: C.Entry[] = [];
+  /** `mock=toast`: the pop-ups stay up, for screenshots. */
+  const still = mock === "toast";
 
   const friend = (id: string): Friend | undefined => FRIENDS.find((f) => f.id === id);
   const touch = (id: string): void => {
@@ -349,6 +374,7 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
   const openComposer = (): void => {
     if (mode === "composer") return;
     clearTimeout(toastTimer);
+    toasts = [];
     resetLine();
     changed();
     setMode("composer");
@@ -363,11 +389,16 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
   const toast = (entry: C.Entry): void => {
     if (!cfg.showToasts || mode === "composer") return;
     clearTimeout(toastTimer);
+    // Like Go: a fresh set after the last one faded out.
+    if (mode === "hidden") toasts = [];
     mode = "toast";
-    toastTimer = window.setTimeout(() => {
-      if (mode === "toast") setMode("hidden");
-    }, cfg.toastSeconds * 1000);
-    emit("toast", entry);
+    toasts = [...toasts, entry].slice(-cfg.toastMax);
+    if (!still) {
+      toastTimer = window.setTimeout(() => {
+        if (mode === "toast") setMode("hidden");
+      }, cfg.toastSeconds * 1000);
+    }
+    emit("toasts", new M.Toasts({ entries: [...toasts] }));
     emit("mode", modeInfo());
   };
 
@@ -702,13 +733,19 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     window.addEventListener("keydown", onKey);
 
     if (mock === "toast") {
-      // Alternates a short and a long gap: one pop-up replaces the one on
-      // screen (cross-fade), the next arrives after it has gone (slide in).
+      const long = params.has("long") && params.get("long") !== "0";
+      window.setTimeout(() => {
+        STILL.forEach(([who, text], i) => incoming(FRIENDS[who], long && i === 2 ? LONG : text));
+      }, 300);
+      return;
+    }
+
+    if (mock === "toaststream") {
       let n = 0;
       const next = (): void => {
-        const [who, text] = INCOMING[n % INCOMING.length];
+        const [who, text] = INCOMING[n++ % INCOMING.length];
         incoming(FRIENDS[who], text);
-        window.setTimeout(next, n++ % 2 === 0 ? 3500 : cfg.toastSeconds * 1000 + 3000);
+        window.setTimeout(next, 2000);
       };
       window.setTimeout(next, 400);
       return;
@@ -744,12 +781,13 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
         new M.Snapshot({
           mode: modeInfo(),
           log: [...log],
+          toasts: new M.Toasts({ entries: [...toasts] }),
           composer: composer(),
           status,
           config: configView(),
           login,
           local: localLogins(),
-          layout: new M.Layout({ width: 640, composerHeight: 360, toastHeight: 92 }),
+          layout: new M.Layout({ width: 640, composerHeight: 360, toastHeight: 360 }),
         }),
       ),
 
@@ -765,6 +803,8 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
       if (next.toastSeconds < 2 || next.toastSeconds > 30) next.toastSeconds = 6;
       if (next.bottomOffset < 0 || next.bottomOffset > 1000) next.bottomOffset = 150;
       if (next.scale < 0.75 || next.scale > 1.5) next.scale = 1;
+      if (next.toastLayout !== "stack") next.toastLayout = "group";
+      if (!(next.toastMax >= 1 && next.toastMax <= 5)) next.toastMax = 3;
       if (!STYLES.includes(next.animationStyle)) next.animationStyle = "slide-up";
       if (!(next.animationSpeed in SPEEDS)) next.animationSpeed = "normal";
       cfg = next;

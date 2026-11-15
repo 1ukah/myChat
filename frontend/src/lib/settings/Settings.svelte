@@ -117,6 +117,8 @@
     { tab: "chat", section: "chat-box", label: "Close after sending" },
     { tab: "chat", section: "pop-ups", label: "Show new message pop-ups", words: "toast notification" },
     { tab: "chat", section: "pop-ups", label: "Pop-up duration", words: "toast seconds time" },
+    { tab: "chat", section: "pop-ups", label: "Multiple messages", words: "toast pop-up layout stack group grouped discord sender" },
+    { tab: "chat", section: "pop-ups", label: "Messages shown", words: "toast pop-up max count number how many recent" },
     { tab: "overlay", section: "appearance", label: "Show avatars", words: "pictures" },
     { tab: "overlay", section: "appearance", label: "Size", words: "scale zoom" },
     { tab: "overlay", section: "animation", label: "Animations", words: "motion" },
@@ -184,7 +186,13 @@
   async function resetDefaults(): Promise<void> {
     let patch: Partial<Cfg.Config>;
     if (tab === "chat") {
-      patch = { closeAfterSend: true, showToasts: true, toastSeconds: 6 };
+      patch = {
+        closeAfterSend: true,
+        showToasts: true,
+        toastSeconds: 6,
+        toastLayout: "group",
+        toastMax: 3,
+      };
       const h = app.config.hotkey;
       if (h.code !== "KeyI" || h.ctrl || h.shift || h.alt) {
         patch.hotkey = new Cfg.Hotkey({ code: "KeyI" });

@@ -26,8 +26,8 @@ interface AppState {
   /** Accounts the Steam client saved on this PC, and the sign-in watch. */
   local: M.LocalLogins;
   layout: M.Layout;
-  /** The entry shown in toast mode. */
-  toast: C.Entry | null;
+  /** The pop-up messages shown in toast mode, oldest first. */
+  toasts: C.Entry[];
 }
 
 export const app: AppState = $state({
@@ -43,11 +43,13 @@ export const app: AppState = $state({
     animationStyle: "slide-up",
     animationSpeed: "normal",
     showAvatars: true,
+    toastLayout: "group",
+    toastMax: 3,
   }),
   login: new M.LoginState({ phase: "idle" }),
   local: new M.LocalLogins({ steamInstalled: true }),
-  layout: new M.Layout({ width: 640, composerHeight: 360, toastHeight: 92 }),
-  toast: null,
+  layout: new M.Layout({ width: 640, composerHeight: 360, toastHeight: 360 }),
+  toasts: [],
 });
 
 let backend: Backend = wailsBackend;
@@ -203,8 +205,8 @@ export async function start(view: View): Promise<void> {
     logCleared: on(() => {
       app.log = [];
     }),
-    toast: on((e) => {
-      app.toast = e;
+    toasts: on((t) => {
+      app.toasts = t.entries ?? [];
     }),
     status: on((s) => {
       app.status = s;
@@ -224,6 +226,7 @@ export async function start(view: View): Promise<void> {
   try {
     const snap = await backend.snapshot();
     app.mode = snap.mode;
+    app.toasts = snap.toasts?.entries ?? [];
     app.log = (snap.log ?? []).slice(-MAX_LOG);
     app.composer = snap.composer;
     app.status = snap.status;

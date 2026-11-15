@@ -8,7 +8,7 @@
   import { motionOf } from "./motion";
   import Panel from "./Panel.svelte";
   import Stage from "./Stage.svelte";
-  import Toast from "./Toast.svelte";
+  import Toasts from "./Toasts.svelte";
 
   /** More than fits in 360 px even when every line is short. */
   const MAX_LINES = 48;
@@ -44,6 +44,13 @@
     }
     return heldLines;
   });
+
+  // The pop-ups are read only in toast mode, so they stay as they were while
+  // the exit animation fades them out.
+  let heldToasts: C.Entry[] = [];
+  const toasts = $derived.by(() =>
+    app.mode.mode === "toast" ? (heldToasts = app.toasts) : heldToasts,
+  );
 
   let heldTotal = 0;
   const total = $derived.by(() => (open ? (heldTotal = app.log.length) : heldTotal));
@@ -83,14 +90,14 @@
             avatars={app.mode.showAvatars}
             typewriter={motion.typewriter}
           />
-        {:else if app.toast}
-          <Toast
-            entry={app.toast}
+        {:else}
+          <Toasts
+            entries={toasts}
+            layout={app.config.toastLayout}
             hotkey={app.config.hotkeyLabel}
             {live}
             avatars={app.mode.showAvatars}
-            typewriter={motion.typewriter}
-            typeDelay={Math.round(motion.enterMs * 0.6)}
+            {motion}
           />
         {/if}
       </Panel>

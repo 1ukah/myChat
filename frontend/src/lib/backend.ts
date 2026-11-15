@@ -16,7 +16,8 @@ export interface Handlers {
   entry(e: C.Entry): void;
   entryUpdated(e: C.Entry): void;
   logCleared(): void;
-  toast(e: C.Entry): void;
+  /** The pop-up messages, oldest first; replaces the whole list. */
+  toasts(t: M.Toasts): void;
   status(s: M.Status): void;
   config(c: M.ConfigView): void;
   login(l: M.LoginState): void;
@@ -77,7 +78,7 @@ export const wailsBackend: Backend = {
       Events.On(Ev.MychatEntry, (ev) => h.entry(ev.data)),
       Events.On(Ev.MychatEntryUpdated, (ev) => h.entryUpdated(ev.data)),
       Events.On(Ev.MychatLogCleared, () => h.logCleared()),
-      Events.On(Ev.MychatToast, (ev) => h.toast(ev.data)),
+      Events.On(Ev.MychatToasts, (ev) => h.toasts(ev.data)),
       Events.On(Ev.MychatStatus, (ev) => h.status(ev.data)),
       Events.On(Ev.MychatConfig, (ev) => h.config(ev.data)),
       Events.On(Ev.MychatLogin, (ev) => h.login(ev.data)),

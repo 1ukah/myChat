@@ -38,6 +38,7 @@
       [
         ["composer", { view: "overlay", mock: "composer" }],
         ["toast", { view: "overlay", mock: "toast" }],
+        ["stream", { view: "overlay", mock: "toaststream" }],
         ["suggest", { view: "overlay", mock: "suggest" }],
         ["offline", { view: "overlay", mock: "offline" }],
       ],
@@ -51,6 +52,24 @@
         ["expired", { view: "settings", mock: "expired" }],
         ["error", { view: "settings", mock: "error" }],
         ["online", { view: "settings", mock: "online" }],
+      ],
+    ],
+    [
+      "pop-ups",
+      [
+        ["stack", { layout: "stack" }],
+        ["group", { layout: "group" }],
+        ["long", { long: "1" }],
+      ],
+    ],
+    [
+      "max",
+      [
+        ["1", { max: "1" }],
+        ["2", { max: "2" }],
+        ["3", { max: "3" }],
+        ["4", { max: "4" }],
+        ["5", { max: "5" }],
       ],
     ],
     [
