@@ -11,6 +11,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"unsafe"
 
@@ -45,8 +46,9 @@ type Config struct {
 	Scale        float64 `json:"scale"`
 	MachineSeed  string  `json:"machineSeed"`
 	// LoginSource is how myChat logs in: "steam" (the login saved by the
-	// Steam client on this PC), "qr" (myChat's own QR session) or "" (not
-	// chosen yet). SteamAccount is the Steam account name for "steam".
+	// Steam app on this PC), "qr" or "password" (myChat's own login, kept in
+	// session.dat) or "" (not chosen yet). SteamAccount is the Steam account
+	// name for "steam".
 	LoginSource  string `json:"loginSource"`
 	SteamAccount string `json:"steamAccount"`
 }
@@ -171,10 +173,11 @@ func (s *Store) saveLocked(c Config) error {
 	return os.Rename(tmp, filepath.Join(s.dir, "config.json"))
 }
 
-// Session is the saved Steam login.
+// Session is myChat's own saved Steam login.
 type Session struct {
 	RefreshToken string `json:"refreshToken"`
 	AccountName  string `json:"accountName"`
+	Method       string `json:"method"` // "qr" | "password"
 }
 
 // LoadSession decrypts the saved login. Only this Windows user can decrypt it.
@@ -216,6 +219,41 @@ func (s *Store) ClearSession() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	_ = os.Remove(filepath.Join(s.dir, "session.dat"))
+}
+
+// LoadGuardData returns Steam's machine token for an account (email Steam
+// Guard remembers this PC with it). It survives logout.
+func (s *Store) LoadGuardData(account string) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.readGuardLocked()[strings.ToLower(account)]
+}
+
+// SaveGuardData stores Steam's machine token for an account.
+func (s *Store) SaveGuardData(account, data string) {
+	if data == "" || account == "" {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	m := s.readGuardLocked()
+	m[strings.ToLower(account)] = data
+	plain, _ := json.Marshal(m)
+	if enc, err := protect(plain); err == nil {
+		_ = os.WriteFile(filepath.Join(s.dir, "guard.dat"), enc, 0o600)
+	}
+}
+
+func (s *Store) readGuardLocked() map[string]string {
+	m := map[string]string{}
+	b, err := os.ReadFile(filepath.Join(s.dir, "guard.dat"))
+	if err != nil {
+		return m
+	}
+	if plain, err := unprotect(b); err == nil {
+		_ = json.Unmarshal(plain, &m)
+	}
+	return m
 }
 
 var entropy = []byte("myChat.steam.session.v1")
