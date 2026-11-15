@@ -52,11 +52,11 @@ type field struct {
 	Bytes []byte
 }
 
-func (f field) i32() int32      { return int32(f.Value) }
-func (f field) u32() uint32     { return uint32(f.Value) }
-func (f field) boolean() bool   { return f.Value != 0 }
-func (f field) str() string     { return string(f.Bytes) }
-func (f field) f32() float32    { return math.Float32frombits(uint32(f.Value)) }
+func (f field) i32() int32    { return int32(f.Value) }
+func (f field) u32() uint32   { return uint32(f.Value) }
+func (f field) boolean() bool { return f.Value != 0 }
+func (f field) str() string   { return string(f.Bytes) }
+func (f field) f32() float32  { return math.Float32frombits(uint32(f.Value)) }
 
 var errBadProto = errors.New("steam: malformed protobuf")
 

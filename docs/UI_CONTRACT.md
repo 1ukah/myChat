@@ -24,7 +24,9 @@ Do **not** edit Go files or anything in `frontend/bindings/` (generated).
 | `OverlayReady(): void` | **Overlay view only.** Call once after the first render. Required, or the overlay never opens. |
 | `SaveConfig(c: Cfg.Config): ConfigView` | Save settings. Rejects (throws) with a message, for example when a hotkey is taken. Send the whole config object, keeping `machineSeed` as received. |
 | `StartLogin(): void` | Begin Steam QR login. Progress arrives as `mychat:login` events. |
-| `CancelLogin(): void` | |
+| `LoginWithPassword(account, password): void` | Steam's normal login, the same as the Steam client's sign-in. Progress arrives as `mychat:login` events. Cancels a running QR login. |
+| `SubmitGuardCode(code): void` | Steam Guard code (authenticator app or email) during phase `guard`. A wrong code sets `codeError`. |
+| `CancelLogin(): void` | Stops any login. Phase becomes `idle`. |
 | `Logout(): void` | |
 | `PreviewToast(): void` | Shows a sample toast in game position. |
 | `HideSettings(): void` | Close button of the settings window (it hides; the app keeps running in the tray). |
@@ -50,23 +52,29 @@ Listen with `Events.On(name, (ev) => ev.data)`. `ev.data` is the typed object.
 ## Types (summary)
 
 ```ts
-ModeInfo   { mode: string; animations: boolean; blur: boolean }
+ModeInfo   { mode: string; animations: boolean; blur: boolean; showAvatars: boolean;
+             animationStyle: "fade"|"slide-up"|"slide-down"|"slide-left"|"slide-right"|"typewriter";
+             animationSpeed: "fast"|"normal"|"slow"; hideDelayMs: number /*0 when animations off*/ }
 Layout     { width: 640; composerHeight: 360; toastHeight: 92 }   // CSS px
 Entry      { id: number; time: number /*unix ms*/; kind: "in"|"out"|"party"|"system"|"error";
-             peerId: string; peerName: string; text: string;
+             peerId: string; peerName: string; peerAvatar: string /*image URL or ""*/; text: string;
              status: ""|"pending"|"sent"|"failed"; detail: string /*failure reason*/ }
-Channel    { kind: "none"|"whisper"|"party"; targetId: string; targetName: string; online: boolean }
-Suggestion { id: string; name: string; online: boolean; inGame: string }
+Channel    { kind: "none"|"whisper"|"party"; targetId: string; targetName: string; online: boolean; avatar: string }
+Suggestion { id: string; name: string; online: boolean; inGame: string; avatar: string }
 ComposerState { text: string; caret: number /*index in characters (code points)*/;
              channel: Channel; hint: string; suggestions: Suggestion[]; selected: number;
              error: string; scroll: number /*log lines scrolled up from the bottom*/ }
 Status     { state: "offline"|"connecting"|"online"|"needs_login"; detail: string;
              accountName: string; personaName: string; friendsOnline: number; partySize: number }
 Config     { hotkey: {code: string /*KeyboardEvent.code*/; ctrl; shift; alt}; closeAfterSend: boolean;
-             animations: boolean; blur: boolean; showToasts: boolean; toastSeconds: number /*2..30*/;
+             animations: boolean; animationStyle: string; animationSpeed: string; showAvatars: boolean;
+             blur: boolean; showToasts: boolean; toastSeconds: number /*2..30*/;
              bottomOffset: number /*0..1000 px*/; scale: number /*0.75..1.5*/; machineSeed: string }
 ConfigView = Config & { hotkeyLabel: string /*e.g. "I", "Ctrl + F6"*/ }
-LoginState { phase: "idle"|"waiting"|"done"|"error"; url: string;
+LoginState { phase: "idle"|"waiting" /*QR shown*/|"submitting"|"guard"|"done"|"error";
+             method: "qr"|"password"|"";
+             guards: ("device_code"|"email_code"|"device_confirmation"|"email_confirmation")[];
+             emailHint: string; codeError: string; checking: boolean; url: string;
              qr: string[] /*rows of "1" dark / "0" light, no border*/; error: string; account: string }
 ```
 
@@ -88,9 +96,20 @@ LoginState { phase: "idle"|"waiting"|"done"|"error"; url: string;
   `blur` is false use a more opaque fill (about `rgba(12,14,17,0.86)`) so text
   stays readable over the game. Do not use CSS `backdrop-filter` (it has nothing
   to blur in this window and only costs GPU).
-- Mode `hidden`: play the exit animation. Go hides the window **180 ms** after
-  `hidden` when animations are on (0 ms when off). Exit animations must finish
-  within **160 ms**. Entry animations should be about 120–200 ms.
+- Mode `hidden`: play the exit animation. Go hides the window `hideDelayMs`
+  after `hidden` (fast 120, normal 200, slow 320; 0 when animations are off).
+  Exit animations must end **20 ms before** `hideDelayMs`. Entry animations use
+  the same speed (fast ≈ 120 ms, normal ≈ 200 ms, slow ≈ 320 ms).
+- `animationStyle` applies to the composer panel, the toast and new log lines:
+  `fade`; `slide-up` (enters moving up from below); `slide-down`; `slide-left`;
+  `slide-right` (enters moving left to right); `typewriter` (the panel fades in,
+  then the new message text appears character by character; exit is a fade).
+  The typewriter reveal takes at most ~600 ms and never delays what the user
+  types in the input line.
+- Avatars (`showAvatars`): a circle with the friend's picture (`peerAvatar`,
+  `avatar`) left of the toast, chat lines, suggestions and the channel label.
+  Images come from `https://avatars.steamstatic.com/`. Show a letter circle while
+  the image loads or if it fails. When `showAvatars` is false, render none.
 - When `animations` is false: no transitions, no caret blink (steady caret).
 - Performance: animate only `transform` and `opacity`. No `setInterval`, no
   `requestAnimationFrame` loops, no work while mode is `hidden`. The caret blink
@@ -109,6 +128,21 @@ LoginState { phase: "idle"|"waiting"|"done"|"error"; url: string;
 - Hotkey capture: a button that, when clicked, listens to the next `keydown`
   (use `e.code`, `e.ctrlKey`, `e.shiftKey`, `e.altKey`; ignore pure modifier
   presses; `Escape` cancels) and saves it.
+- Login screen, laid out like the Steam client's own sign-in. Left: `SIGN IN
+  WITH ACCOUNT NAME` field, `PASSWORD` field, `Sign in` button →
+  `LoginWithPassword`. Right: `OR SIGN IN WITH QR` with the QR. Call
+  `StartLogin()` when the screen opens, and again after `error`/`idle`. Under it:
+  "Your password goes only to Steam, encrypted with Steam's key. myChat never
+  stores it." Phase `submitting`: disable the form and show progress. Phase
+  `guard`: replace the form with the Steam Guard step:
+  - `device_code`: a 5-character code box, "Enter the code from your Steam
+    Guard authenticator app".
+  - `email_code`: a code box that mentions `emailHint`.
+  - `device_confirmation`: "Or approve the sign-in in the Steam mobile app"
+    (this completes on its own).
+  The code box auto-submits at 5 characters and shows `checking` and
+  `codeError`. A back link calls `CancelLogin()`. Never prefill or log the
+  password, and clear the field after submit.
 - QR login: render `LoginState.qr` as an SVG grid of squares (crisp, with a
   quiet zone of 4 modules, dark modules on a white background so phones can
   scan it).

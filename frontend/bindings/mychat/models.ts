@@ -20,6 +20,9 @@ export class ConfigView {
     "closeAfterSend": boolean;
     "animations": boolean;
     "blur": boolean;
+    "animationStyle": string;
+    "animationSpeed": string;
+    "showAvatars": boolean;
     "showToasts": boolean;
     "toastSeconds": number;
     "bottomOffset": number;
@@ -40,6 +43,15 @@ export class ConfigView {
         }
         if (!("blur" in $$source)) {
             this["blur"] = false;
+        }
+        if (!("animationStyle" in $$source)) {
+            this["animationStyle"] = "";
+        }
+        if (!("animationSpeed" in $$source)) {
+            this["animationSpeed"] = "";
+        }
+        if (!("showAvatars" in $$source)) {
+            this["showAvatars"] = false;
         }
         if (!("showToasts" in $$source)) {
             this["showToasts"] = false;
@@ -113,9 +125,15 @@ export class Layout {
  */
 export class LoginState {
     /**
-     * idle | waiting | done | error
+     * idle | waiting (QR shown) | submitting | guard (Steam Guard needed) |
+     * done | error
      */
     "phase": string;
+
+    /**
+     * "qr" | "password"
+     */
+    "method": string;
     "url": string;
 
     /**
@@ -125,10 +143,35 @@ export class LoginState {
     "error": string;
     "account": string;
 
+    /**
+     * Guard step: which confirmations Steam accepts. Values: "device_code"
+     * (authenticator app code), "email_code", "device_confirmation" (approve
+     * in the Steam mobile app), "email_confirmation".
+     */
+    "guards": string[];
+
+    /**
+     * e.g. "gm***@gmail.com"
+     */
+    "emailHint": string;
+
+    /**
+     * last wrong-code message
+     */
+    "codeError": string;
+
+    /**
+     * a code is being checked
+     */
+    "checking": boolean;
+
     /** Creates a new LoginState instance. */
     constructor($$source: Partial<LoginState> = {}) {
         if (!("phase" in $$source)) {
             this["phase"] = "";
+        }
+        if (!("method" in $$source)) {
+            this["method"] = "";
         }
         if (!("url" in $$source)) {
             this["url"] = "";
@@ -142,6 +185,18 @@ export class LoginState {
         if (!("account" in $$source)) {
             this["account"] = "";
         }
+        if (!("guards" in $$source)) {
+            this["guards"] = [];
+        }
+        if (!("emailHint" in $$source)) {
+            this["emailHint"] = "";
+        }
+        if (!("codeError" in $$source)) {
+            this["codeError"] = "";
+        }
+        if (!("checking" in $$source)) {
+            this["checking"] = false;
+        }
 
         Object.assign(this, $$source);
     }
@@ -150,10 +205,14 @@ export class LoginState {
      * Creates a new LoginState instance from a string or object.
      */
     static createFrom($$source: any = {}): LoginState {
-        const $$createField2_0 = $$createType1;
+        const $$createField3_0 = $$createType1;
+        const $$createField6_0 = $$createType1;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("qr" in $$parsedSource) {
-            $$parsedSource["qr"] = $$createField2_0($$parsedSource["qr"]);
+            $$parsedSource["qr"] = $$createField3_0($$parsedSource["qr"]);
+        }
+        if ("guards" in $$parsedSource) {
+            $$parsedSource["guards"] = $$createField6_0($$parsedSource["guards"]);
         }
         return new LoginState($$parsedSource as Partial<LoginState>);
     }
@@ -165,7 +224,11 @@ export class LoginState {
 export class ModeInfo {
     "mode": string;
     "animations": boolean;
+    "animationStyle": string;
+    "animationSpeed": string;
+    "hideDelayMs": number;
     "blur": boolean;
+    "showAvatars": boolean;
 
     /** Creates a new ModeInfo instance. */
     constructor($$source: Partial<ModeInfo> = {}) {
@@ -175,8 +238,20 @@ export class ModeInfo {
         if (!("animations" in $$source)) {
             this["animations"] = false;
         }
+        if (!("animationStyle" in $$source)) {
+            this["animationStyle"] = "";
+        }
+        if (!("animationSpeed" in $$source)) {
+            this["animationSpeed"] = "";
+        }
+        if (!("hideDelayMs" in $$source)) {
+            this["hideDelayMs"] = 0;
+        }
         if (!("blur" in $$source)) {
             this["blur"] = false;
+        }
+        if (!("showAvatars" in $$source)) {
+            this["showAvatars"] = false;
         }
 
         Object.assign(this, $$source);

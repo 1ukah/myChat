@@ -13,6 +13,9 @@ export class Config {
     "closeAfterSend": boolean;
     "animations": boolean;
     "blur": boolean;
+    "animationStyle": string;
+    "animationSpeed": string;
+    "showAvatars": boolean;
     "showToasts": boolean;
     "toastSeconds": number;
     "bottomOffset": number;
@@ -32,6 +35,15 @@ export class Config {
         }
         if (!("blur" in $$source)) {
             this["blur"] = false;
+        }
+        if (!("animationStyle" in $$source)) {
+            this["animationStyle"] = "";
+        }
+        if (!("animationSpeed" in $$source)) {
+            this["animationSpeed"] = "";
+        }
+        if (!("showAvatars" in $$source)) {
+            this["showAvatars"] = false;
         }
         if (!("showToasts" in $$source)) {
             this["showToasts"] = false;

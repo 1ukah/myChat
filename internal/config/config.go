@@ -11,6 +11,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"unsafe"
 
@@ -31,6 +32,9 @@ type Config struct {
 	CloseAfterSend bool    `json:"closeAfterSend"`
 	Animations     bool    `json:"animations"`
 	Blur           bool    `json:"blur"`
+	AnimationStyle string  `json:"animationStyle"`
+	AnimationSpeed string  `json:"animationSpeed"`
+	ShowAvatars    bool    `json:"showAvatars"`
 	ShowToasts     bool    `json:"showToasts"`
 	ToastSeconds   int     `json:"toastSeconds"`
 	BottomOffset   int     `json:"bottomOffset"`
@@ -45,6 +49,9 @@ func Default() Config {
 		CloseAfterSend: true,
 		Animations:     true,
 		Blur:           true,
+		AnimationStyle: "slide-up",
+		AnimationSpeed: "normal",
+		ShowAvatars:    true,
 		ShowToasts:     true,
 		ToastSeconds:   6,
 		BottomOffset:   150,
@@ -52,11 +59,27 @@ func Default() Config {
 	}
 }
 
+// AnimationStyles are the overlay animation styles.
+var AnimationStyles = map[string]bool{
+	"fade": true, "slide-up": true, "slide-down": true,
+	"slide-left": true, "slide-right": true, "typewriter": true,
+}
+
+// AnimationSpeeds maps a speed to the time Go waits before hiding the window
+// (the UI's exit animation must end before it).
+var AnimationSpeeds = map[string]int{"fast": 120, "normal": 200, "slow": 320}
+
 // Sanitize clamps values to safe ranges.
 func (c *Config) Sanitize() {
 	d := Default()
 	if c.Hotkey.Code == "" {
 		c.Hotkey = d.Hotkey
+	}
+	if !AnimationStyles[c.AnimationStyle] {
+		c.AnimationStyle = d.AnimationStyle
+	}
+	if _, ok := AnimationSpeeds[c.AnimationSpeed]; !ok {
+		c.AnimationSpeed = d.AnimationSpeed
 	}
 	if c.ToastSeconds < 2 || c.ToastSeconds > 30 {
 		c.ToastSeconds = d.ToastSeconds
@@ -173,6 +196,42 @@ func (s *Store) ClearSession() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	_ = os.Remove(filepath.Join(s.dir, "session.dat"))
+}
+
+// LoadGuardData returns Steam's machine token for an account (email Steam
+// Guard remembers this PC with it). It survives logout.
+func (s *Store) LoadGuardData(account string) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	m := s.readGuardLocked()
+	return m[strings.ToLower(account)]
+}
+
+// SaveGuardData stores Steam's machine token for an account.
+func (s *Store) SaveGuardData(account, data string) {
+	if data == "" || account == "" {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	m := s.readGuardLocked()
+	m[strings.ToLower(account)] = data
+	plain, _ := json.Marshal(m)
+	if enc, err := protect(plain); err == nil {
+		_ = os.WriteFile(filepath.Join(s.dir, "guard.dat"), enc, 0o600)
+	}
+}
+
+func (s *Store) readGuardLocked() map[string]string {
+	m := map[string]string{}
+	b, err := os.ReadFile(filepath.Join(s.dir, "guard.dat"))
+	if err != nil {
+		return m
+	}
+	if plain, err := unprotect(b); err == nil {
+		_ = json.Unmarshal(plain, &m)
+	}
+	return m
 }
 
 var entropy = []byte("myChat.steam.session.v1")

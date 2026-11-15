@@ -74,9 +74,9 @@ type Manager struct {
 	events   chan Event
 	threadID uint32
 
-	mu       sync.Mutex
-	pending  Hotkey
-	reply    chan error
+	mu        sync.Mutex
+	pending   Hotkey
+	reply     chan error
 	capturing bool
 }
 

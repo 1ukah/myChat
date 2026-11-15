@@ -53,9 +53,9 @@ func qrAttempt(ctx context.Context, deviceName string, onChallenge func(string))
 
 	var details enc
 	details.string(1, deviceName)
-	details.varint(2, 1)  // EAuthTokenPlatformType SteamClient
-	details.int32(3, 20)  // EOSType Win11
-	details.varint(4, 1)  // gaming device type: desktop PC
+	details.varint(2, 1) // EAuthTokenPlatformType SteamClient
+	details.int32(3, 20) // EOSType Win11
+	details.varint(4, 1) // gaming device type: desktop PC
 	var req enc
 	req.bytes(3, details.b)
 
@@ -97,35 +97,18 @@ func qrAttempt(ctx context.Context, deviceName string, onChallenge func(string))
 			return "", "", errClosed
 		case <-time.After(wait):
 		}
-		var poll enc
-		poll.varint(1, clientID)
-		poll.bytes(2, requestID)
-		p, err := c.call(ctx, emsgServiceMethodCallFromClientNonAuthed, "Authentication.PollAuthSessionStatus#1", poll.b)
+		r, err := pollStatus(ctx, c, clientID, requestID)
 		if err != nil {
 			return "", "", err
 		}
-		var refresh, account, newURL string
-		var newClient uint64
-		_ = walk(p.body, func(f field) {
-			switch f.Num {
-			case 1:
-				newClient = f.Value
-			case 2:
-				newURL = f.str()
-			case 3:
-				refresh = f.str()
-			case 6:
-				account = f.str()
-			}
-		})
-		if newClient != 0 {
-			clientID = newClient
+		if r.clientID != 0 {
+			clientID = r.clientID
 		}
-		if newURL != "" {
-			onChallenge(newURL)
+		if r.newURL != "" {
+			onChallenge(r.newURL)
 		}
-		if refresh != "" {
-			return refresh, account, nil
+		if r.refresh != "" {
+			return r.refresh, r.account, nil
 		}
 	}
 	return "", "", errQRExpired

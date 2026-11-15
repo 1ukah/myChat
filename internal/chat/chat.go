@@ -18,6 +18,7 @@ type Friend struct {
 	Online bool
 	InGame string
 	Group  string // CS2 party ID from rich presence
+	Avatar string // avatar image URL
 }
 
 // Backend is what the engine needs from the Steam session.
@@ -55,14 +56,15 @@ const (
 
 // Entry is one line in the chat log.
 type Entry struct {
-	ID       int64  `json:"id"`
-	Time     int64  `json:"time"` // Unix milliseconds
-	Kind     string `json:"kind"`
-	PeerID   string `json:"peerId"`
-	PeerName string `json:"peerName"`
-	Text     string `json:"text"`
-	Status   string `json:"status"`
-	Detail   string `json:"detail"`
+	ID         int64  `json:"id"`
+	Time       int64  `json:"time"` // Unix milliseconds
+	Kind       string `json:"kind"`
+	PeerID     string `json:"peerId"`
+	PeerName   string `json:"peerName"`
+	PeerAvatar string `json:"peerAvatar"`
+	Text       string `json:"text"`
+	Status     string `json:"status"`
+	Detail     string `json:"detail"`
 }
 
 // Channel kinds.
@@ -78,6 +80,7 @@ type Channel struct {
 	TargetID   string `json:"targetId"`
 	TargetName string `json:"targetName"`
 	Online     bool   `json:"online"`
+	Avatar     string `json:"avatar"`
 }
 
 // Suggestion is a friend offered while typing /w.
@@ -86,6 +89,7 @@ type Suggestion struct {
 	Name   string `json:"name"`
 	Online bool   `json:"online"`
 	InGame string `json:"inGame"`
+	Avatar string `json:"avatar"`
 }
 
 // ComposerState is everything the UI needs to draw the input line.
@@ -200,10 +204,11 @@ func (e *Engine) composerLocked() ComposerState {
 		if f, ok := e.b.Lookup(e.chanID); ok {
 			s.Channel.TargetName = f.Name
 			s.Channel.Online = f.Online
+			s.Channel.Avatar = f.Avatar
 		}
 	}
 	for _, f := range e.sugg {
-		s.Suggestions = append(s.Suggestions, Suggestion{ID: idStr(f.ID), Name: f.Name, Online: f.Online, InGame: f.InGame})
+		s.Suggestions = append(s.Suggestions, Suggestion{ID: idStr(f.ID), Name: f.Name, Online: f.Online, InGame: f.InGame, Avatar: f.Avatar})
 	}
 	switch {
 	case len(e.sugg) > 0:
@@ -263,11 +268,11 @@ func (e *Engine) Incoming(partner uint64, text string, at time.Time, echo bool) 
 				return Entry{}, false
 			}
 		}
-		ent := e.addLocked(Entry{Kind: KindOut, PeerID: idStr(partner), PeerName: e.nameLocked(partner), Text: text, Status: StatusSent, Time: at.UnixMilli()})
+		ent := e.addLocked(Entry{Kind: KindOut, PeerID: idStr(partner), PeerName: e.nameLocked(partner), PeerAvatar: e.avatarLocked(partner), Text: text, Status: StatusSent, Time: at.UnixMilli()})
 		e.touchLocked(partner)
 		return ent, false
 	}
-	ent := e.addLocked(Entry{Kind: KindIn, PeerID: idStr(partner), PeerName: e.nameLocked(partner), Text: text, Time: at.UnixMilli()})
+	ent := e.addLocked(Entry{Kind: KindIn, PeerID: idStr(partner), PeerName: e.nameLocked(partner), PeerAvatar: e.avatarLocked(partner), Text: text, Time: at.UnixMilli()})
 	e.lastFrom = partner
 	e.touchLocked(partner)
 	e.unacked[partner] = at
@@ -319,6 +324,11 @@ func (e *Engine) nameLocked(id uint64) string {
 		return f.Name
 	}
 	return "Unknown"
+}
+
+func (e *Engine) avatarLocked(id uint64) string {
+	f, _ := e.b.Lookup(id)
+	return f.Avatar
 }
 
 func (e *Engine) touchLocked(id uint64) {
@@ -713,7 +723,7 @@ func (e *Engine) commandLocked(t string) Action {
 }
 
 func (e *Engine) sendWhisperLocked(to uint64, msg string) Action {
-	ent := e.addLocked(Entry{Kind: KindOut, PeerID: idStr(to), PeerName: e.nameLocked(to), Text: msg, Status: StatusPending})
+	ent := e.addLocked(Entry{Kind: KindOut, PeerID: idStr(to), PeerName: e.nameLocked(to), PeerAvatar: e.avatarLocked(to), Text: msg, Status: StatusPending})
 	e.echoes = append(e.echoes, echoKey{to: to, text: msg, at: time.Now()})
 	if len(e.echoes) > 50 {
 		e.echoes = e.echoes[len(e.echoes)-50:]
@@ -818,4 +828,3 @@ func ParseID(s string) uint64 {
 	v, _ := strconv.ParseUint(s, 10, 64)
 	return v
 }
-

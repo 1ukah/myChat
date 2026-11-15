@@ -41,11 +41,23 @@ type Friend struct {
 	PersonaState uint32 // 0 offline, 1 online, 2 busy, 3 away, 4 snooze, 5 trade, 6 play
 	GameID       uint64
 	GameName     string
+	AvatarHash   string // hex
 	RichPresence map[string]string
 }
 
 // PlayerGroup is the CS2 party ID (rich presence "steam_player_group").
 func (f Friend) PlayerGroup() string { return f.RichPresence["steam_player_group"] }
+
+const defaultAvatar = "fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb"
+
+// AvatarURL is the 64 px avatar on Steam's public image server.
+func (f Friend) AvatarURL() string {
+	h := f.AvatarHash
+	if h == "" || strings.Trim(h, "0") == "" {
+		h = defaultAvatar
+	}
+	return "https://avatars.steamstatic.com/" + h + "_medium.jpg"
+}
 
 // Event types sent on Client.Events().
 type (
@@ -411,6 +423,8 @@ func (c *Client) handlePersonaState(body []byte) {
 				fr.PersonaState = f.u32()
 			case 15:
 				fr.Name = f.str()
+			case 31:
+				fr.AvatarHash = hex.EncodeToString(f.Bytes)
 			case 55:
 				fr.GameName = f.str()
 				gameSeen = true

@@ -19,7 +19,7 @@ import * as config$0 from "./internal/config/models.js";
 import * as $models from "./models.js";
 
 /**
- * CancelLogin stops a QR login in progress.
+ * CancelLogin stops any login in progress.
  */
 export function CancelLogin(): $CancellablePromise<void> {
     return $Call.ByID(129907442);
@@ -30,6 +30,15 @@ export function CancelLogin(): $CancellablePromise<void> {
  */
 export function HideSettings(): $CancellablePromise<void> {
     return $Call.ByID(3042737918);
+}
+
+/**
+ * LoginWithPassword logs in like the Steam client's own login screen. The
+ * password is encrypted with Steam's RSA key and sent only to Steam; it is
+ * never stored. If Steam Guard is needed the phase becomes "guard".
+ */
+export function LoginWithPassword(account: string, password: string): $CancellablePromise<void> {
+    return $Call.ByID(1069395041, account, password);
 }
 
 /**
@@ -90,6 +99,14 @@ export function Snapshot(): $CancellablePromise<$models.Snapshot> {
  */
 export function StartLogin(): $CancellablePromise<void> {
     return $Call.ByID(2785673030);
+}
+
+/**
+ * SubmitGuardCode sends the Steam Guard code from the authenticator app or
+ * email. Wrong codes keep the guard step open with CodeError set.
+ */
+export function SubmitGuardCode(code: string): $CancellablePromise<void> {
+    return $Call.ByID(2901073941, code);
 }
 
 // Private type creation functions

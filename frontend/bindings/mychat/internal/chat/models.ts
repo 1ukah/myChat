@@ -13,6 +13,7 @@ export class Channel {
     "targetId": string;
     "targetName": string;
     "online": boolean;
+    "avatar": string;
 
     /** Creates a new Channel instance. */
     constructor($$source: Partial<Channel> = {}) {
@@ -27,6 +28,9 @@ export class Channel {
         }
         if (!("online" in $$source)) {
             this["online"] = false;
+        }
+        if (!("avatar" in $$source)) {
+            this["avatar"] = "";
         }
 
         Object.assign(this, $$source);
@@ -122,6 +126,7 @@ export class Entry {
     "kind": string;
     "peerId": string;
     "peerName": string;
+    "peerAvatar": string;
     "text": string;
     "status": string;
     "detail": string;
@@ -142,6 +147,9 @@ export class Entry {
         }
         if (!("peerName" in $$source)) {
             this["peerName"] = "";
+        }
+        if (!("peerAvatar" in $$source)) {
+            this["peerAvatar"] = "";
         }
         if (!("text" in $$source)) {
             this["text"] = "";
@@ -173,6 +181,7 @@ export class Suggestion {
     "name": string;
     "online": boolean;
     "inGame": string;
+    "avatar": string;
 
     /** Creates a new Suggestion instance. */
     constructor($$source: Partial<Suggestion> = {}) {
@@ -187,6 +196,9 @@ export class Suggestion {
         }
         if (!("inGame" in $$source)) {
             this["inGame"] = "";
+        }
+        if (!("avatar" in $$source)) {
+            this["avatar"] = "";
         }
 
         Object.assign(this, $$source);
