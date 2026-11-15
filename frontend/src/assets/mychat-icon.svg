@@ -15,33 +15,34 @@
   <rect width="1024" height="1024" rx="64" fill="url(#tile)"/>
   <rect width="1024" height="1024" rx="64" fill="url(#glow)"/>
 
-  <!-- Three people side by side, growing from left to right. Each body has a
-       rounded top; the bodies overlap and their bottoms step down. Each head
-       is a "?", drawn as a thick hook and a dot. -->
-  <g transform="translate(-28 -44)">
-    <!-- left, the smallest -->
-    <g fill="#c7d5e0" stroke="#c7d5e0">
-      <path stroke="none" d="M144.5 785V724A117.5 106 0 0 1 379.5 724V785Z"/>
-      <g transform="translate(262 516) scale(1.32)">
-        <path fill="none" stroke-width="34" stroke-linejoin="round" d="M-36 -70A36 36 0 1 1 25.5 -44.5Q0 -19 0 6"/>
-        <circle stroke="none" cx="0" cy="43" r="20"/>
-      </g>
+  <!-- Three people side by side, growing from left to right; together they
+       fill 83 % of the tile (87..937 both ways). Each body is a tall block
+       with a rounded top; the bodies overlap and their bottoms step down in
+       110 px steps. Each head is a "?" close above its body, drawn in a
+       100-unit box as a thick hook (stroke 20) and a big dot. -->
+
+  <!-- left, the smallest -->
+  <g fill="#c7d5e0" stroke="#c7d5e0">
+    <path stroke="none" d="M87 717V542A125 105 0 0 1 337 542V717Z"/>
+    <g transform="translate(212 170) scale(2.51)">
+      <path fill="none" stroke-width="20" stroke-linejoin="round" d="M-22 32A22 22 0 1 1 15.6 47.6Q2.6 60.6 0 70"/>
+      <circle stroke="none" cx="0" cy="87" r="13"/>
     </g>
-    <!-- middle -->
-    <g fill="#96cbea" stroke="#96cbea">
-      <path stroke="none" d="M350 840V740A145 130 0 0 1 640 740V840Z"/>
-      <g transform="translate(495 485) scale(1.62)">
-        <path fill="none" stroke-width="34" stroke-linejoin="round" d="M-36 -70A36 36 0 1 1 25.5 -44.5Q0 -19 0 6"/>
-        <circle stroke="none" cx="0" cy="43" r="20"/>
-      </g>
+  </g>
+  <!-- middle -->
+  <g fill="#96cbea" stroke="#96cbea">
+    <path stroke="none" d="M307 827V593A150 126 0 0 1 607 593V827Z"/>
+    <g transform="translate(457 129) scale(3.2)">
+      <path fill="none" stroke-width="20" stroke-linejoin="round" d="M-22 32A22 22 0 1 1 15.6 47.6Q2.6 60.6 0 70"/>
+      <circle stroke="none" cx="0" cy="87" r="13"/>
     </g>
-    <!-- right, the biggest, in front -->
-    <g fill="#66c0f4" stroke="#66c0f4">
-      <path stroke="none" d="M585 900V757.5A175 157.5 0 0 1 935 757.5V900Z"/>
-      <g transform="translate(760 449) scale(1.95)">
-        <path fill="none" stroke-width="34" stroke-linejoin="round" d="M-36 -70A36 36 0 1 1 25.5 -44.5Q0 -19 0 6"/>
-        <circle stroke="none" cx="0" cy="43" r="20"/>
-      </g>
+  </g>
+  <!-- right, the biggest, in front -->
+  <g fill="#66c0f4" stroke="#66c0f4">
+    <path stroke="none" d="M577 937V647A180 150 0 0 1 937 647V937Z"/>
+    <g transform="translate(757 87) scale(3.9)">
+      <path fill="none" stroke-width="20" stroke-linejoin="round" d="M-22 32A22 22 0 1 1 15.6 47.6Q2.6 60.6 0 70"/>
+      <circle stroke="none" cx="0" cy="87" r="13"/>
     </g>
   </g>
 </svg>
