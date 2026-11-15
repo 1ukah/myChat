@@ -81,7 +81,8 @@ Status     { state: "offline"|"connecting"|"online"|"needs_login"; detail: strin
 // user's Steam status (myChat cannot see it), so show it as "Logged in".
 Config     { hotkey: {code: string /*KeyboardEvent.code*/; ctrl; shift; alt}; closeAfterSend: boolean;
              doubleEnterClose: boolean /*only meaningful when closeAfterSend is false*/;
-             overlayStyle: "legacy"|"minimal"; showAccountName: boolean /*default false*/;
+             overlayStyle: "legacy"|"minimal";
+             showAccountName: boolean /*default false: show a masked placeholder, never the name*/;
              animations: boolean; animationStyle: string; animationSpeed: string; showAvatars: boolean;
              blur: boolean; showToasts: boolean; toastSeconds: number /*2..30*/;
              toastLayout: "stack"|"group"; toastMax: number /*1..5*/;
@@ -123,10 +124,12 @@ Snapshot   { mode; log; composer; status; config; login: LoginState; local: Loca
 - Two looks, chosen by `overlayStyle` (applies to the composer and pop-ups):
   - `legacy` (default): the CS2 chat look of passes 4–6, a translucent dark
     fill (about `rgba(0,0,0,0.55)`–`0.65`).
-  - `minimal`: light and airy ("angelic"): frosted translucent white panels,
-    dark text, thin light borders, soft shadow, rounded corners, compact
-    padding, small footprint. No heavy frames or thick edges. Must stay
-    readable over bright and dark scenes.
+  - `minimal`: light and airy ("angelic") in the CS:GO Panorama palette:
+    bright pale steel-blue / blue-grey tints (never plain white), square
+    corners, colour that fades away into transparency at the edges (gradient
+    masks, no hard frames), a soft glow that suggests blur (no real blur),
+    compact padding, small footprint. Must stay readable over bright and dark
+    scenes.
 - Mode `hidden`: play the exit animation. Go hides the window `hideDelayMs`
   after `hidden` (fast 120, normal 200, slow 320; 0 when animations are off).
   Exit animations must end **20 ms before** `hideDelayMs`. Entry animations use
