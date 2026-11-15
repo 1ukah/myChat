@@ -252,11 +252,24 @@ func (s *ChatService) OpenSteamLogin() error {
 	if err := steamlocal.OpenSteam(); err != nil {
 		return errors.New("could not open Steam")
 	}
-	before := map[string]bool{}
+	// Steam is already signed in: there is no new login to wait for.
+	if accs, err := steamlocal.Accounts(); err == nil {
+		for _, ac := range accs {
+			if ac.MostRecent && ac.HasLogin {
+				if _, err := steamlocal.Token(ac.AccountName); err == nil {
+					return s.UseSteamAccount(ac.AccountName)
+				}
+			}
+		}
+	}
+	// Saved login per account. Signing in again to an account that already
+	// had one replaces its token, so a changed token counts as a new login.
+	before := map[string]string{}
 	if accs, err := steamlocal.Accounts(); err == nil {
 		for _, ac := range accs {
 			if ac.HasLogin {
-				before[strings.ToLower(ac.AccountName)] = true
+				tok, _ := steamlocal.Token(ac.AccountName)
+				before[strings.ToLower(ac.AccountName)] = tok
 			}
 		}
 	}
@@ -298,15 +311,20 @@ func (s *ChatService) OpenSteamLogin() error {
 			}
 			a.emitLocalLogins()
 			for _, ac := range accs {
-				if ac.HasLogin && !before[strings.ToLower(ac.AccountName)] {
-					a.mu.Lock()
-					a.watchCancel = nil
-					a.mu.Unlock()
-					if err := a.useSteam(ac.AccountName); err != nil {
-						a.setLogin(LoginState{Phase: "error", Method: SourceSteam, Account: ac.AccountName, Error: err.Error()})
-					}
-					return
+				if !ac.HasLogin {
+					continue
 				}
+				old, had := before[strings.ToLower(ac.AccountName)]
+				if tok, err := steamlocal.Token(ac.AccountName); err != nil || (had && tok == old) {
+					continue
+				}
+				a.mu.Lock()
+				a.watchCancel = nil
+				a.mu.Unlock()
+				if err := a.useSteam(ac.AccountName); err != nil {
+					a.setLogin(LoginState{Phase: "error", Method: SourceSteam, Account: ac.AccountName, Error: err.Error()})
+				}
+				return
 			}
 		}
 	}()
