@@ -30,13 +30,16 @@ type Hotkey struct {
 type Config struct {
 	Hotkey         Hotkey `json:"hotkey"`
 	CloseAfterSend bool   `json:"closeAfterSend"`
-	Animations     bool   `json:"animations"`
-	Blur           bool   `json:"blur"`
-	AnimationStyle string `json:"animationStyle"`
-	AnimationSpeed string `json:"animationSpeed"`
-	ShowAvatars    bool   `json:"showAvatars"`
-	ShowToasts     bool   `json:"showToasts"`
-	ToastSeconds   int    `json:"toastSeconds"`
+	// DoubleEnterClose applies when CloseAfterSend is off: Enter on an empty
+	// line closes the box only when it follows another Enter quickly.
+	DoubleEnterClose bool   `json:"doubleEnterClose"`
+	Animations       bool   `json:"animations"`
+	Blur             bool   `json:"blur"`
+	AnimationStyle   string `json:"animationStyle"`
+	AnimationSpeed   string `json:"animationSpeed"`
+	ShowAvatars      bool   `json:"showAvatars"`
+	ShowToasts       bool   `json:"showToasts"`
+	ToastSeconds     int    `json:"toastSeconds"`
 	// ToastLayout is how several new messages show: "stack" (one box per
 	// message) or "group" (consecutive messages from one person share a
 	// box). ToastMax is how many messages show at once (1..5).
@@ -56,19 +59,20 @@ type Config struct {
 // Default returns the default settings.
 func Default() Config {
 	return Config{
-		Hotkey:         Hotkey{Code: "KeyI"},
-		CloseAfterSend: true,
-		Animations:     true,
-		Blur:           false, // unused: DWM blur-behind turns the overlay opaque
-		AnimationStyle: "slide-up",
-		AnimationSpeed: "normal",
-		ShowAvatars:    true,
-		ShowToasts:     true,
-		ToastSeconds:   6,
-		ToastLayout:    "group",
-		ToastMax:       3,
-		BottomOffset:   150,
-		Scale:          1,
+		Hotkey:           Hotkey{Code: "KeyI"},
+		CloseAfterSend:   true,
+		DoubleEnterClose: true,
+		Animations:       true,
+		Blur:             false, // unused: DWM blur-behind turns the overlay opaque
+		AnimationStyle:   "slide-up",
+		AnimationSpeed:   "normal",
+		ShowAvatars:      true,
+		ShowToasts:       true,
+		ToastSeconds:     6,
+		ToastLayout:      "group",
+		ToastMax:         3,
+		BottomOffset:     150,
+		Scale:            1,
 	}
 }
 

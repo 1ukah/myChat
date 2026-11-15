@@ -120,6 +120,7 @@ type App struct {
 	toastTimer  *time.Timer
 	toasts      []chat.Entry // shown as pop-ups, oldest first
 	openFG      uintptr
+	lastEnter   time.Time // for double-tap Enter to close
 	lastRefresh time.Time
 	login       LoginState
 	loginCancel context.CancelFunc
@@ -204,9 +205,19 @@ func (a *App) pump() {
 	}
 }
 
+// doubleEnterWindow is how quickly a second Enter must follow the first to
+// count as a double tap.
+const doubleEnterWindow = 500 * time.Millisecond
+
 func (a *App) onKey(ev input.Event) {
+	now := time.Now()
 	a.mu.Lock()
 	open := a.mode == ModeComposer
+	doubleTap := !a.cfg.CloseAfterSend && a.cfg.DoubleEnterClose
+	quick := now.Sub(a.lastEnter) <= doubleEnterWindow
+	if ev.Key == input.KeyEnter {
+		a.lastEnter = now
+	}
 	a.mu.Unlock()
 	if !open {
 		return
@@ -223,6 +234,9 @@ func (a *App) onKey(ev input.Event) {
 	}
 	switch a.engine.HandleKey(ev.Text, string(ev.Key), ev.Shift) {
 	case chat.ActClose:
+		if ev.Key == input.KeyEnter && doubleTap && !quick {
+			return // a single Enter on an empty line keeps the box open
+		}
 		a.closeComposer("esc or enter on empty line")
 	case chat.ActSent:
 		a.mu.Lock()
