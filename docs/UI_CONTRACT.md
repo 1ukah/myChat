@@ -92,16 +92,19 @@ Snapshot   { mode; log; composer; status; config; login: LoginState; local: Loca
   points: use `Array.from(text)`).
 - The window is exactly the layout size in CSS px: **640×360** in `composer`
   mode and **640×92** in `toast` mode. Go resizes the window when the mode
-  changes. Draw the panel to fill the whole viewport (`position: fixed; inset: 0`).
+  changes. Draw everything inside that viewport; it is the maximum area.
   The window can be on any monitor and DPI; never depend on screen size.
 - `html, body` background must be **fully transparent**. Everything outside the
   panel must be transparent.
-- Blur: when `blur` is true, Windows blurs the game behind the **whole window**,
-  so the panel must cover the whole window edge to edge with square corners. Use
-  a semi-transparent dark fill over the blur (about `rgba(12,14,17,0.55)`). When
-  `blur` is false use a more opaque fill (about `rgba(12,14,17,0.86)`) so text
-  stays readable over the game. Do not use CSS `backdrop-filter` (it has nothing
-  to blur in this window and only costs GPU).
+- Transparency: the window is truly per-pixel transparent (DirectComposition),
+  click-through, with no Windows frame. Anything the page does not paint shows
+  the game. Panels may leave transparent margins and have their own shape.
+- Blur: Windows blur-behind turns the whole window opaque, so `blur` is off by
+  default and must be labelled "Blur behind (experimental, may look solid)" in
+  settings. Design for `blur: false`: a translucent dark fill like CS2's own
+  chat box (about `rgba(0,0,0,0.55)`–`0.65`) that keeps text readable over
+  bright and dark scenes. Do not use CSS `backdrop-filter` (it has nothing to
+  blur in this window and only costs GPU).
 - Mode `hidden`: play the exit animation. Go hides the window `hideDelayMs`
   after `hidden` (fast 120, normal 200, slow 320; 0 when animations are off).
   Exit animations must end **20 ms before** `hideDelayMs`. Entry animations use
