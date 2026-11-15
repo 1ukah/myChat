@@ -11,7 +11,9 @@ import (
 const (
 	overlayWidth   = 640
 	composerHeight = 360
-	toastHeight    = 92
+	// The pop-up area is as tall as the chat box: the window is see-through
+	// and click-through, so pop-ups stack up from the bottom inside it.
+	toastHeight = composerHeight
 )
 
 // overlay controls the chat window at the Win32 level. It never activates:
@@ -51,4 +53,3 @@ func (o *overlay) show(cssW, cssH, bottomOffset int, scale float64) {
 func (o *overlay) hide() {
 	win.ShowWindow(o.hwnd, win.SW_HIDE)
 }
-

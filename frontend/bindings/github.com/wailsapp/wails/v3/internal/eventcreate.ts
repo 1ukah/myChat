@@ -23,7 +23,7 @@ function configure() {
         "mychat:login": $$createType4,
         "mychat:mode": $$createType5,
         "mychat:status": $$createType6,
-        "mychat:toast": $$createType2,
+        "mychat:toasts": $$createType7,
     }));
 }
 
@@ -35,5 +35,6 @@ const $$createType3 = main$0.LocalLogins.createFrom;
 const $$createType4 = main$0.LoginState.createFrom;
 const $$createType5 = main$0.ModeInfo.createFrom;
 const $$createType6 = main$0.Status.createFrom;
+const $$createType7 = main$0.Toasts.createFrom;
 
 configure();

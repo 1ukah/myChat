@@ -45,7 +45,7 @@ Listen with `Events.On(name, (ev) => ev.data)`. `ev.data` is the typed object.
 | `mychat:entry` | `Entry` | Append to the log. |
 | `mychat:entry-updated` | `Entry` | Replace the entry with the same `id` (status changes). |
 | `mychat:log-cleared` | – | Empty the log. |
-| `mychat:toast` | `Entry` | Show this entry as the toast. |
+| `mychat:toasts` | `Toasts { entries: Entry[] }` | The pop-up messages, oldest first (at most `config.toastMax`). Replace the whole list. Also in `Snapshot.toasts`. |
 | `mychat:status` | `Status` | Steam connection summary. |
 | `mychat:config` | `ConfigView` | Settings changed. |
 | `mychat:login` | `LoginState` | Login progress. |
@@ -57,7 +57,7 @@ Listen with `Events.On(name, (ev) => ev.data)`. `ev.data` is the typed object.
 ModeInfo   { mode: string; animations: boolean; blur: boolean; showAvatars: boolean;
              animationStyle: "fade"|"slide-up"|"slide-down"|"slide-left"|"slide-right"|"typewriter";
              animationSpeed: "fast"|"normal"|"slow"; hideDelayMs: number /*0 when animations off*/ }
-Layout     { width: 640; composerHeight: 360; toastHeight: 92 }   // CSS px
+Layout     { width: 640; composerHeight: 360; toastHeight: 360 }   // CSS px
 Entry      { id: number; time: number /*unix ms*/; kind: "in"|"out"|"party"|"system"|"error";
              peerId: string; peerName: string; peerAvatar: string /*image URL or ""*/; text: string;
              status: ""|"pending"|"sent"|"failed"; detail: string /*failure reason*/ }
@@ -72,6 +72,7 @@ Status     { state: "offline"|"connecting"|"online"|"needs_login"; detail: strin
 Config     { hotkey: {code: string /*KeyboardEvent.code*/; ctrl; shift; alt}; closeAfterSend: boolean;
              animations: boolean; animationStyle: string; animationSpeed: string; showAvatars: boolean;
              blur: boolean; showToasts: boolean; toastSeconds: number /*2..30*/;
+             toastLayout: "stack"|"group"; toastMax: number /*1..5*/;
              bottomOffset: number /*0..1000 px*/; scale: number /*0.75..1.5*/; machineSeed: string }
 ConfigView = Config & { hotkeyLabel: string /*e.g. "I", "Ctrl + F6"*/ }
 LoginState { phase: "idle"|"waiting" /*QR shown*/|"done"|"error"; method: "steam"|"qr"|"";
@@ -91,7 +92,7 @@ Snapshot   { mode; log; composer; status; config; login: LoginState; local: Loca
   clicks.** Draw the text and the caret from `ComposerState` (`caret` counts code
   points: use `Array.from(text)`).
 - The window is exactly the layout size in CSS px: **640×360** in `composer`
-  mode and **640×92** in `toast` mode. Go resizes the window when the mode
+  mode and also **640×360** in `toast` mode (pop-ups are drawn from the bottom up; the rest stays transparent). Go resizes the window when the mode
   changes. Draw everything inside that viewport; it is the maximum area.
   The window can be on any monitor and DPI; never depend on screen size.
 - `html, body` background must be **fully transparent**. Everything outside the
@@ -109,6 +110,18 @@ Snapshot   { mode; log; composer; status; config; login: LoginState; local: Loca
   after `hidden` (fast 120, normal 200, slow 320; 0 when animations are off).
   Exit animations must end **20 ms before** `hideDelayMs`. Entry animations use
   the same speed (fast ≈ 120 ms, normal ≈ 200 ms, slow ≈ 320 ms).
+- Pop-ups (`toast` mode) show `toasts.entries`, newest at the bottom, stacked
+  upwards from the bottom of the window, with a small gap. Only a newly added
+  entry animates in; the ones above slide up smoothly (transform only).
+  - `toastLayout: "stack"`: one compact box per message.
+  - `toastLayout: "group"` (Discord style): consecutive entries with the same
+    `peerId` share one box; the name and avatar appear once at the top, the
+    messages are lines below it. A different person starts a new box, so
+    A, A, B, A gives three boxes: A (2 lines), B (1), A (1).
+  - The sender's name is a small header (about 13–14 px, bold, the person's
+    colour), never a big banner. The message text is the most readable part
+    (about 15–16 px). Keep each box compact so 5 messages fit in 360 px.
+  - Long messages wrap to at most 2 lines with an ellipsis.
 - `animationStyle` applies to the composer panel, the toast and new log lines:
   `fade`; `slide-up` (enters moving up from below); `slide-down`; `slide-left`;
   `slide-right` (enters moving left to right); `typewriter` (the panel fades in,

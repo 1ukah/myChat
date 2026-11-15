@@ -27,18 +27,23 @@ type Hotkey struct {
 
 // Config is the user's settings.
 type Config struct {
-	Hotkey         Hotkey  `json:"hotkey"`
-	CloseAfterSend bool    `json:"closeAfterSend"`
-	Animations     bool    `json:"animations"`
-	Blur           bool    `json:"blur"`
-	AnimationStyle string  `json:"animationStyle"`
-	AnimationSpeed string  `json:"animationSpeed"`
-	ShowAvatars    bool    `json:"showAvatars"`
-	ShowToasts     bool    `json:"showToasts"`
-	ToastSeconds   int     `json:"toastSeconds"`
-	BottomOffset   int     `json:"bottomOffset"`
-	Scale          float64 `json:"scale"`
-	MachineSeed    string  `json:"machineSeed"`
+	Hotkey         Hotkey `json:"hotkey"`
+	CloseAfterSend bool   `json:"closeAfterSend"`
+	Animations     bool   `json:"animations"`
+	Blur           bool   `json:"blur"`
+	AnimationStyle string `json:"animationStyle"`
+	AnimationSpeed string `json:"animationSpeed"`
+	ShowAvatars    bool   `json:"showAvatars"`
+	ShowToasts     bool   `json:"showToasts"`
+	ToastSeconds   int    `json:"toastSeconds"`
+	// ToastLayout is how several new messages show: "stack" (one box per
+	// message) or "group" (consecutive messages from one person share a
+	// box). ToastMax is how many messages show at once (1..5).
+	ToastLayout  string  `json:"toastLayout"`
+	ToastMax     int     `json:"toastMax"`
+	BottomOffset int     `json:"bottomOffset"`
+	Scale        float64 `json:"scale"`
+	MachineSeed  string  `json:"machineSeed"`
 	// LoginSource is how myChat logs in: "steam" (the login saved by the
 	// Steam client on this PC), "qr" (myChat's own QR session) or "" (not
 	// chosen yet). SteamAccount is the Steam account name for "steam".
@@ -58,6 +63,8 @@ func Default() Config {
 		ShowAvatars:    true,
 		ShowToasts:     true,
 		ToastSeconds:   6,
+		ToastLayout:    "group",
+		ToastMax:       3,
 		BottomOffset:   150,
 		Scale:          1,
 	}
@@ -90,6 +97,12 @@ func (c *Config) Sanitize() {
 	}
 	if c.ToastSeconds < 2 || c.ToastSeconds > 30 {
 		c.ToastSeconds = d.ToastSeconds
+	}
+	if c.ToastLayout != "stack" && c.ToastLayout != "group" {
+		c.ToastLayout = d.ToastLayout
+	}
+	if c.ToastMax < 1 || c.ToastMax > 5 {
+		c.ToastMax = d.ToastMax
 	}
 	if c.BottomOffset < 0 || c.BottomOffset > 1000 {
 		c.BottomOffset = d.BottomOffset

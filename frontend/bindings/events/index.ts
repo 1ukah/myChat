@@ -54,7 +54,7 @@ export const MychatMode = "mychat:mode";
 export const MychatStatus = "mychat:status";
 
 /**
- * Name of the custom event "mychat:toast".
+ * Name of the custom event "mychat:toasts".
  */
-export const MychatToast = "mychat:toast";
+export const MychatToasts = "mychat:toasts";
 

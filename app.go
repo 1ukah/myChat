@@ -33,7 +33,7 @@ const (
 	EvEntry        = "mychat:entry"
 	EvEntryUpdated = "mychat:entry-updated"
 	EvLogCleared   = "mychat:log-cleared"
-	EvToast        = "mychat:toast"
+	EvToasts       = "mychat:toasts"
 	EvStatus       = "mychat:status"
 	EvConfig       = "mychat:config"
 	EvLogin        = "mychat:login"
@@ -74,9 +74,16 @@ type Layout struct {
 	ToastHeight    int `json:"toastHeight"`
 }
 
+// Toasts are the messages shown as pop-ups, oldest first. The UI lays them
+// out per Config.ToastLayout.
+type Toasts struct {
+	Entries []chat.Entry `json:"entries"`
+}
+
 // Snapshot is the full state for a newly loaded page.
 type Snapshot struct {
 	Mode     ModeInfo           `json:"mode"`
+	Toasts   Toasts             `json:"toasts"`
 	Log      []chat.Entry       `json:"log"`
 	Composer chat.ComposerState `json:"composer"`
 	Status   Status             `json:"status"`
@@ -92,7 +99,7 @@ func init() {
 	application.RegisterEvent[chat.Entry](EvEntry)
 	application.RegisterEvent[chat.Entry](EvEntryUpdated)
 	application.RegisterEvent[application.Void](EvLogCleared)
-	application.RegisterEvent[chat.Entry](EvToast)
+	application.RegisterEvent[Toasts](EvToasts)
 	application.RegisterEvent[Status](EvStatus)
 	application.RegisterEvent[ConfigView](EvConfig)
 	application.RegisterEvent[LoginState](EvLogin)
@@ -114,6 +121,7 @@ type App struct {
 	mode        string
 	hideTimer   *time.Timer
 	toastTimer  *time.Timer
+	toasts      []chat.Entry // shown as pop-ups, oldest first
 	openFG      uintptr
 	lastRefresh time.Time
 	login       LoginState
@@ -312,6 +320,7 @@ func (a *App) openComposer() {
 		return
 	}
 	a.stopTimersLocked()
+	a.toasts = nil
 	a.mode = ModeComposer
 	a.openFG = win.ForegroundWindow()
 	cfg := a.cfg
@@ -377,8 +386,16 @@ func (a *App) toast(ent chat.Entry) {
 	}
 	a.stopTimersLocked()
 	wasHidden := a.mode == ModeHidden
+	if wasHidden {
+		a.toasts = nil // a fresh set after the last one faded out
+	}
 	a.mode = ModeToast
 	cfg := a.cfg
+	a.toasts = append(a.toasts, ent)
+	if n := len(a.toasts) - cfg.ToastMax; n > 0 {
+		a.toasts = append([]chat.Entry(nil), a.toasts[n:]...)
+	}
+	list := Toasts{Entries: append([]chat.Entry(nil), a.toasts...)}
 	info := a.modeInfoLocked()
 	a.toastTimer = time.AfterFunc(time.Duration(cfg.ToastSeconds)*time.Second, a.endToast)
 	a.mu.Unlock()
@@ -388,7 +405,7 @@ func (a *App) toast(ent chat.Entry) {
 			a.ov.show(overlayWidth, toastHeight, cfg.BottomOffset, cfg.Scale)
 		})
 	}
-	a.emit(EvToast, ent)
+	a.emit(EvToasts, list)
 	a.emit(EvMode, info)
 }
 
@@ -443,6 +460,7 @@ func (a *App) snapshot() Snapshot {
 	defer a.mu.Unlock()
 	return Snapshot{
 		Local:    local,
+		Toasts:   Toasts{Entries: append([]chat.Entry{}, a.toasts...)},
 		Mode:     a.modeInfoLocked(),
 		Log:      a.engine.Log(),
 		Composer: a.engine.Composer(),

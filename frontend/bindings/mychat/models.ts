@@ -28,6 +28,14 @@ export class ConfigView {
     "showAvatars": boolean;
     "showToasts": boolean;
     "toastSeconds": number;
+
+    /**
+     * ToastLayout is how several new messages show: "stack" (one box per
+     * message) or "group" (consecutive messages from one person share a
+     * box). ToastMax is how many messages show at once (1..5).
+     */
+    "toastLayout": string;
+    "toastMax": number;
     "bottomOffset": number;
     "scale": number;
     "machineSeed": string;
@@ -69,6 +77,12 @@ export class ConfigView {
         }
         if (!("toastSeconds" in $$source)) {
             this["toastSeconds"] = 0;
+        }
+        if (!("toastLayout" in $$source)) {
+            this["toastLayout"] = "";
+        }
+        if (!("toastMax" in $$source)) {
+            this["toastMax"] = 0;
         }
         if (!("bottomOffset" in $$source)) {
             this["bottomOffset"] = 0;
@@ -294,6 +308,7 @@ export class ModeInfo {
  */
 export class Snapshot {
     "mode": ModeInfo;
+    "toasts": Toasts;
     "log": chat$0.Entry[];
     "composer": chat$0.ComposerState;
     "status": Status;
@@ -306,6 +321,9 @@ export class Snapshot {
     constructor($$source: Partial<Snapshot> = {}) {
         if (!("mode" in $$source)) {
             this["mode"] = (new ModeInfo());
+        }
+        if (!("toasts" in $$source)) {
+            this["toasts"] = (new Toasts());
         }
         if (!("log" in $$source)) {
             this["log"] = [];
@@ -337,37 +355,41 @@ export class Snapshot {
      */
     static createFrom($$source: any = {}): Snapshot {
         const $$createField0_0 = $$createType4;
-        const $$createField1_0 = $$createType6;
+        const $$createField1_0 = $$createType5;
         const $$createField2_0 = $$createType7;
         const $$createField3_0 = $$createType8;
         const $$createField4_0 = $$createType9;
         const $$createField5_0 = $$createType10;
         const $$createField6_0 = $$createType11;
         const $$createField7_0 = $$createType12;
+        const $$createField8_0 = $$createType13;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("mode" in $$parsedSource) {
             $$parsedSource["mode"] = $$createField0_0($$parsedSource["mode"]);
         }
+        if ("toasts" in $$parsedSource) {
+            $$parsedSource["toasts"] = $$createField1_0($$parsedSource["toasts"]);
+        }
         if ("log" in $$parsedSource) {
-            $$parsedSource["log"] = $$createField1_0($$parsedSource["log"]);
+            $$parsedSource["log"] = $$createField2_0($$parsedSource["log"]);
         }
         if ("composer" in $$parsedSource) {
-            $$parsedSource["composer"] = $$createField2_0($$parsedSource["composer"]);
+            $$parsedSource["composer"] = $$createField3_0($$parsedSource["composer"]);
         }
         if ("status" in $$parsedSource) {
-            $$parsedSource["status"] = $$createField3_0($$parsedSource["status"]);
+            $$parsedSource["status"] = $$createField4_0($$parsedSource["status"]);
         }
         if ("config" in $$parsedSource) {
-            $$parsedSource["config"] = $$createField4_0($$parsedSource["config"]);
+            $$parsedSource["config"] = $$createField5_0($$parsedSource["config"]);
         }
         if ("login" in $$parsedSource) {
-            $$parsedSource["login"] = $$createField5_0($$parsedSource["login"]);
+            $$parsedSource["login"] = $$createField6_0($$parsedSource["login"]);
         }
         if ("local" in $$parsedSource) {
-            $$parsedSource["local"] = $$createField6_0($$parsedSource["local"]);
+            $$parsedSource["local"] = $$createField7_0($$parsedSource["local"]);
         }
         if ("layout" in $$parsedSource) {
-            $$parsedSource["layout"] = $$createField7_0($$parsedSource["layout"]);
+            $$parsedSource["layout"] = $$createField8_0($$parsedSource["layout"]);
         }
         return new Snapshot($$parsedSource as Partial<Snapshot>);
     }
@@ -432,17 +454,47 @@ export class Status {
     }
 }
 
+/**
+ * Toasts are the messages shown as pop-ups, oldest first. The UI lays them
+ * out per Config.ToastLayout.
+ */
+export class Toasts {
+    "entries": chat$0.Entry[];
+
+    /** Creates a new Toasts instance. */
+    constructor($$source: Partial<Toasts> = {}) {
+        if (!("entries" in $$source)) {
+            this["entries"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Toasts instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Toasts {
+        const $$createField0_0 = $$createType7;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("entries" in $$parsedSource) {
+            $$parsedSource["entries"] = $$createField0_0($$parsedSource["entries"]);
+        }
+        return new Toasts($$parsedSource as Partial<Toasts>);
+    }
+}
+
 // Private type creation functions
 const $$createType0 = config$0.Hotkey.createFrom;
 const $$createType1 = steamlocal$0.Account.createFrom;
 const $$createType2 = $Create.Array($$createType1);
 const $$createType3 = $Create.Array($Create.Any);
 const $$createType4 = ModeInfo.createFrom;
-const $$createType5 = chat$0.Entry.createFrom;
-const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = chat$0.ComposerState.createFrom;
-const $$createType8 = Status.createFrom;
-const $$createType9 = ConfigView.createFrom;
-const $$createType10 = LoginState.createFrom;
-const $$createType11 = LocalLogins.createFrom;
-const $$createType12 = Layout.createFrom;
+const $$createType5 = Toasts.createFrom;
+const $$createType6 = chat$0.Entry.createFrom;
+const $$createType7 = $Create.Array($$createType6);
+const $$createType8 = chat$0.ComposerState.createFrom;
+const $$createType9 = Status.createFrom;
+const $$createType10 = ConfigView.createFrom;
+const $$createType11 = LoginState.createFrom;
+const $$createType12 = LocalLogins.createFrom;
+const $$createType13 = Layout.createFrom;

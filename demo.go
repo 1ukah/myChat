@@ -28,6 +28,21 @@ func (a *App) demo() {
 		a.cfg.ToastSeconds = 3600
 		a.mu.Unlock()
 		a.toast(sample)
+	case "toasts":
+		a.mu.Lock()
+		a.cfg.ToastSeconds = 3600
+		a.mu.Unlock()
+		msgs := []struct{ id, name, text string }{
+			{"1", "Mestre Bene", "bora mais uma?"},
+			{"1", "Mestre Bene", "to no lobby"},
+			{"2", "mira", "eu vou tb"},
+			{"1", "Mestre Bene", "chama o resto"},
+		}
+		for i, m := range msgs {
+			t := time.Now().UnixMilli()
+			a.toast(chat.Entry{ID: -t - int64(i), Time: t, Kind: chat.KindIn, PeerID: m.id, PeerName: m.name, Text: m.text})
+			time.Sleep(700 * time.Millisecond)
+		}
 	case "typing":
 		// Real key capture: open, inject H and I, report what arrived.
 		a.openComposer()

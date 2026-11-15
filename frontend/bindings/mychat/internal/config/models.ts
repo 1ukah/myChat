@@ -18,6 +18,14 @@ export class Config {
     "showAvatars": boolean;
     "showToasts": boolean;
     "toastSeconds": number;
+
+    /**
+     * ToastLayout is how several new messages show: "stack" (one box per
+     * message) or "group" (consecutive messages from one person share a
+     * box). ToastMax is how many messages show at once (1..5).
+     */
+    "toastLayout": string;
+    "toastMax": number;
     "bottomOffset": number;
     "scale": number;
     "machineSeed": string;
@@ -58,6 +66,12 @@ export class Config {
         }
         if (!("toastSeconds" in $$source)) {
             this["toastSeconds"] = 0;
+        }
+        if (!("toastLayout" in $$source)) {
+            this["toastLayout"] = "";
+        }
+        if (!("toastMax" in $$source)) {
+            this["toastMax"] = 0;
         }
         if (!("bottomOffset" in $$source)) {
             this["bottomOffset"] = 0;

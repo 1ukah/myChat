@@ -24,7 +24,7 @@ declare module "@wailsio/runtime" {
             "mychat:login": main$0.LoginState;
             "mychat:mode": main$0.ModeInfo;
             "mychat:status": main$0.Status;
-            "mychat:toast": chat$0.Entry;
+            "mychat:toasts": main$0.Toasts;
         }
     }
 }
