@@ -47,6 +47,7 @@ type ModeInfo struct {
 	HideDelayMs    int    `json:"hideDelayMs"`
 	Blur           bool   `json:"blur"`
 	ShowAvatars    bool   `json:"showAvatars"`
+	OverlayStyle   string `json:"overlayStyle"` // "legacy" | "minimal"
 }
 
 // Status is the Steam connection summary.
@@ -56,6 +57,7 @@ type Status struct {
 	AccountName string `json:"accountName"`
 	Source      string `json:"source"` // "steam" | "qr" | "password" | ""
 	PersonaName string `json:"personaName"`
+	Avatar      string `json:"avatar"` // the user's own avatar URL, "" until known
 }
 
 // ConfigView is the config plus derived display values.
@@ -274,8 +276,14 @@ func (a *App) onSteam(ev any) {
 }
 
 func (a *App) updatePersonaName() {
-	self, _ := a.steam.Friend(a.steam.SelfID())
-	a.setStatus(func(s *Status) { s.PersonaName = self.Name })
+	self, ok := a.steam.Friend(a.steam.SelfID())
+	a.setStatus(func(s *Status) {
+		s.PersonaName = self.Name
+		s.Avatar = ""
+		if ok && self.AvatarHash != "" {
+			s.Avatar = self.AvatarURL()
+		}
+	})
 }
 
 func (a *App) setStatus(f func(*Status)) {
@@ -289,7 +297,7 @@ func (a *App) setStatus(f func(*Status)) {
 func (a *App) modeInfoLocked() ModeInfo {
 	return ModeInfo{Mode: a.mode, Animations: a.cfg.Animations, AnimationStyle: a.cfg.AnimationStyle,
 		AnimationSpeed: a.cfg.AnimationSpeed, HideDelayMs: int(a.animDelay() / time.Millisecond),
-		Blur: a.cfg.Blur, ShowAvatars: a.cfg.ShowAvatars}
+		Blur: a.cfg.Blur, ShowAvatars: a.cfg.ShowAvatars, OverlayStyle: a.cfg.OverlayStyle}
 }
 
 func (a *App) animDelay() time.Duration {

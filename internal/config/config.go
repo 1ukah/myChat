@@ -47,7 +47,13 @@ type Config struct {
 	ToastMax     int     `json:"toastMax"`
 	BottomOffset int     `json:"bottomOffset"`
 	Scale        float64 `json:"scale"`
-	MachineSeed  string  `json:"machineSeed"`
+	// OverlayStyle is the look of the chat box and pop-ups: "legacy" (CS2
+	// chat) or "minimal" (light, compact).
+	OverlayStyle string `json:"overlayStyle"`
+	// ShowAccountName shows the Steam account (login) name in the app; the
+	// persona name is always shown.
+	ShowAccountName bool   `json:"showAccountName"`
+	MachineSeed     string `json:"machineSeed"`
 	// LoginSource is how myChat logs in: "steam" (the login saved by the
 	// Steam app on this PC), "qr" or "password" (myChat's own login, kept in
 	// session.dat) or "" (not chosen yet). SteamAccount is the Steam account
@@ -73,6 +79,7 @@ func Default() Config {
 		ToastMax:         3,
 		BottomOffset:     150,
 		Scale:            1,
+		OverlayStyle:     "legacy",
 	}
 }
 
@@ -115,6 +122,9 @@ func (c *Config) Sanitize() {
 	}
 	if c.Scale < 0.75 || c.Scale > 1.5 {
 		c.Scale = d.Scale
+	}
+	if c.OverlayStyle != "legacy" && c.OverlayStyle != "minimal" {
+		c.OverlayStyle = d.OverlayStyle
 	}
 }
 
