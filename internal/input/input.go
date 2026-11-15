@@ -242,8 +242,14 @@ func startHook(events chan Event) {
 	st.down = [256]bool{}
 	st.pass = [256]bool{}
 	// Keys held right now (movement, the hotkey itself) keep going to the
-	// game, including their release.
+	// game, including their release. The generic Shift/Ctrl/Alt codes are
+	// skipped: the hook only ever sees the left/right codes, so a generic
+	// one would never get its release and would stay "held" (Ctrl stuck on
+	// after Ctrl+I: letters typed nothing and V pasted).
 	for vk := 8; vk < 255; vk++ {
+		if vk == vkShift || vk == vkControl || vk == vkMenu {
+			continue
+		}
 		if win.AsyncKeyDown(vk) {
 			st.pass[vk] = true
 			st.down[vk] = true
@@ -339,10 +345,21 @@ func hookProc(nCode, wParam, lParam uintptr) uintptr {
 	return 1
 }
 
+// held reports whether a modifier is down. Keys held when the box opened go
+// on to Windows, so Windows' own state is right for them even if their
+// release came just before the hook started. Caught keys never reach
+// Windows, so only the hook's own record knows about them.
+func held(vk int) bool {
+	if st.pass[vk] {
+		return win.AsyncKeyDown(vk)
+	}
+	return st.down[vk]
+}
+
 func translate(vk, scan, flags uint32) {
-	shift := st.down[vkLShift] || st.down[vkRShift] || st.down[vkShift]
-	altGr := st.down[vkRMenu]
-	ctrl := (st.down[vkLControl] || st.down[vkRControl] || st.down[vkControl]) && !altGr
+	shift := held(vkLShift) || held(vkRShift)
+	altGr := held(vkRMenu)
+	ctrl := (held(vkLControl) || held(vkRControl)) && !altGr
 
 	key := Key("")
 	switch vk {
