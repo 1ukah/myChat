@@ -52,6 +52,7 @@ func newTest() (*Engine, *fakeBackend) {
 			{ID: 11, Name: "Leo Messi", Online: true},
 			{ID: 12, Name: "Frisk", Online: false},
 			{ID: 13, Name: "SANT1", Online: true},
+			{ID: 14, Name: "Bestie", AltName: "xX_Sniper_Xx", Online: true},
 		},
 	}
 	return New(b, nopNotifier{}), b
@@ -107,6 +108,27 @@ func TestAmbiguousPrefixWaits(t *testing.T) {
 	c = e.Composer()
 	if c.Channel.TargetID != "11" {
 		t.Fatalf("tab pick: %+v", c)
+	}
+}
+
+func TestWhisperMatchesSteamNameBehindNickname(t *testing.T) {
+	e, b := newTest()
+	typeText(e, "/w sniper ")
+	c := e.Composer()
+	if c.Channel.TargetID != "14" || c.Channel.TargetName != "Bestie" {
+		t.Fatalf("by Steam name: %+v", c)
+	}
+	e.mu.Lock()
+	e.text = []rune("/w xx_sniper_xx gg")
+	e.caret = len(e.text)
+	e.mu.Unlock()
+	e.HandleKey("", "Enter", false)
+	if got := b.waitSent(t, 1); got[0] != "14:gg" {
+		t.Fatalf("sent %v", got)
+	}
+	typeText(e, "/w best")
+	if s := e.Composer().Suggestions; len(s) != 1 || s[0].AltName != "xX_Sniper_Xx" {
+		t.Fatalf("by nickname: %+v", s)
 	}
 }
 

@@ -606,7 +606,11 @@ func toChat(f steam.Friend) chat.Friend {
 	if f.GameID == 730 {
 		game = "Counter-Strike 2"
 	}
-	return chat.Friend{ID: f.SteamID, Name: f.Name, Online: f.PersonaState != 0, InGame: game, Avatar: f.AvatarURL()}
+	name, alt := f.Name, ""
+	if f.Nickname != "" && f.Nickname != f.Name {
+		name, alt = f.Nickname, f.Name
+	}
+	return chat.Friend{ID: f.SteamID, Name: name, AltName: alt, Online: f.PersonaState != 0, InGame: game, Avatar: f.AvatarURL()}
 }
 
 func (b backend) SelfID() uint64 { return b.c.SelfID() }

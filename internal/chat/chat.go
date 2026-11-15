@@ -13,11 +13,12 @@ import (
 
 // Friend is the chat view of a Steam friend.
 type Friend struct {
-	ID     uint64
-	Name   string
-	Online bool
-	InGame string
-	Avatar string // avatar image URL
+	ID      uint64
+	Name    string // shown name: the nickname the user gave, else the Steam name
+	AltName string // the Steam name when Name is a nickname
+	Online  bool
+	InGame  string
+	Avatar  string // avatar image URL
 }
 
 // Backend is what the engine needs from the Steam session.
@@ -82,11 +83,12 @@ type Channel struct {
 
 // Suggestion is a friend offered while typing /w.
 type Suggestion struct {
-	ID     string `json:"id"`
-	Name   string `json:"name"`
-	Online bool   `json:"online"`
-	InGame string `json:"inGame"`
-	Avatar string `json:"avatar"`
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	AltName string `json:"altName"` // Steam name when Name is a nickname
+	Online  bool   `json:"online"`
+	InGame  string `json:"inGame"`
+	Avatar  string `json:"avatar"`
 }
 
 // ComposerState is everything the UI needs to draw the input line.
@@ -204,7 +206,7 @@ func (e *Engine) composerLocked() ComposerState {
 		}
 	}
 	for _, f := range e.sugg {
-		s.Suggestions = append(s.Suggestions, Suggestion{ID: idStr(f.ID), Name: f.Name, Online: f.Online, InGame: f.InGame, Avatar: f.Avatar})
+		s.Suggestions = append(s.Suggestions, Suggestion{ID: idStr(f.ID), Name: f.Name, AltName: f.AltName, Online: f.Online, InGame: f.InGame, Avatar: f.Avatar})
 	}
 	switch {
 	case len(e.sugg) > 0:
@@ -558,21 +560,21 @@ func (e *Engine) recentFriendsLocked(n int) []Friend {
 	return out
 }
 
-// matchLocked finds friends by name: exact, then prefix, then word prefix,
-// then substring. Online friends come first inside each group.
+// matchLocked finds friends by nickname or Steam name: exact, then prefix,
+// then word prefix, then substring. Online friends come first inside each
+// group.
 func (e *Engine) matchLocked(q string) (all, exact []Friend) {
 	q = strings.ToLower(q)
 	var prefix, word, sub []Friend
 	for _, f := range e.b.Friends() {
-		n := strings.ToLower(f.Name)
-		switch {
-		case n == q:
+		switch min(matchRank(f.Name, q), matchRank(f.AltName, q)) {
+		case 0:
 			exact = append(exact, f)
-		case strings.HasPrefix(n, q):
+		case 1:
 			prefix = append(prefix, f)
-		case strings.Contains(" "+n, " "+q):
+		case 2:
 			word = append(word, f)
-		case strings.Contains(n, q):
+		case 3:
 			sub = append(sub, f)
 		}
 	}
@@ -580,6 +582,25 @@ func (e *Engine) matchLocked(q string) (all, exact []Friend) {
 		all = append(all, onlineFirst(g)...)
 	}
 	return all, exact
+}
+
+// matchRank is 0 for an exact match, 1 prefix, 2 word prefix, 3 substring,
+// 4 no match. q is lower case.
+func matchRank(name, q string) int {
+	n := strings.ToLower(name)
+	switch {
+	case n == "":
+		return 4
+	case n == q:
+		return 0
+	case strings.HasPrefix(n, q):
+		return 1
+	case strings.Contains(" "+n, " "+q):
+		return 2
+	case strings.Contains(n, q):
+		return 3
+	}
+	return 4
 }
 
 func onlineFirst(in []Friend) []Friend {

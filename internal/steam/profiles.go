@@ -144,7 +144,17 @@ func (c *Client) fetchProfiles(ctx context.Context, cn *conn) error {
 		all.Response.Accounts = append(all.Response.Accounts, part.Response.Accounts...)
 	}
 
+	nicks, err := fetchNicknames(ctx, tok)
+	if err != nil {
+		log.Printf("steam: nicknames: %v", err)
+	}
+
 	c.mu.Lock()
+	if nicks != nil {
+		for id, fr := range c.friends {
+			fr.Nickname = nicks[id]
+		}
+	}
 	for _, a := range all.Response.Accounts {
 		id, err := strconv.ParseUint(a.Public.SteamID, 10, 64)
 		if err != nil || id == 0 {
@@ -156,6 +166,9 @@ func (c *Client) fetchProfiles(ctx context.Context, cn *conn) error {
 			c.friends[id] = fr
 		}
 		fr.Name = a.Public.Name
+		if nicks != nil {
+			fr.Nickname = nicks[id]
+		}
 		if raw, err := base64.StdEncoding.DecodeString(a.Public.Avatar); err == nil && len(raw) > 0 {
 			fr.AvatarHash = hex.EncodeToString(raw)
 		}
@@ -165,4 +178,39 @@ func (c *Client) fetchProfiles(ctx context.Context, cn *conn) error {
 	c.mu.Unlock()
 	c.emit(FriendsEvent{})
 	return nil
+}
+
+const steamID64Base = 76561197960265728
+
+// fetchNicknames returns the nicknames the user gave friends, by SteamID.
+// A nil map means the list could not be read (keep the old nicknames).
+func fetchNicknames(ctx context.Context, tok string) (map[uint64]string, error) {
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet,
+		"https://api.steampowered.com/IPlayerService/GetNicknameList/v1/?access_token="+url.QueryEscape(tok), nil)
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("GetNicknameList: HTTP %d", resp.StatusCode)
+	}
+	var out struct {
+		Response struct {
+			Nicknames []struct {
+				AccountID uint32 `json:"accountid"`
+				Nickname  string `json:"nickname"`
+			} `json:"nicknames"`
+		} `json:"response"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, err
+	}
+	m := make(map[uint64]string, len(out.Response.Nicknames))
+	for _, n := range out.Response.Nicknames {
+		if n.AccountID != 0 && n.Nickname != "" {
+			m[steamID64Base+uint64(n.AccountID)] = n.Nickname
+		}
+	}
+	return m, nil
 }

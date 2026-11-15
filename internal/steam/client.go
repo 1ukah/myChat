@@ -31,6 +31,7 @@ const (
 type Friend struct {
 	SteamID      uint64
 	Name         string
+	Nickname     string // the nickname the user gave this friend, if any
 	PersonaState uint32 // 0 offline, 1 online, 2 busy, 3 away, 4 snooze, 5 trade, 6 play
 	GameID       uint64
 	AvatarHash   string // hex
