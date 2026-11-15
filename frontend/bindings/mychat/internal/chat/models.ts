@@ -179,6 +179,11 @@ export class Entry {
 export class Suggestion {
     "id": string;
     "name": string;
+
+    /**
+     * Steam name when Name is a nickname
+     */
+    "altName": string;
     "online": boolean;
     "inGame": string;
     "avatar": string;
@@ -190,6 +195,9 @@ export class Suggestion {
         }
         if (!("name" in $$source)) {
             this["name"] = "";
+        }
+        if (!("altName" in $$source)) {
+            this["altName"] = "";
         }
         if (!("online" in $$source)) {
             this["online"] = false;

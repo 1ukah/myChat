@@ -11,6 +11,12 @@ import { Create as $Create } from "@wailsio/runtime";
 export class Config {
     "hotkey": Hotkey;
     "closeAfterSend": boolean;
+
+    /**
+     * DoubleEnterClose applies when CloseAfterSend is off: Enter on an empty
+     * line closes the box only when it follows another Enter quickly.
+     */
+    "doubleEnterClose": boolean;
     "animations": boolean;
     "blur": boolean;
     "animationStyle": string;
@@ -28,6 +34,18 @@ export class Config {
     "toastMax": number;
     "bottomOffset": number;
     "scale": number;
+
+    /**
+     * OverlayStyle is the look of the chat box and pop-ups: "legacy" (CS2
+     * chat) or "minimal" (light, compact).
+     */
+    "overlayStyle": string;
+
+    /**
+     * ShowAccountName shows the Steam account (login) name in the app; the
+     * persona name is always shown.
+     */
+    "showAccountName": boolean;
     "machineSeed": string;
 
     /**
@@ -46,6 +64,9 @@ export class Config {
         }
         if (!("closeAfterSend" in $$source)) {
             this["closeAfterSend"] = false;
+        }
+        if (!("doubleEnterClose" in $$source)) {
+            this["doubleEnterClose"] = false;
         }
         if (!("animations" in $$source)) {
             this["animations"] = false;
@@ -79,6 +100,12 @@ export class Config {
         }
         if (!("scale" in $$source)) {
             this["scale"] = 0;
+        }
+        if (!("overlayStyle" in $$source)) {
+            this["overlayStyle"] = "";
+        }
+        if (!("showAccountName" in $$source)) {
+            this["showAccountName"] = false;
         }
         if (!("machineSeed" in $$source)) {
             this["machineSeed"] = "";

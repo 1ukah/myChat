@@ -61,19 +61,27 @@ Listen with `Events.On(name, (ev) => ev.data)`. `ev.data` is the typed object.
 ```ts
 ModeInfo   { mode: string; animations: boolean; blur: boolean; showAvatars: boolean;
              animationStyle: "fade"|"slide-up"|"slide-down"|"slide-left"|"slide-right"|"typewriter";
-             animationSpeed: "fast"|"normal"|"slow"; hideDelayMs: number /*0 when animations off*/ }
+             animationSpeed: "fast"|"normal"|"slow"; hideDelayMs: number /*0 when animations off*/;
+             overlayStyle: "legacy"|"minimal" }
 Layout     { width: 640; composerHeight: 360; toastHeight: 360 }   // CSS px
 Entry      { id: number; time: number /*unix ms*/; kind: "in"|"out"|"system"|"error";
              peerId: string; peerName: string; peerAvatar: string /*image URL or ""*/; text: string;
              status: ""|"pending"|"sent"|"failed"; detail: string /*failure reason*/ }
 Channel    { kind: "none"|"whisper"; targetId: string; targetName: string; online: boolean; avatar: string }
-Suggestion { id: string; name: string; online: boolean; inGame: string; avatar: string }
+Suggestion { id: string; name: string /*nickname the user gave, else Steam name*/;
+             altName: string /*Steam name when name is a nickname, else ""*/;
+             online: boolean; inGame: string; avatar: string }
 ComposerState { text: string; caret: number /*index in characters (code points)*/;
              channel: Channel; hint: string; suggestions: Suggestion[]; selected: number;
              error: string; scroll: number /*log lines scrolled up from the bottom*/ }
 Status     { state: "offline"|"connecting"|"online"|"needs_login"; detail: string;
-             accountName: string; source: "steam"|"qr"|"password"|""; personaName: string }
+             accountName: string; source: "steam"|"qr"|"password"|""; personaName: string;
+             avatar: string /*the user's own avatar URL, "" until known*/ }
+// "online" means myChat is logged in to Steam. It says nothing about the
+// user's Steam status (myChat cannot see it), so show it as "Logged in".
 Config     { hotkey: {code: string /*KeyboardEvent.code*/; ctrl; shift; alt}; closeAfterSend: boolean;
+             doubleEnterClose: boolean /*only meaningful when closeAfterSend is false*/;
+             overlayStyle: "legacy"|"minimal"; showAccountName: boolean /*default false*/;
              animations: boolean; animationStyle: string; animationSpeed: string; showAvatars: boolean;
              blur: boolean; showToasts: boolean; toastSeconds: number /*2..30*/;
              toastLayout: "stack"|"group"; toastMax: number /*1..5*/;
@@ -107,12 +115,18 @@ Snapshot   { mode; log; composer; status; config; login: LoginState; local: Loca
 - Transparency: the window is truly per-pixel transparent (DirectComposition),
   click-through, with no Windows frame. Anything the page does not paint shows
   the game. Panels may leave transparent margins and have their own shape.
-- Blur: Windows blur-behind turns the whole window opaque, so `blur` is off by
-  default and must be labelled "Blur behind (experimental, may look solid)" in
-  settings. Design for `blur: false`: a translucent dark fill like CS2's own
-  chat box (about `rgba(0,0,0,0.55)`–`0.65`) that keeps text readable over
-  bright and dark scenes. Do not use CSS `backdrop-filter` (it has nothing to
-  blur in this window and only costs GPU).
+- No real blur: Windows blur-behind (classic and acrylic, also clipped to the
+  panel with a window region) turns this window solid; tested again in pass 7.
+  `blur` is always false and has no setting. Do not use CSS `backdrop-filter`
+  (it has nothing to blur in this window and only costs GPU). Fake depth with
+  translucent fills, fine borders and soft shadows instead.
+- Two looks, chosen by `overlayStyle` (applies to the composer and pop-ups):
+  - `legacy` (default): the CS2 chat look of passes 4–6, a translucent dark
+    fill (about `rgba(0,0,0,0.55)`–`0.65`).
+  - `minimal`: light and airy ("angelic"): frosted translucent white panels,
+    dark text, thin light borders, soft shadow, rounded corners, compact
+    padding, small footprint. No heavy frames or thick edges. Must stay
+    readable over bright and dark scenes.
 - Mode `hidden`: play the exit animation. Go hides the window `hideDelayMs`
   after `hidden` (fast 120, normal 200, slow 320; 0 when animations are off).
   Exit animations must end **20 ms before** `hideDelayMs`. Entry animations use
@@ -136,9 +150,9 @@ Snapshot   { mode; log; composer; status; config; login: LoginState; local: Loca
   The typewriter reveal takes at most ~600 ms and never delays what the user
   types in the input line.
 - Avatars (`showAvatars`): the friend's picture (`peerAvatar`, `avatar`) left of
-  the toast, chat lines, suggestions and the channel label. Square, like the
-  CS2 friends list; a circle only where CS2 uses one (the current whisper
-  target in the input row). Images come from `https://avatars.steamstatic.com/`.
+  the toast, chat lines, suggestions and the channel label. Always square,
+  like the CS2 friends list, including the whisper target in the input row.
+  Images come from `https://avatars.steamstatic.com/`.
   Show a letter tile while the image loads or if it fails. When `showAvatars` is
   false, render none.
 - When `animations` is false: no transitions, no caret blink (steady caret).

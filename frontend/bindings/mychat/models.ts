@@ -21,6 +21,12 @@ import * as steamlocal$0 from "./internal/steamlocal/models.js";
 export class ConfigView {
     "hotkey": config$0.Hotkey;
     "closeAfterSend": boolean;
+
+    /**
+     * DoubleEnterClose applies when CloseAfterSend is off: Enter on an empty
+     * line closes the box only when it follows another Enter quickly.
+     */
+    "doubleEnterClose": boolean;
     "animations": boolean;
     "blur": boolean;
     "animationStyle": string;
@@ -38,6 +44,18 @@ export class ConfigView {
     "toastMax": number;
     "bottomOffset": number;
     "scale": number;
+
+    /**
+     * OverlayStyle is the look of the chat box and pop-ups: "legacy" (CS2
+     * chat) or "minimal" (light, compact).
+     */
+    "overlayStyle": string;
+
+    /**
+     * ShowAccountName shows the Steam account (login) name in the app; the
+     * persona name is always shown.
+     */
+    "showAccountName": boolean;
     "machineSeed": string;
 
     /**
@@ -57,6 +75,9 @@ export class ConfigView {
         }
         if (!("closeAfterSend" in $$source)) {
             this["closeAfterSend"] = false;
+        }
+        if (!("doubleEnterClose" in $$source)) {
+            this["doubleEnterClose"] = false;
         }
         if (!("animations" in $$source)) {
             this["animations"] = false;
@@ -90,6 +111,12 @@ export class ConfigView {
         }
         if (!("scale" in $$source)) {
             this["scale"] = 0;
+        }
+        if (!("overlayStyle" in $$source)) {
+            this["overlayStyle"] = "";
+        }
+        if (!("showAccountName" in $$source)) {
+            this["showAccountName"] = false;
         }
         if (!("machineSeed" in $$source)) {
             this["machineSeed"] = "";
@@ -307,6 +334,11 @@ export class ModeInfo {
     "blur": boolean;
     "showAvatars": boolean;
 
+    /**
+     * "legacy" | "minimal"
+     */
+    "overlayStyle": string;
+
     /** Creates a new ModeInfo instance. */
     constructor($$source: Partial<ModeInfo> = {}) {
         if (!("mode" in $$source)) {
@@ -329,6 +361,9 @@ export class ModeInfo {
         }
         if (!("showAvatars" in $$source)) {
             this["showAvatars"] = false;
+        }
+        if (!("overlayStyle" in $$source)) {
+            this["overlayStyle"] = "";
         }
 
         Object.assign(this, $$source);
@@ -452,6 +487,11 @@ export class Status {
     "source": string;
     "personaName": string;
 
+    /**
+     * the user's own avatar URL, "" until known
+     */
+    "avatar": string;
+
     /** Creates a new Status instance. */
     constructor($$source: Partial<Status> = {}) {
         if (!("state" in $$source)) {
@@ -468,6 +508,9 @@ export class Status {
         }
         if (!("personaName" in $$source)) {
             this["personaName"] = "";
+        }
+        if (!("avatar" in $$source)) {
+            this["avatar"] = "";
         }
 
         Object.assign(this, $$source);
