@@ -1,59 +1,72 @@
-# Welcome to Your New Wails3 Project!
+# myChat
 
-Congratulations on generating your Wails3 application! This README will guide you through the next steps to get your project up and running.
+Read and answer Steam private messages from inside Counter-Strike 2, without
+Shift+Tab.
 
-## Getting Started
+- Press the hotkey (default **I**). A small chat box opens at the bottom middle.
+- Type and press **Enter**. The message goes to Steam.
+- New messages pop up at the same place.
+- You keep moving while you type: keys you held before you opened the box
+  (for example W) still go to the game.
 
-1. Navigate to your project directory in the terminal.
+## Commands (WoW style)
 
-2. To run your application in development mode, use the following command:
+| Input | Action |
+|---|---|
+| `/r [msg]` | Reply to the last person who messaged you |
+| `/w name [msg]` | Message a friend (part of the name is enough) |
+| `/p [msg]` | Message your CS2 party |
+| `Tab` / `Shift+Tab` | Cycle recent people |
+| `↑` `↓` | Sent history |
+| `PgUp` `PgDn` | Scroll |
+| `Enter` on empty line, `Esc` | Close |
+| `Ctrl+V` | Paste |
 
-   ```
-   wails3 dev
-   ```
+Typing `/r `, `/p ` or `/w name ` switches the channel at once.
 
-   This will start your application and enable hot-reloading for both frontend and backend changes.
+## Requirements
 
-3. To build your application for production, use:
+- Windows 10 or 11. Blur needs Windows 11.
+- CS2 in **Fullscreen Windowed**.
+- Use a hotkey that CS2 does not use.
 
-   ```
-   wails3 build
-   ```
+## Safety
 
-   This will create a production-ready executable in the `build` directory.
+myChat never opens, reads or writes the CS2 process and never changes game
+files. It uses:
 
-## Exploring Wails3 Features
+- a normal Windows hotkey (`RegisterHotKey`),
+- a keyboard hook (`WH_KEYBOARD_LL`) only while the chat box is open,
+- a window that never takes focus, so CS2 stays the active window.
 
-Now that you have your project set up, it's time to explore the features that Wails3 offers:
+It logs in to Steam as a second session (like the Steam mobile app), using QR
+login. Your password never touches myChat. The login token is encrypted with
+Windows DPAPI in `%APPDATA%\myChat`.
 
-1. **Check out the examples**: The best way to learn is by example. Visit the `examples` directory in the `v3/examples` directory to see various sample applications.
+## Build
 
-2. **Run an example**: To run any of the examples, navigate to the example's directory and use:
+```
+wails3 build
+```
 
-   ```
-   go run .
-   ```
+Output: `bin\myChat.exe`.
 
-   Note: Some examples may be under development during the alpha phase.
+Development:
 
-3. **Explore the documentation**: Visit the [Wails3 documentation](https://v3.wails.io/) for in-depth guides and API references.
+```
+cd frontend
+npm run dev        # UI preview in a browser with mock data (?view=overlay&mock=composer)
+```
 
-4. **Join the community**: Have questions or want to share your progress? Join the [Wails Discord](https://discord.gg/JDdSxwjhGf) or visit the [Wails discussions on GitHub](https://github.com/wailsapp/wails/discussions).
+## Layout
 
-## Project Structure
-
-Take a moment to familiarize yourself with your project structure:
-
-- `frontend/`: Contains your frontend code (HTML, CSS, JavaScript/TypeScript)
-- `main.go`: The entry point of your Go backend
-- `app.go`: Define your application structure and methods here
-- `wails.json`: Configuration file for your Wails project
-
-## Next Steps
-
-1. Modify the frontend in the `frontend/` directory to create your desired UI.
-2. Add backend functionality in `main.go`.
-3. Use `wails3 dev` to see your changes in real-time.
-4. When ready, build your application with `wails3 build`.
-
-Happy coding with Wails3! If you encounter any issues or have questions, don't hesitate to consult the documentation or reach out to the Wails community.
+| Path | What |
+|---|---|
+| `internal/steam` | Minimal Steam client (WebSocket CM, QR login, friends, chat) |
+| `internal/input` | Hotkey and keyboard hook thread |
+| `internal/chat` | Chat logic (channels, commands, history) |
+| `internal/config` | Settings and encrypted session |
+| `internal/win` | Win32 calls |
+| `app.go`, `overlay.go`, `main.go` | Wails app, overlay window control, tray |
+| `frontend/` | Svelte UI (overlay + settings) |
+| `docs/UI_CONTRACT.md` | API between Go and the UI |

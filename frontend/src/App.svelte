@@ -1,35 +1,34 @@
 <script lang="ts">
-  // TEMPORARY test page. Replaced by the real UI.
-  import {onMount} from 'svelte';
-  import {Events} from "@wailsio/runtime";
-  import {ChatService} from "../bindings/mychat";
+  // One bundle, two windows. The query string picks the view:
+  //   /?view=overlay    the in-game overlay (transparent, never focused)
+  //   /?view=settings   the settings window
+  import { onMount, type Component, type Snippet } from "svelte";
+  import Overlay from "./lib/overlay/Overlay.svelte";
+  import Settings from "./lib/settings/Settings.svelte";
+  import { app, start, type View } from "./lib/store.svelte";
 
-  const view = new URLSearchParams(location.search).get('view') ?? 'settings';
-  let mode = $state('hidden');
-  let text = $state('');
-  let channel = $state('');
-  let log: string[] = $state([]);
+  const view: View =
+    new URLSearchParams(location.search).get("view") === "overlay" ? "overlay" : "settings";
+
+  /** Browser-only stage for the overlay; loaded just in mock mode. */
+  let Stage = $state.raw<Component<{ children: Snippet }> | null>(null);
 
   onMount(async () => {
-    Events.On('mychat:mode', (e: any) => { mode = e.data.mode; });
-    Events.On('mychat:composer', (e: any) => { text = e.data.text; channel = e.data.channel.kind + ' ' + e.data.channel.targetName; });
-    Events.On('mychat:entry', (e: any) => { log = [...log, e.data.kind + ': ' + e.data.text]; });
-    if (view === 'overlay') await ChatService.OverlayReady();
+    await start(view);
+    if (app.mock && view === "overlay") {
+      Stage = (await import("./lib/mock/MockStage.svelte")).default;
+    }
   });
 </script>
 
-{#if view === 'overlay'}
-  <div class="panel">
-    <div>MODE {mode} · {channel}</div>
-    {#each log.slice(-6) as l}<div>{l}</div>{/each}
-    <div class="input">&gt; {text}<span class="caret">|</span></div>
-  </div>
-{:else}
-  <div style="color:white;padding:20px">settings test</div>
+{#if !app.ready}
+  <!-- Nothing until the snapshot is in: the overlay must stay transparent. -->
+{:else if view === "settings"}
+  <Settings />
+{:else if !app.mock}
+  <Overlay />
+{:else if Stage}
+  <Stage>
+    <Overlay />
+  </Stage>
 {/if}
-
-<style>
-  :global(html), :global(body) { margin:0; background: transparent; overflow:hidden; font-family: sans-serif; }
-  .panel { position:fixed; inset:0; background: rgba(20,24,28,0.45); color:#fff; padding:12px; font-size:16px; border-top:2px solid #fff; }
-  .input { position:absolute; bottom:12px; left:12px; right:12px; background: rgba(0,0,0,0.35); padding:6px; }
-</style>

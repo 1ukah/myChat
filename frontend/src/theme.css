@@ -1,0 +1,98 @@
+/*
+ * myChat theme: Counter-Strike 2 Panorama look.
+ * Tokens only, plus the few global rules both windows share.
+ */
+
+:root {
+  /* Type. Segoe UI covers scripts the bundled fonts lack (Arabic, CJK, ...). */
+  --font-head: "Barlow Condensed", "Segoe UI", sans-serif;
+  --font-body: "Noto Sans", "Segoe UI", sans-serif;
+
+  /* Text */
+  --text: #e8eaed;
+  --text-soft: #c3c8ce;
+  --muted: #8f979e;
+  --dim: #666d75;
+
+  /* Lines */
+  --line: rgba(255, 255, 255, 0.12);
+  --line-soft: rgba(255, 255, 255, 0.07);
+  --line-strong: rgba(255, 255, 255, 0.3);
+
+  /* Accents */
+  --accent: #86c5ff;
+  --accent-fill: rgba(134, 197, 255, 0.14);
+  --accent-line: rgba(134, 197, 255, 0.5);
+  --green: #3fae49;
+  --green-text: #74d67c;
+  --red: #c8352f;
+  --red-text: #ff7d73;
+  --gold: #e0b252;
+
+  /* Chat channels */
+  --whisper: #e58cff;
+  --whisper-out: #d3b4e2;
+  --party: var(--green-text);
+
+  /* Surfaces */
+  --bg: #14161a;
+  --panel: rgba(16, 18, 21, 0.62);
+  --panel-strong: rgba(16, 18, 21, 0.9);
+  --row: rgba(0, 0, 0, 0.2);
+
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  /* The overlay window is see-through: nothing may paint behind the panel. */
+  background: transparent;
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-synthesis: none;
+  user-select: none;
+  cursor: default;
+}
+
+#app {
+  height: 100%;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  margin: 0;
+}
+
+/* Condensed uppercase "Stratum"-style text used for labels and values. */
+.head {
+  font-family: var(--font-head);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
