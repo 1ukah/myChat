@@ -31,11 +31,17 @@ interface AppState {
 export const app: AppState = $state({
   ready: false,
   mock: false,
-  mode: new M.ModeInfo({ mode: "hidden" }),
+  mode: new M.ModeInfo({ mode: "hidden", animationStyle: "slide-up", animationSpeed: "normal" }),
   log: [],
   composer: new C.ComposerState({ channel: new C.Channel({ kind: "none" }) }),
   status: new M.Status({ state: "offline" }),
-  config: new M.ConfigView({ scale: 1, animations: true }),
+  config: new M.ConfigView({
+    scale: 1,
+    animations: true,
+    animationStyle: "slide-up",
+    animationSpeed: "normal",
+    showAvatars: true,
+  }),
   login: new M.LoginState({ phase: "idle" }),
   layout: new M.Layout({ width: 640, composerHeight: 360, toastHeight: 92 }),
   toast: null,
@@ -77,18 +83,10 @@ function addEntry(e: C.Entry): void {
 let confirmed: M.ConfigView = app.config;
 let savesInFlight = 0;
 
+/** The config Go expects: every field of the view except the derived label. */
 function toConfig(v: M.ConfigView): Cfg.Config {
-  return new Cfg.Config({
-    hotkey: new Cfg.Hotkey({ ...v.hotkey }),
-    closeAfterSend: v.closeAfterSend,
-    animations: v.animations,
-    blur: v.blur,
-    showToasts: v.showToasts,
-    toastSeconds: v.toastSeconds,
-    bottomOffset: v.bottomOffset,
-    scale: v.scale,
-    machineSeed: v.machineSeed,
-  });
+  const { hotkeyLabel: _derived, ...config } = v;
+  return new Cfg.Config({ ...config, hotkey: new Cfg.Hotkey({ ...v.hotkey }) });
 }
 
 export function errorText(e: unknown): string {
@@ -125,6 +123,11 @@ function fire(f: () => Promise<void>): void {
 export const overlayReady = (): void => fire(() => backend.overlayReady());
 export const startLogin = (): void => fire(() => backend.startLogin());
 export const cancelLogin = (): void => fire(() => backend.cancelLogin());
+export const submitGuardCode = (code: string): void => fire(() => backend.submitGuardCode(code));
+
+/** The password goes straight to Go (and from there only to Steam). It is never kept here. */
+export const loginWithPassword = (account: string, password: string): void =>
+  fire(() => backend.loginWithPassword(account, password));
 export const logout = (): void => fire(() => backend.logout());
 export const previewToast = (): void => fire(() => backend.previewToast());
 export const hideSettings = (): void => fire(() => backend.hideSettings());

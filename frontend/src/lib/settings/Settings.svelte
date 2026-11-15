@@ -4,8 +4,8 @@
   // rows, and action links at the bottom right.
   import { onDestroy, setContext } from "svelte";
   import * as Cfg from "../../../bindings/mychat/internal/config/models";
-  import { initial } from "../format";
   import { app, hideSettings, minimiseSettings, saveConfig } from "../store.svelte";
+  import Avatar from "../ui/Avatar.svelte";
   import Icon from "../ui/Icon.svelte";
   import AccountTab from "./AccountTab.svelte";
   import ChatTab from "./ChatTab.svelte";
@@ -30,6 +30,7 @@
       label: "Overlay",
       sections: [
         { id: "appearance", label: "Appearance" },
+        { id: "animation", label: "Animation" },
         { id: "position", label: "Position" },
       ],
     },
@@ -113,7 +114,15 @@
         patch.hotkey = new Cfg.Hotkey({ code: "KeyI" });
       }
     } else {
-      patch = { animations: true, blur: true, scale: 1, bottomOffset: 150 };
+      patch = {
+        showAvatars: true,
+        blur: true,
+        scale: 1,
+        animations: true,
+        animationStyle: "slide-up",
+        animationSpeed: "normal",
+        bottomOffset: 150,
+      };
     }
     const label = current.label;
     const error = await saveConfig(patch);
@@ -127,16 +136,16 @@
   const steam = $derived.by(() => {
     const s = app.status;
     if (s.state === "needs_login" || !s.accountName) {
-      return { tone: "off", name: "Not logged in", text: "Steam" };
+      return { tone: "off", ring: "none", name: "Not signed in", text: "Steam" } as const;
     }
     const name = s.personaName || s.accountName;
     switch (s.state) {
       case "online":
-        return { tone: "on", name, text: "Online" };
+        return { tone: "on", ring: "green", name, text: "Online" } as const;
       case "connecting":
-        return { tone: "warn", name, text: "Connecting" };
+        return { tone: "warn", ring: "accent", name, text: "Connecting" } as const;
       default:
-        return { tone: "bad", name, text: "Offline" };
+        return { tone: "bad", ring: "offline", name, text: "Offline" } as const;
     }
   });
 
@@ -176,9 +185,11 @@
       {/each}
     </div>
     <button type="button" class="steam" aria-label="Steam account" onclick={() => pickTab("account")}>
-      <span class="avatar" class:off={steam.tone === "off"}>
-        {#if steam.tone === "off"}<Icon name="user" />{:else}{initial(steam.name)}{/if}
-      </span>
+      {#if steam.tone === "off"}
+        <span class="nobody"><Icon name="user" /></span>
+      {:else}
+        <Avatar size={30} ring={steam.ring} name={steam.name} />
+      {/if}
       <span class="who">
         <bdi class="name">{steam.name}</bdi>
         <span class="state"><span class="dot {steam.tone}"></span>{steam.text}</span>
@@ -386,26 +397,17 @@
     cursor: pointer;
   }
 
-  .steam .avatar {
+  .nobody {
     flex: none;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
-    font-family: var(--font-head);
-    font-size: 20px;
-    font-weight: 700;
-    line-height: 1;
-    color: var(--accent);
-    background: var(--accent-fill);
-    box-shadow: inset 0 0 0 1px var(--accent-line);
-  }
-
-  .steam .avatar.off {
+    width: 30px;
+    height: 30px;
     color: var(--muted);
     background: rgba(255, 255, 255, 0.05);
-    box-shadow: inset 0 0 0 1px var(--line);
+    border-radius: 50%;
+    box-shadow: 0 0 0 1px var(--line-strong);
   }
 
   .who {
@@ -526,9 +528,18 @@
     min-height: 100%;
     margin: 0 auto;
     padding: 0 24px 40px;
-    background: var(--panel);
-    border-right: 1px solid var(--line-soft);
-    border-left: 1px solid var(--line-soft);
+    /* Smoky glass: a little lighter through the middle, darker at the edges. */
+    background:
+      linear-gradient(
+        to right,
+        rgba(8, 10, 12, 0.3),
+        rgba(8, 10, 12, 0) 18%,
+        rgba(8, 10, 12, 0) 82%,
+        rgba(8, 10, 12, 0.3)
+      ),
+      var(--panel);
+    border-right: 1px solid var(--line);
+    border-left: 1px solid var(--line);
   }
 
   /* ---------- bottom bar ---------- */

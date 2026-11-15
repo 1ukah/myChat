@@ -27,6 +27,8 @@ export interface Backend {
   overlayReady(): Promise<void>;
   saveConfig(c: Cfg.Config): Promise<M.ConfigView>;
   startLogin(): Promise<void>;
+  loginWithPassword(account: string, password: string): Promise<void>;
+  submitGuardCode(code: string): Promise<void>;
   cancelLogin(): Promise<void>;
   logout(): Promise<void>;
   previewToast(): Promise<void>;
@@ -51,6 +53,8 @@ export const wailsBackend: Backend = {
   overlayReady: () => ChatService.OverlayReady(),
   saveConfig: (c) => ChatService.SaveConfig(c),
   startLogin: () => ChatService.StartLogin(),
+  loginWithPassword: (account, password) => ChatService.LoginWithPassword(account, password),
+  submitGuardCode: (code) => ChatService.SubmitGuardCode(code),
   cancelLogin: () => ChatService.CancelLogin(),
   logout: () => ChatService.Logout(),
   previewToast: () => ChatService.PreviewToast(),

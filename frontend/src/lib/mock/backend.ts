@@ -6,13 +6,19 @@
 //   ?view=overlay&mock=toast      incoming-message pop-ups, one after another
 //   ?view=overlay&mock=suggest    chat box while typing "/w s", with an error
 //   ?view=overlay&mock=offline    chat box while Steam is reconnecting
-//   ?view=settings&mock=login     logged out; the QR flow runs when started
-//   ?view=settings&mock=qr        waiting for the QR scan
-//   ?view=settings&mock=error     QR login failed
+//   ?view=settings&mock=login     logged out: the Steam sign-in form with QR
+//   ?view=settings&mock=guard     Steam Guard code step
+//   ?view=settings&mock=error     a failed password sign-in
 //   ?view=settings&mock=online    logged in and online
 //   ?view=settings&mock=offline   logged in, Steam unreachable
 //
-// Extra switches: &blur=0  &anim=0  &scale=0.75  &bg=dark|bright|mixed
+// Sign-in in the mock: password "guard" leads to the Steam Guard step (code
+// from the app), "email" to the email-code step, "wrong" is rejected, and
+// anything else signs in. Guard code ABCDE is right; other codes are wrong.
+//
+// Extra switches: &blur=0  &anim=0  &avatars=0  &scale=0.75
+//                 &style=fade|slide-up|slide-down|slide-left|slide-right|typewriter
+//                 &speed=fast|normal|slow  &bg=dark|bright|mixed
 //
 // The chat engine below is a small imitation of internal/chat, good enough to
 // try the keys: text, arrows, Tab, /w name, /r, /p, /help, /clear, PgUp/PgDn,
@@ -29,20 +35,50 @@ interface Friend {
   name: string;
   online: boolean;
   inGame: string;
+  avatar: string;
 }
 
 const CS2 = "Counter-Strike 2";
 
+/**
+ * Steam's avatar server is not reachable offline, so mock avatars are drawn
+ * here: a coloured tile with a shape and the first letter, as a data URI.
+ */
+function avatar(name: string, hue: number): string {
+  const letter = Array.from(name)[0]?.toUpperCase() ?? "?";
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">` +
+    `<rect width="64" height="64" fill="hsl(${hue} 50% 34%)"/>` +
+    `<circle cx="48" cy="12" r="24" fill="hsl(${(hue + 40) % 360} 75% 58%)" opacity="0.55"/>` +
+    `<path d="M0 64L26 30L44 64z" fill="hsl(${(hue + 320) % 360} 60% 22%)" opacity="0.6"/>` +
+    `<text x="32" y="43" font-family="Segoe UI, sans-serif" font-size="30" font-weight="700" text-anchor="middle" fill="#fff">${letter}</text>` +
+    `</svg>`;
+  return "data:image/svg+xml," + encodeURIComponent(svg);
+}
+
+/** An image that cannot be decoded: shows the letter fallback. No network involved. */
+const BROKEN_AVATAR = "data:image/png;base64,AAAA";
+
 const FRIENDS: Friend[] = [
-  { id: "76561198000000001", name: "sant1", online: true, inGame: CS2 },
-  { id: "76561198000000002", name: "Mira", online: true, inGame: CS2 },
-  { id: "76561198000000003", name: "Дмитрий", online: true, inGame: "" },
-  { id: "76561198000000004", name: "samurai_jack_the_unbelievably_long_nickname", online: false, inGame: "" },
-  { id: "76561198000000005", name: "サクラ", online: true, inGame: "Dota 2" },
-  { id: "76561198000000006", name: "Sandro", online: false, inGame: "" },
-  { id: "76561198000000007", name: "أحمد", online: true, inGame: CS2 },
-  { id: "76561198000000008", name: "s1mple_fan", online: true, inGame: "" },
+  { id: "76561198000000001", name: "sant1", online: true, inGame: CS2, avatar: avatar("sant1", 265) },
+  { id: "76561198000000002", name: "Mira", online: true, inGame: CS2, avatar: avatar("Mira", 150) },
+  { id: "76561198000000003", name: "Дмитрий", online: true, inGame: "", avatar: avatar("Дмитрий", 20) },
+  { id: "76561198000000004", name: "samurai_jack_the_unbelievably_long_nickname", online: false, inGame: "", avatar: BROKEN_AVATAR },
+  { id: "76561198000000005", name: "サクラ", online: true, inGame: "Dota 2", avatar: avatar("サクラ", 330) },
+  { id: "76561198000000006", name: "Sandro", online: false, inGame: "", avatar: "" },
+  { id: "76561198000000007", name: "أحمد", online: true, inGame: CS2, avatar: avatar("أحمد", 200) },
+  { id: "76561198000000008", name: "s1mple_fan", online: true, inGame: "", avatar: avatar("s1mple_fan", 45) },
 ];
+
+/** The fields of an Entry that describe the other person. */
+const peer = (f: Friend): Pick<C.Entry, "peerId" | "peerName" | "peerAvatar"> => ({
+  peerId: f.id,
+  peerName: f.name,
+  peerAvatar: f.avatar,
+});
+
+const STYLES = ["fade", "slide-up", "slide-down", "slide-left", "slide-right", "typewriter"];
+const SPEEDS: Record<string, number> = { fast: 120, normal: 200, slow: 320 };
 
 const INCOMING: [number, string][] = [
   [1, "we need one more for premier, you in?"],
@@ -117,6 +153,9 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     hotkey: new Cfg.Hotkey({ code: "KeyI" }),
     closeAfterSend: false,
     animations: flag("anim", true),
+    animationStyle: STYLES.includes(params.get("style") ?? "") ? (params.get("style") as string) : "slide-up",
+    animationSpeed: (params.get("speed") ?? "") in SPEEDS ? (params.get("speed") as string) : "normal",
+    showAvatars: flag("avatars", true),
     blur: flag("blur", true),
     showToasts: true,
     toastSeconds: 6,
@@ -138,10 +177,10 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
         : { state: "online", accountName: "sant1_cs", personaName: "sant1", friendsOnline: 7, partySize: 2 },
   );
   let login = new M.LoginState(
-    mock === "qr"
-      ? { phase: "waiting", url: "https://s.team/q/1/1234567890", qr: fakeQr(7) }
+    mock === "guard"
+      ? { phase: "guard", method: "password", account: "sant1_cs", guards: ["device_code", "device_confirmation"] }
       : mock === "error"
-        ? { phase: "error", error: "Steam did not answer in time. Check your connection and try again." }
+        ? { phase: "error", method: "password", account: "sant1_cs", error: "Wrong account name or password." }
         : { phase: "idle" },
   );
   let loginTimers: number[] = [];
@@ -157,6 +196,17 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
   const stopLogin = (): void => {
     loginTimers.forEach((t) => clearTimeout(t));
     loginTimers = [];
+  };
+  /** Steam accepted the login: the session connects and comes online. */
+  const finishLogin = (method: string, account: string): void => {
+    setStatus({ state: "connecting", accountName: account });
+    setLogin({ phase: "done", method, account });
+    loginTimers = [
+      window.setTimeout(
+        () => setStatus({ state: "online", personaName: "sant1", friendsOnline: 7, partySize: 2 }),
+        1200,
+      ),
+    ];
   };
 
   // ---------------- chat engine (imitation) ----------------
@@ -215,7 +265,15 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
   };
 
   const modeInfo = (): M.ModeInfo =>
-    new M.ModeInfo({ mode, animations: cfg.animations, blur: cfg.blur });
+    new M.ModeInfo({
+      mode,
+      animations: cfg.animations,
+      animationStyle: cfg.animationStyle,
+      animationSpeed: cfg.animationSpeed,
+      hideDelayMs: cfg.animations ? SPEEDS[cfg.animationSpeed] : 0,
+      blur: cfg.blur,
+      showAvatars: cfg.showAvatars,
+    });
   const setMode = (m: string): void => {
     mode = m;
     emit("mode", modeInfo());
@@ -257,7 +315,7 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
   };
 
   const incoming = (from: Friend, text: string): void => {
-    const entry = add({ kind: "in", peerId: from.id, peerName: from.name, text });
+    const entry = add({ kind: "in", ...peer(from), text });
     lastFrom = from.id;
     touch(from.id);
     changed();
@@ -265,7 +323,7 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
   };
 
   const setWhisper = (f: Friend): void => {
-    channel = new C.Channel({ kind: "whisper", targetId: f.id, targetName: f.name });
+    channel = new C.Channel({ kind: "whisper", targetId: f.id, targetName: f.name, avatar: f.avatar });
   };
 
   const match = (q: string): { all: Friend[]; exact: Friend[] } => {
@@ -337,7 +395,7 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
   };
 
   const sendWhisper = (to: Friend, text: string): boolean => {
-    const entry = add({ kind: "out", peerId: to.id, peerName: to.name, text, status: "pending" });
+    const entry = add({ kind: "out", ...peer(to), text, status: "pending" });
     touch(to.id);
     chars = [];
     caret = 0;
@@ -555,21 +613,23 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
   const seedLog = (): void => {
     const now = Date.now();
     const at = (minutesAgo: number): number => now - minutesAgo * 60_000;
-    const [sant1, mira, dmitri, long, sakura, , ahmed] = FRIENDS;
+    // `long` has a broken avatar URL and `sandro` has none: both show the letter circle.
+    const [sant1, mira, dmitri, long, sakura, sandro, ahmed] = FRIENDS;
     const lines: Partial<C.Entry>[] = [
       { time: at(34), kind: "system", text: "Connected to Steam as sant1." },
-      { time: at(31), kind: "in", peerId: dmitri.id, peerName: dmitri.name, text: "привет, го катку?" },
-      { time: at(30), kind: "out", peerId: dmitri.id, peerName: dmitri.name, text: "через 10 минут", status: "sent" },
-      { time: at(22), kind: "in", peerId: sakura.id, peerName: sakura.name, text: "こんにちは！今夜プレイする？" },
-      { time: at(18), kind: "in", peerId: ahmed.id, peerName: ahmed.name, text: "مرحبا، هل تلعب الليلة؟" },
-      { time: at(12), kind: "in", peerId: long.id, peerName: long.name, text: "did you see the new operation trailer? https://store.steampowered.com/news/app/730/view/000000000000000000 the maps look great and I think we should try the co-op missions this weekend" },
+      { time: at(31), kind: "in", ...peer(dmitri), text: "привет, го катку?" },
+      { time: at(30), kind: "out", ...peer(dmitri), text: "через 10 минут", status: "sent" },
+      { time: at(22), kind: "in", ...peer(sakura), text: "こんにちは！今夜プレイする？" },
+      { time: at(18), kind: "in", ...peer(ahmed), text: "مرحبا، هل تلعب الليلة؟" },
+      { time: at(14), kind: "in", ...peer(sandro), text: "back in 5, grabbing food" },
+      { time: at(12), kind: "in", ...peer(long), text: "did you see the new operation trailer? https://store.steampowered.com/news/app/730/view/000000000000000000 the maps look great and I think we should try the co-op missions this weekend" },
       { time: at(9), kind: "party", peerName: "Party (2)", text: "buy armor this round, save next", status: "sent" },
-      { time: at(7), kind: "in", peerId: mira.id, peerName: mira.name, text: "rotate B, they stacked A again" },
-      { time: at(6), kind: "out", peerId: mira.id, peerName: mira.name, text: "on my way, smoke window", status: "sent" },
-      { time: at(4), kind: "out", peerId: dmitri.id, peerName: dmitri.name, text: "ready when you are", status: "failed", detail: "Steam did not answer" },
+      { time: at(7), kind: "in", ...peer(mira), text: "rotate B, they stacked A again" },
+      { time: at(6), kind: "out", ...peer(mira), text: "on my way, smoke window", status: "sent" },
+      { time: at(4), kind: "out", ...peer(dmitri), text: "ready when you are", status: "failed", detail: "Steam did not answer" },
       { time: at(3), kind: "error", text: "Steam connection lost. Reconnecting…" },
       { time: at(2), kind: "system", text: "Back online." },
-      { time: at(1), kind: "in", peerId: sant1.id, peerName: sant1.name, text: "one more after this?" },
+      { time: at(1), kind: "in", ...peer(sant1), text: "one more after this?" },
     ];
     log = lines.map((l) => new C.Entry({ id: nextId++, ...l }));
     mru = [sant1.id, mira.id, dmitri.id, long.id, sakura.id, ahmed.id];
@@ -605,7 +665,7 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
         changed();
         return;
       }
-      const pending = add({ kind: "out", peerId: FRIENDS[0].id, peerName: FRIENDS[0].name, text: "sure, queue it", status: "pending" });
+      const pending = add({ kind: "out", ...peer(FRIENDS[0]), text: "sure, queue it", status: "pending" });
       window.setTimeout(() => update(pending, "sent"), 1800);
       window.setTimeout(() => incoming(FRIENDS[1], "nice clutch 😄 same team next game?"), 3200);
     }, 300);
@@ -643,22 +703,60 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
       if (next.toastSeconds < 2 || next.toastSeconds > 30) next.toastSeconds = 6;
       if (next.bottomOffset < 0 || next.bottomOffset > 1000) next.bottomOffset = 150;
       if (next.scale < 0.75 || next.scale > 1.5) next.scale = 1;
+      if (!STYLES.includes(next.animationStyle)) next.animationStyle = "slide-up";
+      if (!(next.animationSpeed in SPEEDS)) next.animationSpeed = "normal";
       cfg = next;
       const saved = configView();
       emit("config", saved);
       return new Promise((resolve) => window.setTimeout(() => resolve(saved), 60));
     },
 
+    // The QR is shown and then simply waits: nobody scans it in the mock.
     startLogin() {
       stopLogin();
-      setLogin({ phase: "waiting" });
+      setLogin({ phase: "waiting", method: "qr" });
       loginTimers = [
-        window.setTimeout(() => setLogin({ phase: "waiting", url: "https://s.team/q/1/1234567890", qr: fakeQr(Date.now()) }), 700),
+        window.setTimeout(
+          () => setLogin({ phase: "waiting", method: "qr", url: "https://s.team/q/1/1234567890", qr: fakeQr(Date.now()) }),
+          700,
+        ),
+      ];
+      return done();
+    },
+
+    // Passwords are compared with the mock's trigger words and then dropped.
+    loginWithPassword(account, password) {
+      stopLogin();
+      const name = account.trim();
+      if (!name || !password) {
+        setLogin({ phase: "error", method: "password", error: "Enter your account name and password." });
+        return done();
+      }
+      const base = { method: "password", account: name };
+      const outcome: Partial<M.LoginState> | null =
+        password === "wrong"
+          ? { ...base, phase: "error", error: "Wrong account name or password." }
+          : password === "guard"
+            ? { ...base, phase: "guard", guards: ["device_code", "device_confirmation"] }
+            : password === "email"
+              ? { ...base, phase: "guard", guards: ["email_code"], emailHint: "sa***@gmail.com" }
+              : null;
+      setLogin({ ...base, phase: "submitting" });
+      loginTimers = [
+        window.setTimeout(() => (outcome ? setLogin(outcome) : finishLogin("password", name)), 900),
+      ];
+      return done();
+    },
+
+    submitGuardCode(code) {
+      if (login.phase !== "guard") return done();
+      const step = { ...login };
+      setLogin({ ...step, checking: true, codeError: "" });
+      loginTimers = [
         window.setTimeout(() => {
-          setStatus({ state: "connecting", accountName: "sant1_cs" });
-          setLogin({ phase: "done", account: "sant1_cs" });
-        }, 9000),
-        window.setTimeout(() => setStatus({ state: "online", personaName: "sant1", friendsOnline: 7, partySize: 2 }), 10500),
+          if (code.trim().toUpperCase() === "ABCDE") finishLogin("password", step.account);
+          else setLogin({ ...step, checking: false, codeError: "Wrong Steam Guard code." });
+        }, 700),
       ];
       return done();
     },

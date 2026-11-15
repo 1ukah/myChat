@@ -3,7 +3,7 @@
   // for what Windows and Go do in the real app: a game picture behind, and a
   // window of exactly the layout size, docked bottom middle, that is resized
   // per mode, blurred when blur is on, zoomed by the size setting, and hidden
-  // 180 ms after `hidden`. The real page stays fully transparent.
+  // `hideDelayMs` after `hidden`. The real page stays fully transparent.
   import type { Snippet } from "svelte";
   import { app } from "../store.svelte";
 
@@ -18,7 +18,7 @@
   $effect(() => {
     const m = app.mode;
     if (m.mode === "hidden") {
-      const t = setTimeout(() => (visible = false), m.animations ? 180 : 0);
+      const t = setTimeout(() => (visible = false), m.hideDelayMs);
       return () => clearTimeout(t);
     }
     height = m.mode === "toast" ? app.layout.toastHeight : app.layout.composerHeight;
@@ -46,9 +46,35 @@
       "settings",
       [
         ["login", { view: "settings", mock: "login" }],
-        ["qr", { view: "settings", mock: "qr" }],
+        ["guard", { view: "settings", mock: "guard" }],
         ["error", { view: "settings", mock: "error" }],
         ["online", { view: "settings", mock: "online" }],
+      ],
+    ],
+    [
+      "style",
+      [
+        ["fade", { style: "fade" }],
+        ["up", { style: "slide-up" }],
+        ["down", { style: "slide-down" }],
+        ["left", { style: "slide-left" }],
+        ["right", { style: "slide-right" }],
+        ["type", { style: "typewriter" }],
+      ],
+    ],
+    [
+      "speed",
+      [
+        ["fast", { speed: "fast" }],
+        ["normal", { speed: "normal" }],
+        ["slow", { speed: "slow" }],
+      ],
+    ],
+    [
+      "avatars",
+      [
+        ["on", { avatars: "1" }],
+        ["off", { avatars: "0" }],
       ],
     ],
     [

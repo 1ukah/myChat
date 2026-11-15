@@ -5,6 +5,9 @@
   import type * as C from "../../../bindings/mychat/internal/chat/models";
   import { app, overlayReady } from "../store.svelte";
   import Composer from "./Composer.svelte";
+  import { motionOf } from "./motion";
+  import Panel from "./Panel.svelte";
+  import Stage from "./Stage.svelte";
   import Toast from "./Toast.svelte";
 
   /** More than fits in 360 px even when every line is short. */
@@ -12,6 +15,7 @@
 
   const open = $derived(app.mode.mode === "composer");
   const live = $derived(app.mode.mode !== "hidden");
+  const motion = $derived(motionOf(app.mode, app.mode.hideDelayMs));
 
   // What was last on screen. After `hidden` it stays mounted so the exit
   // animation has something to fade, and so reopening costs no DOM work.
@@ -63,74 +67,30 @@
   });
 </script>
 
-<div class="overlay" class:anim={app.mode.animations}>
+<Stage {motion}>
   {#if shown}
     {#key shown}
-      <div class="panel" class:leave={!live} class:solid={!app.mode.blur}>
+      <Panel leave={!live} solid={!app.mode.blur}>
         {#if shown === "composer"}
-          <Composer {composer} {lines} {status} live={open} />
+          <Composer
+            {composer}
+            {lines}
+            {status}
+            live={open}
+            avatars={app.mode.showAvatars}
+            typewriter={motion.typewriter}
+          />
         {:else if app.toast}
-          <Toast entry={app.toast} hotkey={app.config.hotkeyLabel} {live} />
+          <Toast
+            entry={app.toast}
+            hotkey={app.config.hotkeyLabel}
+            {live}
+            avatars={app.mode.showAvatars}
+            typewriter={motion.typewriter}
+            typeDelay={Math.round(motion.enterMs * 0.6)}
+          />
         {/if}
-      </div>
+      </Panel>
     {/key}
   {/if}
-</div>
-
-<style>
-  /*
-   * The panel fills the whole window edge to edge with square corners: with
-   * blur on, Windows blurs the game behind the entire window rectangle.
-   * No backdrop-filter here (nothing to blur inside this window).
-   */
-  .panel {
-    position: fixed;
-    inset: 0;
-    overflow: hidden;
-    background: rgba(12, 14, 17, 0.55);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.16),
-      inset 0 0 0 1px rgba(255, 255, 255, 0.06);
-  }
-
-  /* No blur behind us: a denser fill keeps text readable over the game. */
-  .panel.solid {
-    background: rgba(12, 14, 17, 0.86);
-  }
-
-  .panel.leave {
-    opacity: 0;
-  }
-
-  /* Only transform and opacity are animated. Go hides the window 180 ms
-     after `hidden`, so the exit must be done within 160 ms. */
-  .anim .panel {
-    animation: panel-in 150ms var(--ease-out) both;
-  }
-
-  .anim .panel.leave {
-    animation: panel-out 140ms ease-in both;
-  }
-
-  @keyframes panel-in {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-    to {
-      opacity: 1;
-      transform: none;
-    }
-  }
-
-  @keyframes panel-out {
-    from {
-      opacity: 1;
-      transform: none;
-    }
-    to {
-      opacity: 0;
-      transform: translateY(6px);
-    }
-  }
-</style>
+</Stage>

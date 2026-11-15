@@ -7,21 +7,27 @@
     variant = "outline",
     size = "md",
     icon,
+    type = "button",
+    wide = false,
     disabled = false,
     onclick,
     children,
   }: {
-    /** outline: neutral · accent: light blue · go: CS2 green · danger: red */
-    variant?: "outline" | "accent" | "go" | "danger";
+    /** outline: neutral · accent: light blue · primary: filled light blue · go: CS2 green · danger: red */
+    variant?: "outline" | "accent" | "primary" | "go" | "danger";
     size?: "md" | "lg";
     icon?: IconName;
+    /** "submit" inside a form; then `onclick` is not needed. */
+    type?: "button" | "submit";
+    /** Fill the width of the container. */
+    wide?: boolean;
     disabled?: boolean;
-    onclick: () => void;
+    onclick?: () => void;
     children: Snippet;
   } = $props();
 </script>
 
-<button type="button" class="btn {variant} {size}" {disabled} {onclick}>
+<button {type} class="btn {variant} {size}" class:wide {disabled} {onclick}>
   {#if icon}<Icon name={icon} size={size === "lg" ? 18 : 16} />{/if}
   <span>{@render children()}</span>
 </button>
@@ -80,6 +86,26 @@
 
   .accent:active {
     background: rgba(134, 197, 255, 0.4);
+  }
+
+  .btn.wide {
+    width: 100%;
+  }
+
+  .primary {
+    color: #0c1116;
+    background: var(--accent);
+    border-color: #b9ddff;
+  }
+
+  .primary:hover {
+    color: #0c1116;
+    background: #a7d5ff;
+    border-color: #fff;
+  }
+
+  .primary:active {
+    background: #6fb3f2;
   }
 
   .go {

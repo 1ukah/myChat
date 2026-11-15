@@ -4,6 +4,7 @@
   import { untrack } from "svelte";
   import type * as C from "../../../bindings/mychat/internal/chat/models";
   import type * as M from "../../../bindings/mychat/models";
+  import Avatar from "../ui/Avatar.svelte";
   import ChatLine from "./ChatLine.svelte";
 
   let {
@@ -11,12 +12,18 @@
     lines,
     status,
     live,
+    avatars = false,
+    typewriter = false,
   }: {
     composer: C.ComposerState;
     lines: C.Entry[];
     status: M.Status;
     /** The composer is the current mode (not fading out). */
     live: boolean;
+    /** Show friends' avatars (setting `showAvatars`). */
+    avatars?: boolean;
+    /** Animation style is "typewriter". Never applies to the input line. */
+    typewriter?: boolean;
   } = $props();
 
   const channel = $derived(composer.channel);
@@ -61,6 +68,7 @@
     void composer.caret;
     void channel.kind;
     void channel.targetName;
+    void avatars;
     if (!fieldEl || !textEl || !caretEl) return;
 
     const view = fieldEl.clientWidth;
@@ -78,7 +86,7 @@
   <div class="log">
     <div class="lines">
       {#each lines as entry (entry.id)}
-        <ChatLine {entry} />
+        <ChatLine {entry} {avatars} {typewriter} />
       {:else}
         <div class="empty">No messages yet.</div>
       {/each}
@@ -98,7 +106,11 @@
             </div>
             {#each suggestions as s, i (s.id)}
               <div class="srow" class:sel={i === composer.selected}>
-                <span class="dot" class:on={s.online}></span>
+                {#if avatars}
+                  <Avatar size={22} ring={s.online ? "green" : "offline"} src={s.avatar} name={s.name} />
+                {:else}
+                  <span class="dot" class:on={s.online}></span>
+                {/if}
                 <bdi class="sname">{s.name}</bdi>
                 <span class="sgame">{s.inGame || (s.online ? "Online" : "Offline")}</span>
               </div>
@@ -121,10 +133,26 @@
   <div class="input {kind}">
     <div class="label">
       {#if kind === "whisper"}
-        <span class="dot" class:on={channel.online}></span>
+        {#if avatars}
+          <Avatar
+            size={18}
+            ring={channel.online ? "whisper" : "offline"}
+            src={channel.avatar}
+            name={channel.targetName}
+          />
+        {:else}
+          <span class="dot" class:on={channel.online}></span>
+        {/if}
         <span>To</span>
         <bdi class="target">{channel.targetName}</bdi><span class="colon">:</span>
       {:else if kind === "party"}
+        {#if avatars}
+          <svg class="group" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+            <path
+              d="M5.5 7a2.25 2.25 0 1 0 0-4.5 2.25 2.25 0 0 0 0 4.5z M1.5 13c.3-2.4 1.9-3.6 4-3.6s3.7 1.2 4 3.6 M10.4 6.9a2 2 0 1 0-.5-3.8 M11.2 9.5c1.8.3 3 1.5 3.3 3.5"
+            />
+          </svg>
+        {/if}
         <span>Party</span><span class="colon">:</span>
       {:else}
         <span>Chat</span><span class="colon">:</span>
@@ -151,8 +179,12 @@
         <span>{steam.text}</span>
       {/if}
     </div>
-    <div class="keys head">
-      <b>Enter</b> send <i>·</i> <b>Esc</b> close <i>·</i> <b>Tab</b> next <i>·</i> <b>/help</b>
+    <!-- Key hints as in the CS2 scoreboard footer: small boxed keys. -->
+    <div class="keys">
+      <span><kbd>Enter</kbd>Send</span>
+      <span><kbd>Esc</kbd>Close</span>
+      <span><kbd>Tab</kbd>Next</span>
+      <span><kbd>/help</kbd></span>
     </div>
   </div>
 </div>
@@ -236,19 +268,32 @@
   .srow {
     display: flex;
     align-items: center;
-    gap: 8px;
-    height: 26px;
+    gap: 9px;
+    height: 28px;
     padding: 0 16px;
     font-size: 14px;
-    line-height: 26px;
+    line-height: 28px;
     color: var(--text-soft);
     white-space: nowrap;
   }
 
+  /* Faint bands, as in the scoreboard. */
+  .srow:nth-child(even) {
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  /* The selected row gets the scoreboard's gold highlight. */
   .srow.sel {
     color: #fff;
-    background: var(--accent-fill);
-    box-shadow: inset 3px 0 0 var(--accent);
+    background: var(--gold-wash);
+    box-shadow:
+      inset 3px 0 0 var(--gold),
+      inset 0 1px 0 rgba(224, 178, 82, 0.35),
+      inset 0 -1px 0 rgba(224, 178, 82, 0.35);
+  }
+
+  .srow.sel .sgame {
+    color: #d9c08a;
   }
 
   .sname {
@@ -460,25 +505,45 @@
 
   .keys {
     flex: none;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: var(--font-head);
     font-size: 13px;
     font-weight: 500;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
   }
 
-  .keys b {
-    font-weight: 600;
-    color: var(--text-soft);
+  .keys span {
+    display: flex;
+    align-items: center;
+    gap: 5px;
   }
 
-  .keys i {
-    font-style: normal;
-    color: var(--dim);
+  .keys kbd {
+    height: 16px;
+    padding: 0 5px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 16px;
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.34);
+  }
+
+  .group {
+    flex: none;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
   }
 
   /* ---------- motion ---------- */
 
   :global(.anim) .pop {
-    animation: pop-in 120ms var(--ease-out) both;
+    animation: pop-in calc(var(--dur) * 0.6) var(--ease-out) both;
   }
 
   @keyframes pop-in {
