@@ -36,7 +36,7 @@
     live: boolean;
     /** Show the senders' avatars (setting `showAvatars`). */
     avatars?: boolean;
-    /** The Minimal look (`overlayStyle`): light, compact, rounded boxes. */
+    /** The Minimal look (`overlayStyle`): pale steel-blue, square, fading at the edges. */
     minimal?: boolean;
     motion: Motion;
   } = $props();
@@ -340,27 +340,78 @@
   }
 
   /* ---------- Minimal look ----------
-     Small frosted-white cards with dark text, a hairline edge, a soft shadow
-     and round corners; narrower than Legacy. The person's colour, darkened so
-     it reads on white, is kept for the name only. */
+     Each box is a band of pale Panorama steel-blue (never white) with dark
+     slate text, square, with no frame: the tint lives on a pseudo-element
+     that reaches past the text and is masked away to nothing at both ends
+     (--ends), with a feathered bottom. A faint cyan haze behind it and a
+     pale glow on the text stand in for blur. The one line is a hairline on
+     top that fades out with the band. The person's colour, darkened to read
+     on the tint, is kept for the name. Narrower than Legacy. */
 
   .minimal {
-    --width: 400px;
-    --avatar-radius: 4px;
-    --muted: #6f7b8a;
-    --tile: #66758a;
+    --width: 380px;
+    --fade: 46px;
+    --avatar-radius: 0px;
+    --muted: #4a5c6d;
+    --tile: #5b7186;
+    --halo: 0 0 6px rgba(222, 235, 244, 0.9);
+    --ends: linear-gradient(
+      to right,
+      transparent 0,
+      rgba(0, 0, 0, 0.26) calc(var(--fade) * 0.4),
+      rgba(0, 0, 0, 0.8) calc(var(--fade) * 0.8),
+      #000 var(--fade),
+      #000 calc(100% - var(--fade)),
+      rgba(0, 0, 0, 0.8) calc(100% - var(--fade) * 0.8),
+      rgba(0, 0, 0, 0.26) calc(100% - var(--fade) * 0.4),
+      transparent 100%
+    );
     font-family: var(--font-body);
   }
 
   .minimal .box {
+    z-index: 0;
     gap: 8px;
-    padding: 5px 12px 6px 8px;
-    background: linear-gradient(rgba(255, 255, 255, 0.93), rgba(243, 247, 252, 0.83));
-    border-radius: 11px;
-    box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.8),
-      0 0 0 1px rgba(24, 38, 62, 0.1),
-      0 3px 10px rgba(14, 24, 44, 0.18);
+    padding: 5px 12px 6px 9px;
+    background: none;
+    box-shadow: none;
+  }
+
+  .minimal .box::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: 0 calc(var(--fade) * -1);
+    background:
+      linear-gradient(
+          to right,
+          rgba(159, 209, 242, 0.85),
+          rgba(226, 241, 250, 0.95) 50%,
+          rgba(159, 209, 242, 0.85)
+        )
+        top / 100% 1px no-repeat,
+      linear-gradient(
+        to bottom,
+        rgba(206, 220, 231, 0.86) 0,
+        rgba(174, 195, 211, 0.88) calc(100% - 4px),
+        rgba(169, 191, 208, 0) 100%
+      );
+    -webkit-mask-image: var(--ends);
+    mask-image: var(--ends);
+  }
+
+  /* The haze around each band. */
+  .minimal .box::after {
+    content: "";
+    position: absolute;
+    z-index: -2;
+    inset: -12px -64px;
+    background: radial-gradient(
+      closest-side,
+      rgba(159, 209, 242, 0.24) 0,
+      rgba(159, 209, 242, 0.2) 58%,
+      rgba(159, 209, 242, 0) 100%
+    );
   }
 
   .minimal .face {
@@ -369,8 +420,8 @@
 
   .minimal .name {
     letter-spacing: 0;
-    color: color-mix(in srgb, var(--who) 46%, #0d1b33);
-    text-shadow: none;
+    color: color-mix(in srgb, var(--who) 40%, #06182b);
+    text-shadow: var(--halo);
   }
 
   .minimal .time {
@@ -379,28 +430,34 @@
 
   .minimal .text {
     font-weight: 400;
-    color: #151c26;
-    text-shadow: none;
+    color: #0e1a26;
+    text-shadow: var(--halo);
   }
 
   .minimal .hint {
     height: 17px;
   }
 
+  /* A short strip of the same tint, faded at both ends. */
   .minimal .hint span {
-    padding: 0 8px;
+    padding: 0 18px;
     font-weight: 400;
     line-height: 17px;
     letter-spacing: 0;
-    color: #4b5767;
-    background: rgba(255, 255, 255, 0.84);
-    border-radius: 9px;
-    box-shadow: 0 0 0 1px rgba(24, 38, 62, 0.08);
+    color: #223344;
+    text-shadow: var(--halo);
+    background: linear-gradient(
+      to right,
+      rgba(201, 216, 228, 0),
+      rgba(201, 216, 228, 0.8) 18px,
+      rgba(190, 208, 222, 0.8) calc(100% - 18px),
+      rgba(190, 208, 222, 0)
+    );
   }
 
   .minimal .hint b {
     font-weight: 700;
-    color: #151c26;
+    color: #0e1a26;
   }
 
   /* A new message moves in the way the chosen style says (--dx/--dy). */

@@ -41,7 +41,7 @@
 
   const LOOKS = [
     { value: "legacy", label: "Legacy", hint: "The dark CS2-style chat." },
-    { value: "minimal", label: "Minimal", hint: "Light, compact panels with rounded corners." },
+    { value: "minimal", label: "Minimal", hint: "Pale steel-blue, square and compact; the colour fades out at the edges." },
   ] as const;
 
   const look = $derived(asLook(app.config.overlayStyle) === "minimal" ? LOOKS[1] : LOOKS[0]);

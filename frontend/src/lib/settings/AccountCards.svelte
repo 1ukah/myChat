@@ -10,6 +10,7 @@
   import Avatar from "../ui/Avatar.svelte";
   import Button from "../ui/Button.svelte";
   import Icon from "../ui/Icon.svelte";
+  import NameMask from "../ui/NameMask.svelte";
   import Spinner from "../ui/Spinner.svelte";
 
   let {
@@ -72,9 +73,11 @@
 
 <div class="cards" role="radiogroup" aria-label="Steam accounts on this PC">
   {#each accounts as a (a.accountName)}
-    {@const name = a.personaName || a.accountName}
-    {@const error = errorFor(a.accountName)}
     {@const inUse = current !== "" && same(a.accountName, current)}
+    <!-- The login name myChat is using stays masked unless the user asked to see it. -->
+    {@const veiled = inUse && !app.config.showAccountName}
+    {@const name = a.personaName || (veiled ? "Steam account" : a.accountName)}
+    {@const error = errorFor(a.accountName)}
     {#if a.hasLogin}
       <button
         type="button"
@@ -88,7 +91,7 @@
         <Avatar size={40} ring={a.accountName === selected ? "accent" : "none"} {name} />
         <span class="who">
           <bdi class="persona">{name}</bdi>
-          <span class="account">{a.accountName}</span>
+          <span class="account">{#if veiled}<NameMask />{:else}{a.accountName}{/if}</span>
           {#if error}<span class="error" role="alert">{error}</span>{/if}
         </span>
         {#if inUse}
@@ -104,7 +107,7 @@
         <span class="muted"><Avatar size={40} name="" /></span>
         <span class="who">
           <bdi class="persona muted">{name}</bdi>
-          <span class="account">{a.accountName} · Not signed in to Steam</span>
+          <span class="account">{#if veiled}<NameMask />{:else}{a.accountName}{/if} · Not signed in to Steam</span>
           {#if error}<span class="error" role="alert">{error}</span>{/if}
         </span>
         <Button disabled={pending !== ""} onclick={() => signInInSteam(a.accountName)}>

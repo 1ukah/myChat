@@ -79,7 +79,7 @@
     width: var(--size);
     height: var(--size);
     background: var(--tile);
-    /* Square; the Minimal look only softens the corners. */
+    /* Square in both looks; a parent may still set a radius. */
     border-radius: var(--avatar-radius, 0);
     /* About 1 px on the small sizes, 2 px from 44 px up. */
     box-shadow: 0 0 0 max(1px, calc(var(--size) / 22)) var(--ring);

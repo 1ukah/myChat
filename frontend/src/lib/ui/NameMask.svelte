@@ -1,0 +1,37 @@
+<script lang="ts">
+  // Stand-in for a hidden Steam login name: a small frosted pill with a
+  // blurred run of marks inside. It is drawn, not text: the real name is
+  // never in the DOM (blurred text can be read back), and the size is fixed
+  // so it does not give the length of the name away either.
+  let { width = 84 }: { width?: number } = $props();
+</script>
+
+<span class="mask" role="img" aria-label="Account name hidden" style:width="{width}px">
+  <span class="marks"></span>
+</span>
+
+<style>
+  .mask {
+    position: relative;
+    flex: none;
+    display: inline-block;
+    height: 14px;
+    overflow: hidden;
+    vertical-align: -2px;
+    background: rgba(255, 255, 255, 0.07);
+    border-radius: 2px;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+  }
+
+  /* Bars the size of letters, blurred until they are only a haze. */
+  .marks {
+    position: absolute;
+    inset: 3px 6px;
+    background: repeating-linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.6) 0 6px,
+      transparent 6px 10px
+    );
+    filter: blur(2.5px);
+  }
+</style>

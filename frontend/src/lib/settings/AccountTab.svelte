@@ -3,6 +3,7 @@
   import Avatar from "../ui/Avatar.svelte";
   import Button from "../ui/Button.svelte";
   import Icon from "../ui/Icon.svelte";
+  import NameMask from "../ui/NameMask.svelte";
   import AccountCards from "./AccountCards.svelte";
   import Login from "./Login.svelte";
   import Row from "./Row.svelte";
@@ -16,7 +17,8 @@
   const loggedOut = $derived(
     !status.accountName || (status.state === "needs_login" && app.login.phase !== "done"),
   );
-  /** The Steam login name is private: shown only when the user asks for it. */
+  /** The Steam login name is private: shown only when the user asks for it.
+      Hidden, a masked placeholder stands in its place (never the name). */
   const showAccount = $derived(app.config.showAccountName);
   const name = $derived(
     status.personaName || (showAccount ? status.accountName : "") || "Steam",
@@ -81,6 +83,8 @@
           <span class="label {conn.tone}">{conn.text}</span>
           {#if showAccount}
             <span class="account">· {status.accountName}</span>
+          {:else}
+            <span class="account veiled"><span aria-hidden="true">·</span><NameMask /></span>
           {/if}
           <button
             type="button"
@@ -182,6 +186,13 @@
     text-overflow: ellipsis;
   }
 
+  .account.veiled {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
   /* Shows or hides the Steam login name. */
   .eye {
     flex: none;
@@ -256,5 +267,20 @@
 
   :global(.anim) .eye {
     transition: color 120ms;
+  }
+
+  /* The name and its mask are separate elements, so each fades in when the
+     eye swaps them. */
+  :global(.anim) .account {
+    animation: account-in 180ms ease-out both;
+  }
+
+  @keyframes account-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
 </style>

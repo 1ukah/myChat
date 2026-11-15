@@ -19,7 +19,7 @@
   }: {
     entry: C.Entry;
     avatars?: boolean;
-    /** The Minimal look: "name: text" and "To name: text", dark on light. */
+    /** The Minimal look: "name: text" and "To name: text", dark slate on pale steel-blue. */
     minimal?: boolean;
     /** Animation style is "typewriter": a new incoming message types itself out. */
     typewriter?: boolean;
@@ -36,7 +36,7 @@
   const tint = $derived(playerColor(entry.peerId || entry.peerName));
 </script>
 
-{#snippet face()}{#if avatars}<Avatar inline size={16} {tint} src={entry.peerAvatar} name={entry.peerName} />{:else}<span class="dot" style:color={tint}>●</span>{" "}{/if}{/snippet}
+{#snippet face()}{#if avatars}<Avatar inline size={16} {tint} src={entry.peerAvatar} name={entry.peerName} />{:else}<span class="dot" style:color={tint}>{minimal ? "■" : "●"}</span>{" "}{/if}{/snippet}
 
 <!-- String literals carry the spaces and nothing inside .msg is split over
      lines, so the layout never depends on how template whitespace collapses.
@@ -142,23 +142,24 @@
     flex: none;
   }
 
-  /* ---------- Minimal look: dark text on the light panel, no shadows ---------- */
+  /* ---------- Minimal look: dark slate text on the pale steel-blue band,
+     with a pale glow instead of the hard shadow ---------- */
 
   .minimal {
     font-family: var(--font-body);
     font-size: 14px;
     font-weight: 400;
     line-height: 20px;
-    color: #151c26;
-    text-shadow: none;
+    color: #0e1a26;
+    text-shadow: 0 0 6px rgba(222, 235, 244, 0.9);
   }
 
   .minimal.in {
-    --c: #1f62ad;
+    --c: #0f4f86;
   }
 
   .minimal.out {
-    --c: #566273;
+    --c: #3a4c5e;
   }
 
   .minimal .who {
@@ -166,29 +167,29 @@
   }
 
   .minimal.out .text {
-    color: #364250;
+    color: #22313f;
   }
 
   .minimal.system {
     font-weight: 400;
-    color: #5f6b7a;
+    color: #40525f;
   }
 
   .minimal.error {
     font-weight: 600;
-    color: #b8322a;
+    color: #9c211a;
   }
 
   .minimal .time {
     font-size: 11px;
     font-weight: 400;
-    color: #7c8796;
+    color: #4a5c6d;
   }
 
   .minimal .fail {
     font-size: 12px;
     font-weight: 600;
-    color: #b8322a;
+    color: #9c211a;
   }
 
   /* A new line uses a shorter, smaller version of the panel's motion

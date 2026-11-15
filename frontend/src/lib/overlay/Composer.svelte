@@ -28,7 +28,7 @@
     live: boolean;
     /** Show friends' avatars (setting `showAvatars`). */
     avatars?: boolean;
-    /** The Minimal look (`overlayStyle`): light, compact, rounded panels. */
+    /** The Minimal look (`overlayStyle`): pale steel-blue, square, fading at the edges. */
     minimal?: boolean;
     /** Animation style is "typewriter". Never applies to the input line. */
     typewriter?: boolean;
@@ -599,80 +599,146 @@
   }
 
   /* ---------- Minimal look ----------
-     Light and airy: two small frosted-white cards (log, input) with dark
-     text, hairline edges, a soft shadow and round corners. Nothing blurs the
-     game here, so the frost is a dense white gradient: it stays light over a
-     dark scene and the edge and shadow keep it visible over a bright one.
-     The log card is only as tall as its lines, up to ten of them. */
+     "Angelic", in the CS:GO Panorama palette: pale steel-blue bands (never
+     white) with dark slate text, square corners and no frame. Nothing blurs
+     the game here, so the softness is drawn:
+
+       - each band (log, input) is a translucent tint on a pseudo-element
+         whose left and right ends are masked away to nothing (--ends), so
+         there is no edge to see, only colour that thins out;
+       - the log also fades upwards, and its oldest lines with it;
+       - a wide, faint cyan haze sits behind the whole box, and the text
+         carries a pale glow (--halo), which together read as blur;
+       - the only line is a hairline under the input that fades out too.
+
+     The tint is dense where the text is (about 0.85), so the dark text reads
+     over a dark scene, and blue-grey enough to show on a bright one. The
+     log is only as tall as its lines, up to ten of them. */
 
   .minimal {
-    --avatar-radius: 3px;
-    --ink: #151c26;
-    --blue: #1f62ad;
-    --muted: #677383;
-    --dim: #9aa5b3;
+    --avatar-radius: 0px;
+    --ink: #0e1a26;
+    --blue: #0f4f86;
+    --muted: #465869;
+    --dim: #6f8294;
     --whisper: var(--blue);
-    --green: #2f9e58;
-    --gold: #c98a12;
-    --red-text: #b8322a;
-    --tile: #66758a;
-    --glass: linear-gradient(rgba(255, 255, 255, 0.92), rgba(243, 247, 252, 0.82));
-    --glass-edge:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.8), 0 0 0 1px rgba(24, 38, 62, 0.1),
-      0 6px 18px rgba(14, 24, 44, 0.2);
+    --green: #1f8a4c;
+    --gold: #a86a00;
+    --red-text: #a3271f;
+    --tile: #5b7186;
+    --fade: 60px;
+    --halo: 0 0 6px rgba(222, 235, 244, 0.9);
+    --ends: linear-gradient(
+      to right,
+      transparent 0,
+      rgba(0, 0, 0, 0.26) calc(var(--fade) * 0.4),
+      rgba(0, 0, 0, 0.8) calc(var(--fade) * 0.8),
+      #000 var(--fade),
+      #000 calc(100% - var(--fade)),
+      rgba(0, 0, 0, 0.8) calc(100% - var(--fade) * 0.8),
+      rgba(0, 0, 0, 0.26) calc(100% - var(--fade) * 0.4),
+      transparent 100%
+    );
     align-items: center;
     justify-content: flex-end;
     font-family: var(--font-body);
   }
 
   .minimal .frame {
+    position: relative;
+    z-index: 0;
     flex: none;
-    gap: 5px;
-    width: 520px;
+    gap: 4px;
+    width: 500px;
     padding: 0;
     background: none;
   }
 
-  .minimal .log {
-    flex: none;
-    background: var(--glass);
-    border-radius: 12px;
-    box-shadow: var(--glass-edge);
+  /* The haze: a soft cyan cloud around the box that dies out before the
+     window edge. */
+  .minimal .frame::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: -20px -70px -14px;
+    background: radial-gradient(
+      closest-side,
+      rgba(159, 209, 242, 0.26) 0,
+      rgba(159, 209, 242, 0.22) 62%,
+      rgba(159, 209, 242, 0) 100%
+    );
   }
 
+  .minimal .log,
+  .minimal .input {
+    position: relative;
+    z-index: 0;
+    background: none;
+  }
+
+  /* The tinted bands. They reach past the text on both sides and thin out
+     there; the text itself stays on the dense middle. */
+  .minimal .log::before,
+  .minimal .input::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: 0 calc(var(--fade) * -1);
+    -webkit-mask-image: var(--ends);
+    mask-image: var(--ends);
+  }
+
+  .minimal .log {
+    flex: none;
+  }
+
+  /* Fades in from nothing at the top; a short feather at the bottom. */
+  .minimal .log::before {
+    background: linear-gradient(
+      to bottom,
+      rgba(201, 216, 228, 0) 0,
+      rgba(201, 216, 228, 0.82) 18px,
+      rgba(169, 191, 208, 0.88) calc(100% - 3px),
+      rgba(169, 191, 208, 0) 100%
+    );
+  }
+
+  /* Old lines leave through the same fade as the tint. */
   .minimal .lines {
     position: relative;
     inset: auto;
-    max-height: 214px;
-    padding: 7px 16px 7px 12px;
+    max-height: 223px;
+    padding: 16px 16px 7px 12px;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 16px);
+    mask-image: linear-gradient(to bottom, transparent 0, #000 16px);
   }
 
   .minimal .empty {
     font-size: 14px;
     font-weight: 400;
     line-height: 20px;
-    text-shadow: none;
+    text-shadow: var(--halo);
   }
 
   .minimal .bar {
     right: 4px;
     width: 3px;
-    background: rgba(24, 38, 62, 0.28);
-    border-radius: 2px;
+    margin: 18px 0 6px;
+    background: rgba(15, 55, 90, 0.4);
   }
 
   .minimal .newer {
     right: 12px;
     height: 18px;
-    padding: 0 9px;
+    padding: 0 8px;
     font-size: 11px;
     font-weight: 600;
     line-height: 18px;
     letter-spacing: 0;
     text-transform: none;
-    color: #fff;
-    background: var(--blue);
-    border-radius: 9px;
+    color: #e2f0f9;
+    background: rgba(15, 79, 134, 0.92);
+    border-radius: 1px;
   }
 
   .minimal .pop {
@@ -681,13 +747,24 @@
     bottom: 6px;
   }
 
+  /* Opaque, so the log lines behind do not show through; a glow instead of
+     a border, and a hairline on top that fades out at both ends. */
   .minimal .suggest {
-    padding: 3px 4px 4px;
-    background: #fdfeff;
-    border-radius: 9px;
+    padding: 4px;
+    background:
+      linear-gradient(
+          to right,
+          rgba(226, 241, 250, 0),
+          rgba(226, 241, 250, 0.95) 28%,
+          rgba(159, 209, 242, 0.9) 68%,
+          rgba(159, 209, 242, 0)
+        )
+        top / 100% 1px no-repeat,
+      linear-gradient(#cfdce7, #b6c9d8);
+    border-radius: 1px;
     box-shadow:
-      0 0 0 1px rgba(24, 38, 62, 0.12),
-      0 8px 20px rgba(14, 24, 44, 0.2);
+      0 0 22px rgba(159, 209, 242, 0.5),
+      0 3px 12px rgba(16, 34, 52, 0.22);
   }
 
   .minimal .shead {
@@ -706,7 +783,6 @@
     font-size: 14px;
     color: var(--ink);
     background: none;
-    border-radius: 6px;
   }
 
   .minimal .srow:last-child {
@@ -717,10 +793,16 @@
     color: var(--muted);
   }
 
+  /* The pick: soft cyan that runs out towards the right. */
   .minimal .srow.sel {
-    color: #0f3f78;
-    background: rgba(31, 98, 173, 0.13);
-    box-shadow: inset 0 0 0 1px rgba(31, 98, 173, 0.26);
+    color: #08314f;
+    background: linear-gradient(
+      to right,
+      rgba(159, 209, 242, 0.95),
+      rgba(159, 209, 242, 0.5) 62%,
+      rgba(159, 209, 242, 0)
+    );
+    box-shadow: inset 2px 0 0 var(--blue);
   }
 
   .minimal .salt,
@@ -737,27 +819,43 @@
     margin-top: 4px;
     font-size: 13px;
     font-weight: 600;
-    color: #a3271f;
-    background: #fdeceb;
-    border-radius: 8px;
+    color: #7d1712;
+    background: linear-gradient(to right, #e3c1c2, #d6c6d0);
+    border-radius: 1px;
     box-shadow:
-      0 0 0 1px rgba(184, 50, 42, 0.24),
-      0 4px 12px rgba(14, 24, 44, 0.16);
+      inset 2px 0 0 var(--red-text),
+      0 0 16px rgba(159, 209, 242, 0.35);
   }
 
   .minimal .input {
     gap: 7px;
     height: 38px;
-    padding: 0 13px 0 11px;
-    background: var(--glass);
-    border-radius: 12px;
-    box-shadow: var(--glass-edge);
+    padding: 0 13px 0 12px;
+  }
+
+  /* A little brighter than the log, with the one hairline: under the text,
+     cyan, fading out with the band. */
+  .minimal .input::before {
+    background:
+      linear-gradient(
+          to right,
+          rgba(159, 209, 242, 0.9),
+          rgba(226, 241, 250, 0.95) 50%,
+          rgba(159, 209, 242, 0.9)
+        )
+        bottom / 100% 1px no-repeat,
+      linear-gradient(
+        to bottom,
+        rgba(212, 225, 235, 0) 0,
+        rgba(212, 225, 235, 0.86) 3px,
+        rgba(187, 206, 220, 0.9) 100%
+      );
   }
 
   .minimal .label {
     font-size: 14px;
     line-height: 22px;
-    text-shadow: none;
+    text-shadow: var(--halo);
   }
 
   .minimal .text {
@@ -765,7 +863,7 @@
     font-weight: 400;
     line-height: 22px;
     color: var(--ink);
-    text-shadow: none;
+    text-shadow: var(--halo);
   }
 
   .minimal .hint {
@@ -781,35 +879,42 @@
     font-size: 12px;
     letter-spacing: 0;
     text-transform: none;
-    color: #a2acb9;
+    color: #62768a;
   }
 
   .minimal .send.ready {
     color: var(--blue);
   }
 
-  /* The hints sit in small pills, so they read over any scene. */
+  .minimal .dot {
+    border-radius: 1px;
+  }
+
+  /* The hints sit on short strips of the same tint, faded at both ends, so
+     they read over any scene. */
   .minimal .foot {
-    width: 520px;
+    width: 500px;
     height: 24px;
-    padding: 0 2px;
+    padding: 0;
     font-size: 11px;
     font-weight: 400;
     line-height: 18px;
-    color: #4b5767;
-    text-shadow: none;
+    color: #223344;
+    text-shadow: var(--halo);
   }
 
   .minimal .steam,
   .minimal .keys {
     height: 18px;
-    margin-top: 4px;
-    padding: 0 9px;
-    background: rgba(255, 255, 255, 0.84);
-    border-radius: 9px;
-    box-shadow:
-      0 0 0 1px rgba(24, 38, 62, 0.08),
-      0 2px 8px rgba(14, 24, 44, 0.16);
+    margin-top: 5px;
+    padding: 0 20px;
+    background: linear-gradient(
+      to right,
+      rgba(201, 216, 228, 0),
+      rgba(201, 216, 228, 0.8) 20px,
+      rgba(190, 208, 222, 0.8) calc(100% - 20px),
+      rgba(190, 208, 222, 0)
+    );
   }
 
   .minimal .keys {
