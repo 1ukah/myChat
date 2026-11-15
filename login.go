@@ -190,8 +190,8 @@ func (a *App) onLoginExpired() {
 				}
 			}
 			a.steam.Stop()
-			a.engine.System("Steam's saved login expired. Sign in to Steam again, or open Settings.")
-			a.needsLogin("Steam's saved login for " + acct + " has expired. Sign in to Steam again.")
+			a.engine.System("Steam login expired. Sign in again in Settings.")
+			a.needsLogin("The saved login for " + acct + " expired. Sign in to Steam again.")
 			return
 		}
 		a.steam.Stop()
@@ -199,8 +199,8 @@ func (a *App) onLoginExpired() {
 		a.mu.Lock()
 		a.session = config.Session{}
 		a.mu.Unlock()
-		a.engine.System("Steam login expired. Open Settings to log in again.")
-		a.needsLogin("Your Steam login expired. Log in again.")
+		a.engine.System("Steam login expired. Sign in again in Settings.")
+		a.needsLogin("Your Steam login expired. Sign in again.")
 	}()
 }
 

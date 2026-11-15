@@ -589,7 +589,7 @@ func (s *ChatService) SaveConfig(c config.Config) (ConfigView, error) {
 
 // PreviewToast shows a sample toast so the user can check position and look.
 func (s *ChatService) PreviewToast() {
-	s.a.toast(chat.Entry{ID: -time.Now().UnixMilli(), Time: time.Now().UnixMilli(), Kind: chat.KindIn, PeerName: "myChat", Text: "This is how new messages look in game."})
+	s.a.toast(chat.Entry{ID: -time.Now().UnixMilli(), Time: time.Now().UnixMilli(), Kind: chat.KindIn, PeerName: "Preview", Text: "This is how new messages look in game."})
 }
 
 // HideSettings hides the settings window.
