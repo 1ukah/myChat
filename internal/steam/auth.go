@@ -155,3 +155,37 @@ func ParseToken(token string) (TokenInfo, error) {
 	info.Audience = list
 	return info, nil
 }
+
+type pollResult struct {
+	clientID  uint64
+	newURL    string
+	refresh   string
+	account   string
+	guardData string
+}
+
+func pollStatus(ctx context.Context, c *conn, clientID uint64, requestID []byte) (pollResult, error) {
+	var poll enc
+	poll.varint(1, clientID)
+	poll.bytes(2, requestID)
+	p, err := c.call(ctx, emsgServiceMethodCallFromClientNonAuthed, "Authentication.PollAuthSessionStatus#1", poll.b)
+	if err != nil {
+		return pollResult{}, err
+	}
+	var r pollResult
+	_ = walk(p.body, func(f field) {
+		switch f.Num {
+		case 1:
+			r.clientID = f.Value
+		case 2:
+			r.newURL = f.str()
+		case 3:
+			r.refresh = f.str()
+		case 6:
+			r.account = f.str()
+		case 7:
+			r.guardData = f.str()
+		}
+	})
+	return r, nil
+}

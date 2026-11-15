@@ -5,7 +5,6 @@ import (
 	"errors"
 	"log"
 	"runtime/debug"
-	"strings"
 	"sync"
 	"time"
 
@@ -55,6 +54,7 @@ type Status struct {
 	State         string `json:"state"` // offline | connecting | online | needs_login
 	Detail        string `json:"detail"`
 	AccountName   string `json:"accountName"`
+	Source        string `json:"source"` // "steam" | "qr" | ""
 	PersonaName   string `json:"personaName"`
 	FriendsOnline int    `json:"friendsOnline"`
 	PartySize     int    `json:"partySize"` // friends in your CS2 party, 0 if none
@@ -64,25 +64,6 @@ type Status struct {
 type ConfigView struct {
 	config.Config
 	HotkeyLabel string `json:"hotkeyLabel"`
-}
-
-// LoginState drives the QR login screen.
-type LoginState struct {
-	// idle | waiting (QR shown) | submitting | guard (Steam Guard needed) |
-	// done | error
-	Phase   string   `json:"phase"`
-	Method  string   `json:"method"` // "qr" | "password"
-	URL     string   `json:"url"`
-	QR      []string `json:"qr"` // rows of '1' (dark) and '0' (light)
-	Error   string   `json:"error"`
-	Account string   `json:"account"`
-	// Guard step: which confirmations Steam accepts. Values: "device_code"
-	// (authenticator app code), "email_code", "device_confirmation" (approve
-	// in the Steam mobile app), "email_confirmation".
-	Guards    []string `json:"guards"`
-	EmailHint string   `json:"emailHint"` // e.g. "gm***@gmail.com"
-	CodeError string   `json:"codeError"` // last wrong-code message
-	Checking  bool     `json:"checking"`  // a code is being checked
 }
 
 // Layout gives the overlay sizes in CSS pixels.
@@ -100,6 +81,7 @@ type Snapshot struct {
 	Status   Status             `json:"status"`
 	Config   ConfigView         `json:"config"`
 	Login    LoginState         `json:"login"`
+	Local    LocalLogins        `json:"local"`
 	Layout   Layout             `json:"layout"`
 }
 
@@ -135,7 +117,8 @@ type App struct {
 	lastRefresh time.Time
 	login       LoginState
 	loginCancel context.CancelFunc
-	credLogin   *steam.CredentialLogin
+	watchCancel context.CancelFunc // waiting for a Steam client sign-in
+	steamToken  string             // token in use with the Steam source
 	status      Status
 	ready       bool
 }
@@ -169,18 +152,7 @@ func (a *App) start() {
 		}
 	}
 
-	if sess, err := a.store.LoadSession(); err == nil {
-		a.mu.Lock()
-		a.session = sess
-		a.status.AccountName = sess.AccountName
-		a.mu.Unlock()
-		if err := a.steam.Start(sess.RefreshToken); err != nil {
-			a.store.ClearSession()
-		}
-	} else {
-		a.setStatus(func(s *Status) { s.State = string(steam.StateNeedsLogin) })
-		a.showSettings()
-	}
+	a.autoLogin()
 
 	go a.pump()
 }
@@ -260,8 +232,7 @@ func (a *App) onSteam(ev any) {
 			s.Detail = e.Detail
 		})
 		if e.State == steam.StateNeedsLogin {
-			a.store.ClearSession()
-			a.engine.System("Steam login expired. Open Settings to log in again.")
+			a.onLoginExpired()
 		}
 		if e.State == steam.StateOnline {
 			a.updateFriendStatus()
@@ -439,9 +410,11 @@ func (a *App) showSettings() {
 }
 
 func (a *App) snapshot() Snapshot {
+	local := a.localLogins()
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return Snapshot{
+		Local:    local,
 		Mode:     a.modeInfoLocked(),
 		Log:      a.engine.Log(),
 		Composer: a.engine.Composer(),
@@ -535,6 +508,7 @@ func (s *ChatService) SaveConfig(c config.Config) (ConfigView, error) {
 	a.mu.Lock()
 	old := a.cfg
 	c.MachineSeed = old.MachineSeed
+	c.LoginSource, c.SteamAccount = old.LoginSource, old.SteamAccount
 	a.mu.Unlock()
 
 	if c.Hotkey != old.Hotkey {
@@ -558,192 +532,6 @@ func (s *ChatService) SaveConfig(c config.Config) (ConfigView, error) {
 	}
 	a.emit(EvConfig, view)
 	return view, nil
-}
-
-// StartLogin begins QR login. Progress arrives as mychat:login events.
-func (s *ChatService) StartLogin() {
-	a := s.a
-	a.mu.Lock()
-	if a.loginCancel != nil {
-		a.loginCancel()
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-	a.loginCancel = cancel
-	a.mu.Unlock()
-
-	a.setLogin(LoginState{Phase: "waiting", Method: "qr"})
-	go func() {
-		defer cancel()
-		token, account, err := steam.QRLogin(ctx, "myChat", func(url string) {
-			a.setLogin(LoginState{Phase: "waiting", Method: "qr", URL: url, QR: qrRows(url)})
-		})
-		if err != nil {
-			if ctx.Err() != nil {
-				return // cancelled or replaced by another login
-			}
-			a.setLogin(LoginState{Phase: "error", Method: "qr", Error: loginMessage(err)})
-			return
-		}
-		a.finishLogin("qr", token, account, "")
-	}()
-}
-
-// LoginWithPassword logs in like the Steam client's own login screen. The
-// password is encrypted with Steam's RSA key and sent only to Steam; it is
-// never stored. If Steam Guard is needed the phase becomes "guard".
-func (s *ChatService) LoginWithPassword(account, password string) {
-	a := s.a
-	account = strings.TrimSpace(account)
-	a.mu.Lock()
-	if a.loginCancel != nil {
-		a.loginCancel()
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-	a.loginCancel = cancel
-	a.credLogin = nil
-	a.mu.Unlock()
-
-	if account == "" || password == "" {
-		a.setLogin(LoginState{Phase: "error", Method: "password", Error: "Enter your account name and password."})
-		return
-	}
-	a.setLogin(LoginState{Phase: "submitting", Method: "password", Account: account})
-	go func() {
-		defer cancel()
-		l, err := steam.StartCredentials(ctx, "myChat", account, password, a.store.LoadGuardData(account))
-		if err != nil {
-			if ctx.Err() == nil {
-				a.setLogin(LoginState{Phase: "error", Method: "password", Account: account, Error: loginMessage(err)})
-			}
-			return
-		}
-		defer l.Close()
-		a.mu.Lock()
-		a.credLogin = l
-		a.mu.Unlock()
-
-		st := LoginState{Phase: "guard", Method: "password", Account: account}
-		for _, g := range l.Guards {
-			switch g.Type {
-			case steam.GuardDeviceCode:
-				st.Guards = append(st.Guards, "device_code")
-			case steam.GuardEmailCode:
-				st.Guards = append(st.Guards, "email_code")
-				st.EmailHint = g.Message
-			case steam.GuardDeviceConfirmation:
-				st.Guards = append(st.Guards, "device_confirmation")
-			case steam.GuardEmailConfirmation:
-				st.Guards = append(st.Guards, "email_confirmation")
-			}
-		}
-		if len(st.Guards) > 0 {
-			a.setLogin(st)
-		}
-		// Wait also finishes on its own when the login is approved in the
-		// Steam mobile app or by email link.
-		token, acct, guard, err := l.Wait(ctx)
-		a.mu.Lock()
-		if a.credLogin == l {
-			a.credLogin = nil
-		}
-		a.mu.Unlock()
-		if err != nil {
-			if ctx.Err() == nil {
-				a.setLogin(LoginState{Phase: "error", Method: "password", Account: account, Error: loginMessage(err)})
-			}
-			return
-		}
-		a.finishLogin("password", token, acct, guard)
-	}()
-}
-
-// SubmitGuardCode sends the Steam Guard code from the authenticator app or
-// email. Wrong codes keep the guard step open with CodeError set.
-func (s *ChatService) SubmitGuardCode(code string) {
-	a := s.a
-	code = strings.ToUpper(strings.ReplaceAll(strings.TrimSpace(code), " ", ""))
-	a.mu.Lock()
-	l := a.credLogin
-	st := a.login
-	a.mu.Unlock()
-	if l == nil || st.Phase != "guard" {
-		return
-	}
-	st.Checking, st.CodeError = true, ""
-	a.setLogin(st)
-	go func() {
-		kind := steam.GuardEmailCode
-		if l.Needs(steam.GuardDeviceCode) {
-			kind = steam.GuardDeviceCode
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-		defer cancel()
-		err := l.SubmitCode(ctx, kind, code)
-		a.mu.Lock()
-		cur := a.login
-		a.mu.Unlock()
-		if cur.Phase != "guard" {
-			return // already finished
-		}
-		cur.Checking = false
-		if err != nil {
-			cur.CodeError = loginMessage(err)
-		}
-		a.setLogin(cur)
-	}()
-}
-
-func (a *App) finishLogin(method, token, account, guardData string) {
-	a.store.SaveGuardData(account, guardData)
-	sess := config.Session{RefreshToken: token, AccountName: account}
-	if err := a.store.SaveSession(sess); err != nil {
-		a.setLogin(LoginState{Phase: "error", Method: method, Error: err.Error()})
-		return
-	}
-	a.mu.Lock()
-	a.session = sess
-	a.mu.Unlock()
-	a.setStatus(func(st *Status) { st.AccountName = account })
-	if err := a.steam.Start(token); err != nil {
-		a.setLogin(LoginState{Phase: "error", Method: method, Error: err.Error()})
-		return
-	}
-	a.setLogin(LoginState{Phase: "done", Method: method, Account: account})
-}
-
-func loginMessage(err error) string {
-	var le *steam.LoginError
-	if errors.As(err, &le) {
-		return le.Message
-	}
-	return "Could not reach Steam: " + err.Error()
-}
-
-// CancelLogin stops any login in progress.
-func (s *ChatService) CancelLogin() {
-	a := s.a
-	a.mu.Lock()
-	if a.loginCancel != nil {
-		a.loginCancel()
-		a.loginCancel = nil
-	}
-	a.credLogin = nil
-	a.mu.Unlock()
-	a.setLogin(LoginState{Phase: "idle"})
-}
-
-// Logout ends the Steam session and deletes the saved login.
-func (s *ChatService) Logout() {
-	a := s.a
-	a.steam.Stop()
-	a.store.ClearSession()
-	a.mu.Lock()
-	a.session = config.Session{}
-	a.mu.Unlock()
-	a.setStatus(func(st *Status) {
-		*st = Status{State: string(steam.StateNeedsLogin)}
-	})
-	a.setLogin(LoginState{Phase: "idle"})
 }
 
 // PreviewToast shows a sample toast so the user can check position and look.

@@ -23,11 +23,12 @@ Do **not** edit Go files or anything in `frontend/bindings/` (generated).
 | `Snapshot(): Snapshot` | Full state. Call once on mount, in both views. |
 | `OverlayReady(): void` | **Overlay view only.** Call once after the first render. Required, or the overlay never opens. |
 | `SaveConfig(c: Cfg.Config): ConfigView` | Save settings. Rejects (throws) with a message, for example when a hotkey is taken. Send the whole config object, keeping `machineSeed` as received. |
-| `StartLogin(): void` | Begin Steam QR login. Progress arrives as `mychat:login` events. |
-| `LoginWithPassword(account, password): void` | Steam's normal login, the same as the Steam client's sign-in. Progress arrives as `mychat:login` events. Cancels a running QR login. |
-| `SubmitGuardCode(code): void` | Steam Guard code (authenticator app or email) during phase `guard`. A wrong code sets `codeError`. |
-| `CancelLogin(): void` | Stops any login. Phase becomes `idle`. |
-| `Logout(): void` | |
+| `LocalLogins(): LocalLogins` | Accounts saved by the Steam client on this PC. Also pushed as `mychat:local-logins`. |
+| `UseSteamAccount(account): void` | Log in with the login the Steam client saved for this account (`""` = Steam's most recent). Rejects (throws) with a message. The choice is remembered for next start. |
+| `OpenSteamLogin(): void` | Opens the Steam app. If nobody is signed in there, Steam shows its own sign-in window (password, Steam Guard, QR). myChat watches up to 10 min (`LocalLogins.watching`) and uses the new login on its own. |
+| `StartLogin(): void` | Begin a QR login (myChat's own session). Progress arrives as `mychat:login` events. |
+| `CancelLogin(): void` | Stops a QR login and the Steam sign-in watch. Phase becomes `idle`. |
+| `Logout(): void` | Ends myChat's session and forgets the choice. Does **not** sign the Steam app out. |
 | `PreviewToast(): void` | Shows a sample toast in game position. |
 | `HideSettings(): void` | Close button of the settings window (it hides; the app keeps running in the tray). |
 | `MinimiseSettings(): void` | |
@@ -47,7 +48,8 @@ Listen with `Events.On(name, (ev) => ev.data)`. `ev.data` is the typed object.
 | `mychat:toast` | `Entry` | Show this entry as the toast. |
 | `mychat:status` | `Status` | Steam connection summary. |
 | `mychat:config` | `ConfigView` | Settings changed. |
-| `mychat:login` | `LoginState` | QR login progress. |
+| `mychat:login` | `LoginState` | Login progress. |
+| `mychat:local-logins` | `LocalLogins` | Steam's saved accounts changed (or the watch started/ended). |
 
 ## Types (summary)
 
@@ -65,17 +67,21 @@ ComposerState { text: string; caret: number /*index in characters (code points)*
              channel: Channel; hint: string; suggestions: Suggestion[]; selected: number;
              error: string; scroll: number /*log lines scrolled up from the bottom*/ }
 Status     { state: "offline"|"connecting"|"online"|"needs_login"; detail: string;
-             accountName: string; personaName: string; friendsOnline: number; partySize: number }
+             accountName: string; source: "steam"|"qr"|""; personaName: string;
+             friendsOnline: number; partySize: number }
 Config     { hotkey: {code: string /*KeyboardEvent.code*/; ctrl; shift; alt}; closeAfterSend: boolean;
              animations: boolean; animationStyle: string; animationSpeed: string; showAvatars: boolean;
              blur: boolean; showToasts: boolean; toastSeconds: number /*2..30*/;
              bottomOffset: number /*0..1000 px*/; scale: number /*0.75..1.5*/; machineSeed: string }
 ConfigView = Config & { hotkeyLabel: string /*e.g. "I", "Ctrl + F6"*/ }
-LoginState { phase: "idle"|"waiting" /*QR shown*/|"submitting"|"guard"|"done"|"error";
-             method: "qr"|"password"|"";
-             guards: ("device_code"|"email_code"|"device_confirmation"|"email_confirmation")[];
-             emailHint: string; codeError: string; checking: boolean; url: string;
-             qr: string[] /*rows of "1" dark / "0" light, no border*/; error: string; account: string }
+LoginState { phase: "idle"|"waiting" /*QR shown*/|"done"|"error"; method: "steam"|"qr"|"";
+             url: string; qr: string[] /*rows of "1" dark / "0" light, no border*/;
+             error: string /*also the reason on "idle", e.g. expired*/; account: string }
+LocalLogins { steamInstalled: boolean; watching: boolean; error: string;
+             accounts: { accountName: string; personaName: string; steamId: string;
+                         mostRecent: boolean; hasLogin: boolean /*usable saved login*/ }[] }
+Snapshot   { mode; log; composer; status; config; login: LoginState; local: LocalLogins; layout }
+// Config also has loginSource / steamAccount: send them back unchanged (Go ignores them).
 ```
 
 ## Overlay window rules (critical)
@@ -128,21 +134,26 @@ LoginState { phase: "idle"|"waiting" /*QR shown*/|"submitting"|"guard"|"done"|"e
 - Hotkey capture: a button that, when clicked, listens to the next `keydown`
   (use `e.code`, `e.ctrlKey`, `e.shiftKey`, `e.altKey`; ignore pure modifier
   presses; `Escape` cancels) and saves it.
-- Login screen, laid out like the Steam client's own sign-in. Left: `SIGN IN
-  WITH ACCOUNT NAME` field, `PASSWORD` field, `Sign in` button →
-  `LoginWithPassword`. Right: `OR SIGN IN WITH QR` with the QR. Call
-  `StartLogin()` when the screen opens, and again after `error`/`idle`. Under it:
-  "Your password goes only to Steam, encrypted with Steam's key. myChat never
-  stores it." Phase `submitting`: disable the form and show progress. Phase
-  `guard`: replace the form with the Steam Guard step:
-  - `device_code`: a 5-character code box, "Enter the code from your Steam
-    Guard authenticator app".
-  - `email_code`: a code box that mentions `emailHint`.
-  - `device_confirmation`: "Or approve the sign-in in the Steam mobile app"
-    (this completes on its own).
-  The code box auto-submits at 5 characters and shows `checking` and
-  `codeError`. A back link calls `CancelLogin()`. Never prefill or log the
-  password, and clear the field after submit.
+- Login screen (status `needs_login`). There is **no password form**; myChat
+  never asks for a password. Three ways, in this order:
+  1. **Use Steam on this PC (default, top, largest).** List `local.accounts`
+     as account cards (persona name big, account name small, "Most recent"
+     tag). Cards with `hasLogin` get a primary `USE THIS ACCOUNT` →
+     `UseSteamAccount(accountName)`; the most recent one is preselected. Cards
+     without `hasLogin`: muted, "Not signed in to Steam" + `SIGN IN IN STEAM`.
+     Line under the list: "Uses the login the Steam app saved on this PC. It
+     never leaves this PC." Show `UseSteamAccount` errors inline on the card.
+  2. **Sign in with the Steam app.** `OPEN STEAM SIGN-IN` → `OpenSteamLogin()`.
+     Text: "Sign in to Steam with \"Remember me\" on. myChat continues on its
+     own." While `local.watching`: spinner + "Waiting for you to sign in to
+     Steam…" + Cancel → `CancelLogin()`.
+  3. **QR code** (secondary, collapsed by default: `SIGN IN WITH QR CODE`).
+     When expanded call `StartLogin()`; collapsing calls `CancelLogin()`.
+  If `steamInstalled` is false, hide 1 and 2 and show the QR directly. Show
+  `login.error` (for example "saved login expired") as a banner at the top.
+  When logged in, the ACCOUNT tab shows the account, `source` ("Using Steam on
+  this PC" / "QR login"), and `Log out`; with source `steam` also a
+  `Switch account` button that shows the account list again.
 - QR login: render `LoginState.qr` as an SVG grid of squares (crisp, with a
   quiet zone of 4 modules, dark modules on a white background so phones can
   scan it).

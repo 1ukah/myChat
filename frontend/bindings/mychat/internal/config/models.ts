@@ -22,6 +22,14 @@ export class Config {
     "scale": number;
     "machineSeed": string;
 
+    /**
+     * LoginSource is how myChat logs in: "steam" (the login saved by the
+     * Steam client on this PC), "qr" (myChat's own QR session) or "" (not
+     * chosen yet). SteamAccount is the Steam account name for "steam".
+     */
+    "loginSource": string;
+    "steamAccount": string;
+
     /** Creates a new Config instance. */
     constructor($$source: Partial<Config> = {}) {
         if (!("hotkey" in $$source)) {
@@ -59,6 +67,12 @@ export class Config {
         }
         if (!("machineSeed" in $$source)) {
             this["machineSeed"] = "";
+        }
+        if (!("loginSource" in $$source)) {
+            this["loginSource"] = "";
+        }
+        if (!("steamAccount" in $$source)) {
+            this["steamAccount"] = "";
         }
 
         Object.assign(this, $$source);

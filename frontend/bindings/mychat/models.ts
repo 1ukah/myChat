@@ -11,6 +11,9 @@ import * as chat$0 from "./internal/chat/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as config$0 from "./internal/config/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as steamlocal$0 from "./internal/steamlocal/models.js";
 
 /**
  * ConfigView is the config plus derived display values.
@@ -28,6 +31,14 @@ export class ConfigView {
     "bottomOffset": number;
     "scale": number;
     "machineSeed": string;
+
+    /**
+     * LoginSource is how myChat logs in: "steam" (the login saved by the
+     * Steam client on this PC), "qr" (myChat's own QR session) or "" (not
+     * chosen yet). SteamAccount is the Steam account name for "steam".
+     */
+    "loginSource": string;
+    "steamAccount": string;
     "hotkeyLabel": string;
 
     /** Creates a new ConfigView instance. */
@@ -67,6 +78,12 @@ export class ConfigView {
         }
         if (!("machineSeed" in $$source)) {
             this["machineSeed"] = "";
+        }
+        if (!("loginSource" in $$source)) {
+            this["loginSource"] = "";
+        }
+        if (!("steamAccount" in $$source)) {
+            this["steamAccount"] = "";
         }
         if (!("hotkeyLabel" in $$source)) {
             this["hotkeyLabel"] = "";
@@ -121,17 +138,61 @@ export class Layout {
 }
 
 /**
- * LoginState drives the QR login screen.
+ * LocalLogins lists the accounts the Steam client on this PC knows.
+ */
+export class LocalLogins {
+    "steamInstalled": boolean;
+    "accounts": steamlocal$0.Account[];
+
+    /**
+     * Watching is true after OpenSteamLogin while myChat waits for you to
+     * sign in to Steam. The new login is used automatically.
+     */
+    "watching": boolean;
+    "error": string;
+
+    /** Creates a new LocalLogins instance. */
+    constructor($$source: Partial<LocalLogins> = {}) {
+        if (!("steamInstalled" in $$source)) {
+            this["steamInstalled"] = false;
+        }
+        if (!("accounts" in $$source)) {
+            this["accounts"] = [];
+        }
+        if (!("watching" in $$source)) {
+            this["watching"] = false;
+        }
+        if (!("error" in $$source)) {
+            this["error"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new LocalLogins instance from a string or object.
+     */
+    static createFrom($$source: any = {}): LocalLogins {
+        const $$createField1_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("accounts" in $$parsedSource) {
+            $$parsedSource["accounts"] = $$createField1_0($$parsedSource["accounts"]);
+        }
+        return new LocalLogins($$parsedSource as Partial<LocalLogins>);
+    }
+}
+
+/**
+ * LoginState drives the login screen.
  */
 export class LoginState {
     /**
-     * idle | waiting (QR shown) | submitting | guard (Steam Guard needed) |
-     * done | error
+     * idle | waiting (QR shown) | done | error
      */
     "phase": string;
 
     /**
-     * "qr" | "password"
+     * "steam" | "qr" | ""
      */
     "method": string;
     "url": string;
@@ -142,28 +203,6 @@ export class LoginState {
     "qr": string[];
     "error": string;
     "account": string;
-
-    /**
-     * Guard step: which confirmations Steam accepts. Values: "device_code"
-     * (authenticator app code), "email_code", "device_confirmation" (approve
-     * in the Steam mobile app), "email_confirmation".
-     */
-    "guards": string[];
-
-    /**
-     * e.g. "gm***@gmail.com"
-     */
-    "emailHint": string;
-
-    /**
-     * last wrong-code message
-     */
-    "codeError": string;
-
-    /**
-     * a code is being checked
-     */
-    "checking": boolean;
 
     /** Creates a new LoginState instance. */
     constructor($$source: Partial<LoginState> = {}) {
@@ -185,18 +224,6 @@ export class LoginState {
         if (!("account" in $$source)) {
             this["account"] = "";
         }
-        if (!("guards" in $$source)) {
-            this["guards"] = [];
-        }
-        if (!("emailHint" in $$source)) {
-            this["emailHint"] = "";
-        }
-        if (!("codeError" in $$source)) {
-            this["codeError"] = "";
-        }
-        if (!("checking" in $$source)) {
-            this["checking"] = false;
-        }
 
         Object.assign(this, $$source);
     }
@@ -205,14 +232,10 @@ export class LoginState {
      * Creates a new LoginState instance from a string or object.
      */
     static createFrom($$source: any = {}): LoginState {
-        const $$createField3_0 = $$createType1;
-        const $$createField6_0 = $$createType1;
+        const $$createField3_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("qr" in $$parsedSource) {
             $$parsedSource["qr"] = $$createField3_0($$parsedSource["qr"]);
-        }
-        if ("guards" in $$parsedSource) {
-            $$parsedSource["guards"] = $$createField6_0($$parsedSource["guards"]);
         }
         return new LoginState($$parsedSource as Partial<LoginState>);
     }
@@ -276,6 +299,7 @@ export class Snapshot {
     "status": Status;
     "config": ConfigView;
     "login": LoginState;
+    "local": LocalLogins;
     "layout": Layout;
 
     /** Creates a new Snapshot instance. */
@@ -298,6 +322,9 @@ export class Snapshot {
         if (!("login" in $$source)) {
             this["login"] = (new LoginState());
         }
+        if (!("local" in $$source)) {
+            this["local"] = (new LocalLogins());
+        }
         if (!("layout" in $$source)) {
             this["layout"] = (new Layout());
         }
@@ -309,13 +336,14 @@ export class Snapshot {
      * Creates a new Snapshot instance from a string or object.
      */
     static createFrom($$source: any = {}): Snapshot {
-        const $$createField0_0 = $$createType2;
-        const $$createField1_0 = $$createType4;
-        const $$createField2_0 = $$createType5;
-        const $$createField3_0 = $$createType6;
-        const $$createField4_0 = $$createType7;
-        const $$createField5_0 = $$createType8;
-        const $$createField6_0 = $$createType9;
+        const $$createField0_0 = $$createType4;
+        const $$createField1_0 = $$createType6;
+        const $$createField2_0 = $$createType7;
+        const $$createField3_0 = $$createType8;
+        const $$createField4_0 = $$createType9;
+        const $$createField5_0 = $$createType10;
+        const $$createField6_0 = $$createType11;
+        const $$createField7_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("mode" in $$parsedSource) {
             $$parsedSource["mode"] = $$createField0_0($$parsedSource["mode"]);
@@ -335,8 +363,11 @@ export class Snapshot {
         if ("login" in $$parsedSource) {
             $$parsedSource["login"] = $$createField5_0($$parsedSource["login"]);
         }
+        if ("local" in $$parsedSource) {
+            $$parsedSource["local"] = $$createField6_0($$parsedSource["local"]);
+        }
         if ("layout" in $$parsedSource) {
-            $$parsedSource["layout"] = $$createField6_0($$parsedSource["layout"]);
+            $$parsedSource["layout"] = $$createField7_0($$parsedSource["layout"]);
         }
         return new Snapshot($$parsedSource as Partial<Snapshot>);
     }
@@ -352,6 +383,11 @@ export class Status {
     "state": string;
     "detail": string;
     "accountName": string;
+
+    /**
+     * "steam" | "qr" | ""
+     */
+    "source": string;
     "personaName": string;
     "friendsOnline": number;
 
@@ -370,6 +406,9 @@ export class Status {
         }
         if (!("accountName" in $$source)) {
             this["accountName"] = "";
+        }
+        if (!("source" in $$source)) {
+            this["source"] = "";
         }
         if (!("personaName" in $$source)) {
             this["personaName"] = "";
@@ -395,12 +434,15 @@ export class Status {
 
 // Private type creation functions
 const $$createType0 = config$0.Hotkey.createFrom;
-const $$createType1 = $Create.Array($Create.Any);
-const $$createType2 = ModeInfo.createFrom;
-const $$createType3 = chat$0.Entry.createFrom;
-const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = chat$0.ComposerState.createFrom;
-const $$createType6 = Status.createFrom;
-const $$createType7 = ConfigView.createFrom;
-const $$createType8 = LoginState.createFrom;
-const $$createType9 = Layout.createFrom;
+const $$createType1 = steamlocal$0.Account.createFrom;
+const $$createType2 = $Create.Array($$createType1);
+const $$createType3 = $Create.Array($Create.Any);
+const $$createType4 = ModeInfo.createFrom;
+const $$createType5 = chat$0.Entry.createFrom;
+const $$createType6 = $Create.Array($$createType5);
+const $$createType7 = chat$0.ComposerState.createFrom;
+const $$createType8 = Status.createFrom;
+const $$createType9 = ConfigView.createFrom;
+const $$createType10 = LoginState.createFrom;
+const $$createType11 = LocalLogins.createFrom;
+const $$createType12 = Layout.createFrom;

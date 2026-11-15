@@ -19,9 +19,10 @@ function configure() {
         "mychat:config": $$createType1,
         "mychat:entry": $$createType2,
         "mychat:entry-updated": $$createType2,
-        "mychat:login": $$createType3,
-        "mychat:mode": $$createType4,
-        "mychat:status": $$createType5,
+        "mychat:local-logins": $$createType3,
+        "mychat:login": $$createType4,
+        "mychat:mode": $$createType5,
+        "mychat:status": $$createType6,
         "mychat:toast": $$createType2,
     }));
 }
@@ -30,8 +31,9 @@ function configure() {
 const $$createType0 = chat$0.ComposerState.createFrom;
 const $$createType1 = main$0.ConfigView.createFrom;
 const $$createType2 = chat$0.Entry.createFrom;
-const $$createType3 = main$0.LoginState.createFrom;
-const $$createType4 = main$0.ModeInfo.createFrom;
-const $$createType5 = main$0.Status.createFrom;
+const $$createType3 = main$0.LocalLogins.createFrom;
+const $$createType4 = main$0.LoginState.createFrom;
+const $$createType5 = main$0.ModeInfo.createFrom;
+const $$createType6 = main$0.Status.createFrom;
 
 configure();

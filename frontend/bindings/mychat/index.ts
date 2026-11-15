@@ -9,6 +9,7 @@ export {
 export {
     ConfigView,
     Layout,
+    LocalLogins,
     LoginState,
     ModeInfo,
     Snapshot,
