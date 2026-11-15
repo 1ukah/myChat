@@ -23,12 +23,17 @@ Do **not** edit Go files or anything in `frontend/bindings/` (generated).
 | `Snapshot(): Snapshot` | Full state. Call once on mount, in both views. |
 | `OverlayReady(): void` | **Overlay view only.** Call once after the first render. Required, or the overlay never opens. |
 | `SaveConfig(c: Cfg.Config): ConfigView` | Save settings. Rejects (throws) with a message, for example when a hotkey is taken. Send the whole config object, keeping `machineSeed` as received. |
-| `LocalLogins(): LocalLogins` | Accounts saved by the Steam client on this PC. Also pushed as `mychat:local-logins`. |
-| `UseSteamAccount(account): void` | Log in with the login the Steam client saved for this account (`""` = Steam's most recent). Rejects (throws) with a message. The choice is remembered for next start. |
-| `OpenSteamLogin(): void` | Opens the Steam app. If nobody is signed in there, Steam shows its own sign-in window (password, Steam Guard, QR). myChat watches up to 10 min (`LocalLogins.watching`) and uses the new login on its own. |
-| `StartLogin(): void` | Begin a QR login (myChat's own session). Progress arrives as `mychat:login` events. |
-| `CancelLogin(): void` | Stops a QR login and the Steam sign-in watch. Phase becomes `idle`. |
-| `Logout(): void` | Ends myChat's session and forgets the choice. Does **not** sign the Steam app out. |
+| `LocalLogins(): LocalLogins` | Accounts saved by the Steam app on this PC. Also pushed as `mychat:local-logins`. |
+| `UseSteamAccount(account): void` | Log in with the login the Steam app saved for this account (`""` = Steam's most recent). Rejects (throws) with a message. The choice is remembered for next start. |
+| `OpenSteamLogin(): void` | Opens the Steam app. If nobody is signed in there, Steam shows its own sign-in window. myChat watches up to 10 min (`LocalLogins.watching`) and uses the new login on its own. |
+| `LoginWithPassword(account, password): void` | Account name + password login, the same flow as the Steam app's login screen. Phase `submitting`, then `guard` if Steam Guard is needed, then `done` or `error`. Clear the password field as soon as it is sent. |
+| `SubmitGuardCode(code): void` | Steam Guard code (authenticator app or email) during phase `guard`. A wrong code keeps phase `guard` with `codeError` set. |
+| `StartLogin(): void` | Begin a QR login. Progress arrives as `mychat:login` events. |
+| `CancelLogin(): void` | Stops any login in progress and the Steam sign-in watch. Phase becomes `idle`. |
+| `Logout(): void` | Ends myChat's session, deletes its own saved login (QR/password) and forgets the choice. Does **not** sign the Steam app out. |
+
+None of the three logins changes the Steam app's status: myChat never sets
+or asks for its own status.
 | `PreviewToast(): void` | Shows a sample toast in game position. |
 | `HideSettings(): void` | Close button of the settings window (it hides; the app keeps running in the tray). |
 | `MinimiseSettings(): void` | |
@@ -58,26 +63,28 @@ ModeInfo   { mode: string; animations: boolean; blur: boolean; showAvatars: bool
              animationStyle: "fade"|"slide-up"|"slide-down"|"slide-left"|"slide-right"|"typewriter";
              animationSpeed: "fast"|"normal"|"slow"; hideDelayMs: number /*0 when animations off*/ }
 Layout     { width: 640; composerHeight: 360; toastHeight: 360 }   // CSS px
-Entry      { id: number; time: number /*unix ms*/; kind: "in"|"out"|"party"|"system"|"error";
+Entry      { id: number; time: number /*unix ms*/; kind: "in"|"out"|"system"|"error";
              peerId: string; peerName: string; peerAvatar: string /*image URL or ""*/; text: string;
              status: ""|"pending"|"sent"|"failed"; detail: string /*failure reason*/ }
-Channel    { kind: "none"|"whisper"|"party"; targetId: string; targetName: string; online: boolean; avatar: string }
+Channel    { kind: "none"|"whisper"; targetId: string; targetName: string; online: boolean; avatar: string }
 Suggestion { id: string; name: string; online: boolean; inGame: string; avatar: string }
 ComposerState { text: string; caret: number /*index in characters (code points)*/;
              channel: Channel; hint: string; suggestions: Suggestion[]; selected: number;
              error: string; scroll: number /*log lines scrolled up from the bottom*/ }
 Status     { state: "offline"|"connecting"|"online"|"needs_login"; detail: string;
-             accountName: string; source: "steam"|"qr"|""; personaName: string;
-             friendsOnline: number; partySize: number }
+             accountName: string; source: "steam"|"qr"|"password"|""; personaName: string }
 Config     { hotkey: {code: string /*KeyboardEvent.code*/; ctrl; shift; alt}; closeAfterSend: boolean;
              animations: boolean; animationStyle: string; animationSpeed: string; showAvatars: boolean;
              blur: boolean; showToasts: boolean; toastSeconds: number /*2..30*/;
              toastLayout: "stack"|"group"; toastMax: number /*1..5*/;
              bottomOffset: number /*0..1000 px*/; scale: number /*0.75..1.5*/; machineSeed: string }
 ConfigView = Config & { hotkeyLabel: string /*e.g. "I", "Ctrl + F6"*/ }
-LoginState { phase: "idle"|"waiting" /*QR shown*/|"done"|"error"; method: "steam"|"qr"|"";
+LoginState { phase: "idle"|"waiting" /*QR shown*/|"submitting" /*password sent*/|"guard"|"done"|"error";
+             method: "steam"|"qr"|"password"|"";
              url: string; qr: string[] /*rows of "1" dark / "0" light, no border*/;
-             error: string /*also the reason on "idle", e.g. expired*/; account: string }
+             error: string /*also the reason on "idle", e.g. expired*/; account: string;
+             guards: ("device_code"|"email_code"|"device_confirmation"|"email_confirmation")[];
+             emailHint: string /*email domain*/; codeError: string; checking: boolean }
 LocalLogins { steamInstalled: boolean; watching: boolean; error: string;
              accounts: { accountName: string; personaName: string; steamId: string;
                          mostRecent: boolean; hasLogin: boolean /*usable saved login*/ }[] }
@@ -152,26 +159,29 @@ Snapshot   { mode; log; composer; status; config; login: LoginState; local: Loca
 - Hotkey capture: a button that, when clicked, listens to the next `keydown`
   (use `e.code`, `e.ctrlKey`, `e.shiftKey`, `e.altKey`; ignore pure modifier
   presses; `Escape` cancels) and saves it.
-- Login screen (status `needs_login`). There is **no password form**; myChat
-  never asks for a password. Three ways, in this order:
-  1. **Use Steam on this PC (default, top, largest).** List `local.accounts`
-     as account cards (persona name big, account name small, "Most recent"
-     tag). Cards with `hasLogin` get a primary `USE THIS ACCOUNT` →
-     `UseSteamAccount(accountName)`; the most recent one is preselected. Cards
-     without `hasLogin`: muted, "Not signed in to Steam" + `SIGN IN IN STEAM`.
-     Line under the list: "Uses the login the Steam app saved on this PC. It
-     never leaves this PC." Show `UseSteamAccount` errors inline on the card.
-  2. **Sign in with the Steam app.** `OPEN STEAM SIGN-IN` → `OpenSteamLogin()`.
-     Text: "Sign in to Steam with \"Remember me\" on. myChat continues on its
-     own." While `local.watching`: spinner + "Waiting for you to sign in to
-     Steam…" + Cancel → `CancelLogin()`.
-  3. **QR code** (secondary, collapsed by default: `SIGN IN WITH QR CODE`).
-     When expanded call `StartLogin()`; collapsing calls `CancelLogin()`.
-  If `steamInstalled` is false, hide 1 and 2 and show the QR directly. Show
-  `login.error` (for example "saved login expired") as a banner at the top.
-  When logged in, the ACCOUNT tab shows the account, `source` ("Using Steam on
-  this PC" / "QR login"), and `Log out`; with source `steam` also a
-  `Switch account` button that shows the account list again.
+- Login screen (status `needs_login`). Three ways, in this order:
+  0. **Use Steam on this PC** (top). `local.accounts` as account cards;
+     cards with `hasLogin` → `USE THIS ACCOUNT` → `UseSteamAccount()`, the
+     most recent preselected; cards without it offer `SIGN IN IN STEAM` →
+     `OpenSteamLogin()`. No accounts: a line plus `OPEN STEAM SIGN-IN`. While
+     `local.watching`: spinner + "Waiting for you to sign in to Steam…" +
+     Cancel. If `steamInstalled` is false, only a short note.
+  1. **Account name + password**. `SIGN IN` →
+     `LoginWithPassword()`; Enter in either field submits. While `submitting`:
+     spinner + "Contacting Steam…". Errors (`method: "password"`, phase
+     `error`) show under the button. A line says the password goes only to
+     Steam and is never stored.
+  2. **QR code** (collapsed by default: `SIGN IN WITH QR CODE`). Expanding
+     calls `StartLogin()`; collapsing calls `CancelLogin()`. Starting one way
+     cancels the other.
+  Phase `guard` replaces both with the Steam Guard step: 5 code boxes when
+  `guards` has `device_code` or `email_code` (sent on the 5th character),
+  "approve in the Steam mobile app" / "use the email link" lines for the
+  confirmation guards, and `BACK` → `CancelLogin()`.
+  Show `login.error` on `idle` (for example "login expired") as a banner at
+  the top. When logged in, the ACCOUNT tab shows the account, `source`
+  ("Using Steam on this PC" / "Password login" / "QR login") and `Log out`;
+  with source `steam` also `Switch account`, which shows the cards again.
 - QR login: render `LoginState.qr` as an SVG grid of squares (crisp, with a
   quiet zone of 4 modules, dark modules on a white background so phones can
   scan it).
@@ -180,9 +190,11 @@ Snapshot   { mode; log; composer; status; config; login: LoginState; local: Loca
 
 Go owns all chat logic. For reference, so the UI can explain it:
 
-- `/r [msg]` reply to last whisper · `/w name [msg]` whisper · `/p [msg]` CS2
-  party · typing `/r `, `/p ` or `/w name ` switches the channel at once (WoW
-  style) and clears the line.
+- `/r [msg]` reply to last whisper · `/w name [msg]` whisper · typing `/r ` or
+  `/w name ` switches the channel at once (WoW style) and clears the line.
+  There is no party command.
+- Friend names, avatars and online/in-game state come from Steam's web API,
+  refreshed about once a minute. myChat shows no friend or party counts.
 - Tab cycles recent people (Shift+Tab back). ↑/↓ sent history (or move in the
   suggestion list). PgUp/PgDn scroll the log. Enter sends (Enter on an empty line
   closes). Esc closes. Ctrl+V pastes.
