@@ -5,6 +5,7 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"errors"
+	"log"
 	"math/rand/v2"
 	"sort"
 	"strings"
@@ -96,6 +97,35 @@ type Client struct {
 
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
+
+	// persona returns the status the user wants (EPersonaState). Without it,
+	// Steam shows the account as offline while this session is logged on.
+	persona func(self uint64) (uint32, bool)
+}
+
+// SetPersonaSource sets where the wanted status comes from. It is read after
+// every logon, so status changes made in the Steam app carry over.
+func (c *Client) SetPersonaSource(f func(self uint64) (uint32, bool)) {
+	c.mu.Lock()
+	c.persona = f
+	c.mu.Unlock()
+}
+
+func (c *Client) sendPersona(cn *conn) {
+	c.mu.RLock()
+	f, self := c.persona, c.self
+	c.mu.RUnlock()
+	state := uint32(1) // online when the Steam app saved nothing
+	if f != nil {
+		if s, ok := f(self); ok {
+			state = s
+		}
+	}
+	var m enc
+	m.varint(1, uint64(state))
+	if err := cn.send(emsgClientChangeStatus, newHeader(), m.b); err != nil {
+		log.Printf("steam: set status: %v", err)
+	}
 }
 
 // New creates a client. machineSeed should be stable per install.
@@ -295,6 +325,7 @@ func (c *Client) session(ctx context.Context) error {
 		}
 		c.mu.Unlock()
 	}()
+	c.sendPersona(cn)
 	c.setState(StateOnline, "")
 	c.requestPersonas([]uint64{c.SelfID()})
 

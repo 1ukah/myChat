@@ -14,6 +14,7 @@ const (
 	emsgServiceMethodCallFromClient          = 151
 	emsgClientHeartBeat                      = 703
 	emsgClientLogOff                         = 706
+	emsgClientChangeStatus                   = 716
 	emsgClientLogOnResponse                  = 751
 	emsgClientLoggedOff                      = 757
 	emsgClientPersonaState                   = 766

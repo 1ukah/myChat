@@ -15,6 +15,7 @@ import (
 	"mychat/internal/config"
 	"mychat/internal/input"
 	"mychat/internal/steam"
+	"mychat/internal/steamlocal"
 	"mychat/internal/win"
 )
 
@@ -130,6 +131,7 @@ func newApp(store *config.Store) *App {
 	a := &App{store: store, mode: ModeHidden, login: LoginState{Phase: "idle"}}
 	a.cfg = store.Load()
 	a.steam = steam.New(a.cfg.MachineSeed)
+	a.steam.SetPersonaSource(steamlocal.PersonaState)
 	a.engine = chat.New(backend{a.steam}, notifier{a})
 	a.status = Status{State: string(steam.StateOffline)}
 	return a
