@@ -19,7 +19,7 @@ import * as config$0 from "./internal/config/models.js";
 import * as $models from "./models.js";
 
 /**
- * CancelLogin stops a QR login and the wait for a Steam sign-in.
+ * CancelLogin stops any login in progress and the wait for a Steam sign-in.
  */
 export function CancelLogin(): $CancellablePromise<void> {
     return $Call.ByID(129907442);
@@ -33,7 +33,7 @@ export function HideSettings(): $CancellablePromise<void> {
 }
 
 /**
- * LocalLogins lists the accounts saved by the Steam client on this PC.
+ * LocalLogins lists the accounts saved by the Steam app on this PC.
  */
 export function LocalLogins(): $CancellablePromise<$models.LocalLogins> {
     return $Call.ByID(1282350156).then(($result: any) => {
@@ -42,8 +42,17 @@ export function LocalLogins(): $CancellablePromise<$models.LocalLogins> {
 }
 
 /**
- * Logout ends myChat's Steam session and forgets the login choice. With the
- * Steam source this does not sign the Steam client out.
+ * LoginWithPassword logs in like the Steam app's own login screen. The
+ * password is encrypted with Steam's RSA key and sent only to Steam; it is
+ * never stored. If Steam Guard is needed the phase becomes "guard".
+ */
+export function LoginWithPassword(account: string, password: string): $CancellablePromise<void> {
+    return $Call.ByID(1069395041, account, password);
+}
+
+/**
+ * Logout ends myChat's Steam session and forgets the login choice. myChat's
+ * own saved login is deleted; the Steam app is not affected.
  */
 export function Logout(): $CancellablePromise<void> {
     return $Call.ByID(2662670453);
@@ -57,7 +66,7 @@ export function MinimiseSettings(): $CancellablePromise<void> {
 }
 
 /**
- * OpenSteamLogin opens the Steam client. If no account is signed in there,
+ * OpenSteamLogin opens the Steam app. If no account is signed in there,
  * Steam shows its own sign-in window (password, Steam Guard, QR). myChat
  * watches for the new saved login for 10 minutes and uses it automatically.
  */
@@ -112,7 +121,15 @@ export function StartLogin(): $CancellablePromise<void> {
 }
 
 /**
- * UseSteamAccount logs on with the login the Steam client saved for this
+ * SubmitGuardCode sends the Steam Guard code from the authenticator app or
+ * email. Wrong codes keep the guard step open with CodeError set.
+ */
+export function SubmitGuardCode(code: string): $CancellablePromise<void> {
+    return $Call.ByID(2901073941, code);
+}
+
+/**
+ * UseSteamAccount logs on with the login the Steam app saved for this
  * account ("" = Steam's most recent account). The choice is remembered.
  */
 export function UseSteamAccount(account: string): $CancellablePromise<void> {

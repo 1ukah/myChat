@@ -32,9 +32,7 @@
   } = $props();
 
   const channel = $derived(composer.channel);
-  const kind = $derived(
-    channel.kind === "whisper" || channel.kind === "party" ? channel.kind : "none",
-  );
+  const kind = $derived(channel.kind === "whisper" ? "whisper" : "none");
 
   // `caret` counts code points, not UTF-16 units.
   const chars = $derived(Array.from(composer.text));
@@ -47,11 +45,7 @@
   // CS2 writes "Say to all" in the empty input.
   const placeholder = $derived(
     composer.hint ||
-      (kind === "whisper"
-        ? `Say to ${channel.targetName}`
-        : kind === "party"
-          ? "Say to party"
-          : "Type /w name to whisper"),
+      (kind === "whisper" ? `Say to ${channel.targetName}` : "Type /w name to whisper"),
   );
 
   const steam = $derived.by(() => {
@@ -162,26 +156,22 @@
     </div>
 
     <div class="input {kind}">
-      {#if kind !== "none"}
+      {#if kind === "whisper"}
         <div class="label">
-          {#if kind === "whisper"}
-            <span>[TO]</span>
-            {#if avatars}
-              <!-- The person in focus gets CS2's circle, as the spectated player does. -->
-              <Avatar
-                round
-                size={22}
-                ring={channel.online ? "whisper" : "offline"}
-                src={channel.avatar}
-                name={channel.targetName}
-              />
-            {:else}
-              <span class="dot" class:on={channel.online}></span>
-            {/if}
-            <bdi class="target">{channel.targetName}</bdi><span class="colon">:</span>
+          <span>[TO]</span>
+          {#if avatars}
+            <!-- The person in focus gets CS2's circle, as the spectated player does. -->
+            <Avatar
+              round
+              size={22}
+              ring={channel.online ? "whisper" : "offline"}
+              src={channel.avatar}
+              name={channel.targetName}
+            />
           {:else}
-            <span>[PARTY]</span><span class="colon">:</span>
+            <span class="dot" class:on={channel.online}></span>
           {/if}
+          <bdi class="target">{channel.targetName}</bdi><span class="colon">:</span>
         </div>
       {/if}
 
@@ -430,10 +420,6 @@
 
   .input.whisper {
     --chan: var(--whisper);
-  }
-
-  .input.party {
-    --chan: var(--party);
   }
 
   .label {

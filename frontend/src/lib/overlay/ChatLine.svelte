@@ -2,7 +2,6 @@
   // One chat log entry, written like CS2's own chat ("[CT] ● name: text"):
   //   12:41 [FROM] (o) sant1: text
   //   12:41 [TO] (o) sant1: text
-  //   12:41 [PARTY] You: text
   // (o) is the friend's square avatar with a player-colour border, or a
   // player-colour dot when avatars are off.
   import { untrack } from "svelte";
@@ -41,7 +40,7 @@
      <bdi> keeps right-to-left names and messages from reordering the brackets. -->
 <div class="line {kind}" class:pending class:fresh>
   <span class="time">{clock(entry.time)}</span>
-  <span class="msg">{#if kind === "in"}<span class="who">{"[FROM] "}{@render face()}<bdi>{entry.peerName}</bdi></span>{": "}{:else if kind === "out"}<span class="who">{"[TO] "}{@render face()}<bdi>{entry.peerName}</bdi></span>{": "}{:else if kind === "party"}<span class="who">{"[PARTY] "}{#if !avatars}<span class="dot">●</span>{" "}{/if}You</span>{": "}{/if}<bdi class="text">{#if typed}<Typed text={entry.text} />{:else}{entry.text}{/if}</bdi></span>
+  <span class="msg">{#if kind === "in"}<span class="who">{"[FROM] "}{@render face()}<bdi>{entry.peerName}</bdi></span>{": "}{:else if kind === "out"}<span class="who">{"[TO] "}{@render face()}<bdi>{entry.peerName}</bdi></span>{": "}{/if}<bdi class="text">{#if typed}<Typed text={entry.text} />{:else}{entry.text}{/if}</bdi></span>
   {#if pending}
     <span class="dots" role="img" aria-label="sending"><i></i><i></i><i></i></span>
   {:else if failed}
@@ -80,10 +79,6 @@
 
   .out .text {
     color: #dfe4e9;
-  }
-
-  .party {
-    --c: var(--party);
   }
 
   .system {

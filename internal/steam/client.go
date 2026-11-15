@@ -5,7 +5,6 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"errors"
-	"log"
 	"math/rand/v2"
 	"sort"
 	"strings"
@@ -13,17 +12,10 @@ import (
 	"time"
 )
 
-// Persona request flags (EClientPersonaStateFlag).
-const (
-	personaStatus       = 0x1
-	personaPlayerName   = 0x2
-	personaPresence     = 0x10
-	personaGameExtra    = 0x100
-	personaRichPresence = 0x1000
-	personaFlagsWanted  = personaStatus | personaPlayerName | personaPresence | personaGameExtra | personaRichPresence
-)
-
 const chatEntryChatMsg = 1
+
+// Friend names and avatars are fetched from the web API this often.
+const profileRefresh = time.Minute
 
 // State is the connection state of the Steam session.
 type State string
@@ -35,19 +27,14 @@ const (
 	StateNeedsLogin State = "needs_login"
 )
 
-// Friend is one friend's latest known persona data.
+// Friend is one friend's latest known profile data.
 type Friend struct {
 	SteamID      uint64
 	Name         string
 	PersonaState uint32 // 0 offline, 1 online, 2 busy, 3 away, 4 snooze, 5 trade, 6 play
 	GameID       uint64
-	GameName     string
 	AvatarHash   string // hex
-	RichPresence map[string]string
 }
-
-// PlayerGroup is the CS2 party ID (rich presence "steam_player_group").
-func (f Friend) PlayerGroup() string { return f.RichPresence["steam_player_group"] }
 
 const defaultAvatar = "fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb"
 
@@ -67,7 +54,7 @@ type (
 		State  State
 		Detail string
 	}
-	// FriendsEvent reports that friend or persona data changed.
+	// FriendsEvent reports that the friends list or profile data changed.
 	FriendsEvent struct{}
 	// MessageEvent is a friend chat message. When Echo is true the message
 	// was sent by this account from another session (for example the Steam
@@ -81,6 +68,14 @@ type (
 )
 
 // Client is a background Steam session that only does friends chat.
+//
+// It stays a silent, offline session: it never sets a status
+// (ClientChangeStatus) and never asks for persona data
+// (ClientRequestFriendData). Steam copies the answer to a persona request to
+// the user's other sessions, and an offline session is answered with "offline"
+// for everyone, so the Steam app would show itself signed out or all friends
+// offline. Names and avatars come from the web API instead (profiles.go).
+// Steam still delivers friend messages to an offline session.
 type Client struct {
 	machineID []byte
 	logonID   uint32
@@ -94,38 +89,13 @@ type Client struct {
 	relation map[uint64]uint32
 	state    State
 	conn     *conn
+	refresh  chan struct{} // asks the profile loop for a fetch now
+
+	access        string // web API access token
+	accessExpires time.Time
 
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
-
-	// persona returns the status the user wants (EPersonaState). Without it,
-	// Steam shows the account as offline while this session is logged on.
-	persona func(self uint64) (uint32, bool)
-}
-
-// SetPersonaSource sets where the wanted status comes from. It is read after
-// every logon, so status changes made in the Steam app carry over.
-func (c *Client) SetPersonaSource(f func(self uint64) (uint32, bool)) {
-	c.mu.Lock()
-	c.persona = f
-	c.mu.Unlock()
-}
-
-func (c *Client) sendPersona(cn *conn) {
-	c.mu.RLock()
-	f, self := c.persona, c.self
-	c.mu.RUnlock()
-	state := uint32(1) // online when the Steam app saved nothing
-	if f != nil {
-		if s, ok := f(self); ok {
-			state = s
-		}
-	}
-	var m enc
-	m.varint(1, uint64(state))
-	if err := cn.send(emsgClientChangeStatus, newHeader(), m.b); err != nil {
-		log.Printf("steam: set status: %v", err)
-	}
 }
 
 // New creates a client. machineSeed should be stable per install.
@@ -139,6 +109,7 @@ func New(machineSeed string) *Client {
 		friends:  map[uint64]*Friend{},
 		relation: map[uint64]uint32{},
 		state:    StateOffline,
+		refresh:  make(chan struct{}, 1),
 	}
 }
 
@@ -184,6 +155,7 @@ func (c *Client) Start(token string) error {
 	c.mu.Lock()
 	c.token = token
 	c.self = info.SteamID
+	c.access = ""
 	c.cancel = cancel
 	c.mu.Unlock()
 	c.wg.Add(1)
@@ -325,9 +297,11 @@ func (c *Client) session(ctx context.Context) error {
 		}
 		c.mu.Unlock()
 	}()
-	c.sendPersona(cn)
 	c.setState(StateOnline, "")
-	c.requestPersonas([]uint64{c.SelfID()})
+
+	pctx, stopProfiles := context.WithCancel(ctx)
+	defer stopProfiles()
+	go c.profileLoop(pctx, cn)
 
 	tick := time.NewTicker(heartbeat)
 	defer tick.Stop()
@@ -362,8 +336,6 @@ func (c *Client) handle(cn *conn, p packet) error {
 		return &Error{EResult: eresult, Message: "logged off by Steam"}
 	case emsgClientFriendsList:
 		c.handleFriendsList(p.body)
-	case emsgClientPersonaState:
-		c.handlePersonaState(p.body)
 	case emsgServiceMethod:
 		if p.hdr.targetJobName == "FriendMessagesClient.IncomingMessage#1" {
 			c.handleIncoming(p.body)
@@ -400,98 +372,16 @@ func (c *Client) handleFriendsList(body []byte) {
 	if !incremental {
 		c.relation = map[uint64]uint32{}
 	}
-	var ask []uint64
 	for _, r := range list {
 		if r.rel == 0 {
 			delete(c.relation, r.id)
 			continue
 		}
 		c.relation[r.id] = r.rel
-		ask = append(ask, r.id)
 	}
-	ask = append(ask, c.self)
 	c.mu.Unlock()
-	c.requestPersonas(ask)
+	c.RefreshProfiles()
 	c.emit(FriendsEvent{})
-}
-
-func (c *Client) handlePersonaState(body []byte) {
-	changed := false
-	var flags uint32
-	var entries [][]byte
-	_ = walk(body, func(f field) {
-		switch f.Num {
-		case 1:
-			flags = f.u32()
-		case 2:
-			entries = append(entries, f.Bytes)
-		}
-	})
-	c.mu.Lock()
-	for _, b := range entries {
-		var id uint64
-		_ = walk(b, func(f field) {
-			if f.Num == 1 {
-				id = f.Value
-			}
-		})
-		if id == 0 {
-			continue
-		}
-		fr := c.friends[id]
-		if fr == nil {
-			fr = &Friend{SteamID: id, RichPresence: map[string]string{}}
-			c.friends[id] = fr
-		}
-		var rp map[string]string
-		if flags&personaRichPresence != 0 {
-			rp = map[string]string{}
-		}
-		gameSeen := false
-		_ = walk(b, func(f field) {
-			switch f.Num {
-			case 2:
-				fr.PersonaState = f.u32()
-			case 15:
-				fr.Name = f.str()
-			case 31:
-				fr.AvatarHash = hex.EncodeToString(f.Bytes)
-			case 55:
-				fr.GameName = f.str()
-				gameSeen = true
-			case 56:
-				fr.GameID = f.Value
-				gameSeen = true
-			case 71:
-				if rp == nil {
-					rp = map[string]string{}
-				}
-				var k, v string
-				_ = walk(f.Bytes, func(g field) {
-					switch g.Num {
-					case 1:
-						k = g.str()
-					case 2:
-						v = g.str()
-					}
-				})
-				if k != "" {
-					rp[k] = v
-				}
-			}
-		})
-		if flags&personaGameExtra != 0 && !gameSeen {
-			fr.GameID, fr.GameName = 0, ""
-		}
-		if rp != nil {
-			fr.RichPresence = rp
-		}
-		changed = true
-	}
-	c.mu.Unlock()
-	if changed {
-		c.emit(FriendsEvent{})
-	}
 }
 
 func (c *Client) handleIncoming(body []byte) {
@@ -538,36 +428,6 @@ func (c *Client) currentConn() (*conn, error) {
 	return c.conn, nil
 }
 
-func (c *Client) requestPersonas(ids []uint64) {
-	cn, err := c.currentConn()
-	if err != nil || len(ids) == 0 {
-		return
-	}
-	var e enc
-	e.varint(1, personaFlagsWanted)
-	for _, id := range ids {
-		if id != 0 {
-			e.fixed64(2, id)
-		}
-	}
-	_ = cn.send(emsgClientRequestFriendData, newHeader(), e.b)
-}
-
-// RefreshPersonas asks Steam for fresh persona and rich presence data for all
-// friends and self. Results arrive as FriendsEvent.
-func (c *Client) RefreshPersonas() {
-	c.mu.RLock()
-	ids := make([]uint64, 0, len(c.relation)+1)
-	for id, r := range c.relation {
-		if r == 3 { // EFriendRelationship Friend
-			ids = append(ids, id)
-		}
-	}
-	ids = append(ids, c.self)
-	c.mu.RUnlock()
-	c.requestPersonas(ids)
-}
-
 // SendMessage sends a friend chat message.
 func (c *Client) SendMessage(ctx context.Context, to uint64, text string) error {
 	cn, err := c.currentConn()
@@ -607,7 +467,7 @@ func (c *Client) Friends() []Friend {
 		}
 		f := Friend{SteamID: id}
 		if p := c.friends[id]; p != nil {
-			f = copyFriend(p)
+			f = *p
 		}
 		out = append(out, f)
 	}
@@ -623,16 +483,7 @@ func (c *Client) Friend(id uint64) (Friend, bool) {
 	if p == nil {
 		return Friend{SteamID: id}, false
 	}
-	return copyFriend(p), true
-}
-
-func copyFriend(p *Friend) Friend {
-	f := *p
-	f.RichPresence = make(map[string]string, len(p.RichPresence))
-	for k, v := range p.RichPresence {
-		f.RichPresence[k] = v
-	}
-	return f
+	return *p, true
 }
 
 // machineID builds the binary KeyValues machine ID that the Steam client sends.

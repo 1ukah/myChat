@@ -1,14 +1,19 @@
 <script lang="ts">
-  // The login screen. myChat never asks for a password. Three ways in:
-  //   1. Use Steam on this PC: the login the Steam app already saved (default).
-  //   2. Sign in with the Steam app: open Steam's own sign-in; Go watches for
-  //      the new login and continues on its own.
-  //   3. QR code: myChat's own session. Collapsed until asked for.
-  // If Steam is not installed, only the QR is shown.
-  import { onMount, untrack } from "svelte";
+  // The login screen. Three ways in; none of them changes the Steam app's
+  // status:
+  //   1. Use Steam on this PC: the login the Steam app already saved.
+  //   2. Account name + password, then Steam Guard if Steam asks for it.
+  //   3. QR code scanned with the Steam mobile app. Collapsed until asked for.
+  // If Steam is not installed, 1 is replaced by a short note.
+  //
+  // The password lives only in the field's own state until it is handed to
+  // Go, and is cleared the moment it is submitted. It is never stored,
+  // logged or shown.
+  import { onMount } from "svelte";
   import {
     app,
     cancelLogin,
+    loginWithPassword,
     openSteamLogin,
     refreshLocalLogins,
     startLogin,
@@ -18,16 +23,15 @@
   import QrCode from "../ui/QrCode.svelte";
   import Spinner from "../ui/Spinner.svelte";
   import AccountCards from "./AccountCards.svelte";
+  import GuardStep from "./GuardStep.svelte";
 
   const login = $derived(app.login);
   const local = $derived(app.local);
-  const hasSteam = $derived(local.steamInstalled);
   const accounts = $derived(local.accounts ?? []);
-  const anyUsable = $derived(accounts.some((a) => a.hasLogin));
 
   // ---- banner: why the login screen is showing (for example an expired login) ----
 
-  // Remembered here, because opening the QR replaces LoginState.
+  // Remembered here, because starting a login replaces LoginState.
   let reason = $state("");
   $effect(() => {
     if (login.phase === "idle" && login.error) reason = login.error;
@@ -43,7 +47,7 @@
   );
   const banner = $derived(stray || reason);
 
-  // ---- 2. Steam app sign-in ----
+  // ---- 1. Steam on this PC ----
 
   let opening = $state(false);
   let openError = $state("");
@@ -55,36 +59,50 @@
     opening = false;
   }
 
+  // Steam's saved accounts may have changed since the app started.
+  onMount(refreshLocalLogins);
+
+  // ---- 2. account name + password ----
+
+  let account = $state(app.login.account ?? "");
+  let password = $state("");
+
+  const busy = $derived(login.method === "password" && login.phase === "submitting");
+  const formError = $derived(
+    login.method === "password" && login.phase === "error" ? login.error || "Sign-in failed." : "",
+  );
+  const canSubmit = $derived(!busy && account.trim() !== "" && password !== "");
+
+  function submit(): void {
+    if (!canSubmit) return;
+    const secret = password;
+    password = "";
+    loginWithPassword(account.trim(), secret);
+  }
+
+  function onkeydown(e: KeyboardEvent): void {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      submit();
+    }
+  }
+
   // ---- 3. QR ----
 
   // The panel follows the state: it is open exactly while a QR login is
   // running or has failed, so it can never disagree with Go.
-  const qrActive = $derived(
+  const qrOpen = $derived(
     login.method === "qr" && (login.phase === "waiting" || login.phase === "error"),
   );
-  const qrOpen = $derived(!hasSteam || qrActive);
-  const qr = $derived(qrActive && login.phase === "waiting" ? (login.qr ?? []) : []);
+  const qr = $derived(qrOpen && login.phase === "waiting" ? (login.qr ?? []) : []);
   const qrError = $derived(
-    qrActive && login.phase === "error"
-      ? login.error || "Could not get a QR code from Steam."
-      : "",
+    qrOpen && login.phase === "error" ? login.error || "Could not get a QR code from Steam." : "",
   );
 
   function toggleQr(): void {
-    if (qrActive) cancelLogin();
+    if (qrOpen) cancelLogin();
     else startLogin();
   }
-
-  // Without Steam the QR is the only way, so it starts by itself. A failed QR
-  // is not retried automatically: a dead connection cannot loop.
-  $effect(() => {
-    if (!hasSteam && login.phase === "idle" && app.status.state === "needs_login") {
-      untrack(startLogin);
-    }
-  });
-
-  // Steam's saved accounts may have changed since the app started.
-  onMount(refreshLocalLogins);
 </script>
 
 <div class="login">
@@ -95,90 +113,132 @@
     </div>
   {/if}
 
-  {#if hasSteam}
-    <section class="way">
-      <h3 class="main"><Icon name="pc" /><span>Use Steam on this PC</span></h3>
-      {#if accounts.length > 0}
-        <AccountCards />
-      {:else}
-        <p class="text empty">
-          The Steam app has no saved account on this PC yet. Sign in with the Steam app below.
-        </p>
-      {/if}
-      {#if local.error}
-        <p class="text bad">{local.error}</p>
-      {/if}
-    </section>
-
-    <section class="way">
-      <h3><Icon name="open" /><span>Sign in with the Steam app</span></h3>
-      <div class="line">
-        {#if local.watching}
-          <Spinner size={16} label="Waiting" />
-          <p class="text" aria-live="polite">Waiting for you to sign in to Steam…</p>
-          <Button onclick={cancelLogin}>Cancel</Button>
-        {:else}
-          <p class="text">
-            Sign in to Steam with "Remember me" on. myChat continues on its own.
-          </p>
-          <Button
-            variant={anyUsable ? "outline" : "primary"}
-            icon="open"
-            disabled={opening}
-            onclick={openSteam}
-          >
-            Open Steam sign-in
-          </Button>
-        {/if}
-      </div>
-      {#if openError}
-        <p class="text bad" role="alert">{openError}</p>
-      {/if}
-    </section>
+  {#if login.phase === "guard"}
+    <GuardStep />
   {:else}
-    <p class="text nosteam">
-      {local.error || "Steam is not installed on this PC."} You can still sign in with a QR code.
-    </p>
-  {/if}
+    {#if local.steamInstalled}
+      <section class="way">
+        <h3 class="main"><Icon name="pc" /><span>Use Steam on this PC</span></h3>
+        {#if accounts.length > 0}
+          <AccountCards />
+        {/if}
+        {#if local.watching}
+          <div class="line">
+            <Spinner size={16} label="Waiting" />
+            <p class="text" aria-live="polite">Waiting for you to sign in to Steam…</p>
+            <Button onclick={cancelLogin}>Cancel</Button>
+          </div>
+        {:else if accounts.length === 0}
+          <div class="line">
+            <p class="text">
+              The Steam app has no saved account on this PC yet. Sign in to Steam with "Remember me"
+              on; myChat continues on its own.
+            </p>
+            <Button icon="open" disabled={opening} onclick={openSteam}>Open Steam sign-in</Button>
+          </div>
+        {/if}
+        {#if openError || local.error}
+          <p class="text bad" role="alert">{openError || local.error}</p>
+        {/if}
+      </section>
+    {:else}
+      <p class="text nosteam">
+        {local.error || "Steam is not installed on this PC."} Sign in with your account name or a QR
+        code instead.
+      </p>
+    {/if}
 
-  <section class="way">
-    {#if hasSteam}
+    <section class="way">
+      <h3 class:main={!local.steamInstalled}>
+        <Icon name="user" /><span>Sign in with account name</span>
+      </h3>
+      <div class="form">
+        <label class="field">
+          <span class="cap">Account name</span>
+          <input
+            type="text"
+            name="username"
+            bind:value={account}
+            autocomplete="username"
+            autocapitalize="off"
+            spellcheck="false"
+            disabled={busy}
+            {onkeydown}
+          />
+        </label>
+        <label class="field">
+          <span class="cap">Password</span>
+          <input
+            type="password"
+            name="password"
+            bind:value={password}
+            autocomplete="current-password"
+            disabled={busy}
+            {onkeydown}
+          />
+        </label>
+        <div class="submit">
+          <Button variant="primary" disabled={!canSubmit} onclick={submit}>
+            {busy ? "Signing in…" : "Sign in"}
+          </Button>
+          <div class="status" aria-live="polite">
+            {#if busy}
+              <Spinner size={14} label="Signing in" /><span>Contacting Steam…</span>
+            {:else if formError}
+              <span class="error" role="alert">{formError}</span>
+            {/if}
+          </div>
+        </div>
+      </div>
+      <p class="trust">
+        <Icon name="lock" />
+        <span>
+          Your password goes only to Steam, encrypted with Steam's own key. myChat never stores
+          it.
+        </span>
+      </p>
+    </section>
+
+    <section class="way">
       <button type="button" class="fold" aria-expanded={qrOpen} onclick={toggleQr}>
         <Icon name="qr" />
         <span>Sign in with QR code</span>
         <span class="chevron" class:open={qrOpen}><Icon name="chevron" /></span>
       </button>
-    {:else}
-      <h3 class="main"><Icon name="qr" /><span>Sign in with QR code</span></h3>
-    {/if}
 
-    {#if qrOpen}
-      <div class="qr">
-        <!-- Always white and the same size, so nothing moves when the code
-             arrives or Steam refreshes it. -->
-        <div class="code">
-          {#if qrError}
-            <span class="wait bad">{qrError}</span>
-          {:else if qr.length > 0}
-            <QrCode rows={qr} size={184} label="Steam sign-in QR code" />
-          {:else}
-            <span class="wait">Getting a code…</span>
-          {/if}
+      {#if qrOpen}
+        <div class="qr">
+          <!-- Always white and the same size, so nothing moves when the code
+               arrives or Steam refreshes it. -->
+          <div class="code">
+            {#if qrError}
+              <span class="wait bad">{qrError}</span>
+            {:else if qr.length > 0}
+              <QrCode rows={qr} size={184} label="Steam sign-in QR code" />
+            {:else}
+              <span class="wait">Getting a code…</span>
+            {/if}
+          </div>
+          <div class="guide">
+            <ol>
+              <li><span class="n">1</span><span>Open the <b>Steam</b> app on your phone.</span></li>
+              <li><span class="n">2</span><span>Tap the <b>Steam Guard</b> shield icon.</span></li>
+              <li><span class="n">3</span><span>Scan this code and approve the sign-in.</span></li>
+            </ol>
+            <p class="fine">Nothing is typed in here.</p>
+            <button type="button" class="link" onclick={startLogin}>
+              <Icon name="retry" /><span>{qrError ? "Try again" : "New code"}</span>
+            </button>
+          </div>
         </div>
-        <div class="guide">
-          <ol>
-            <li><span class="n">1</span><span>Open the <b>Steam</b> app on your phone.</span></li>
-            <li><span class="n">2</span><span>Tap the <b>Steam Guard</b> shield icon.</span></li>
-            <li><span class="n">3</span><span>Scan this code and approve the sign-in.</span></li>
-          </ol>
-          <p class="fine">myChat keeps its own session for this. Nothing is typed in here.</p>
-          <button type="button" class="link" onclick={startLogin}>
-            <Icon name="retry" /><span>{qrError ? "Try again" : "New code"}</span>
-          </button>
-        </div>
-      </div>
-    {/if}
-  </section>
+      {/if}
+    </section>
+  {/if}
+
+  <p class="own">
+    myChat runs as a quiet second session, like the Steam mobile app. Your Steam app stays signed in
+    and keeps its status.
+  </p>
 </div>
 
 <style>
@@ -203,6 +263,33 @@
     border-bottom: 1px solid var(--line);
   }
 
+  .text {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    font-size: 13px;
+    line-height: 20px;
+    color: var(--muted);
+  }
+
+  .text.nosteam {
+    padding: 14px 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .text.bad {
+    padding: 0 0 10px;
+    color: var(--red-text);
+  }
+
+  .line {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 44px;
+    padding: 0 0 12px;
+  }
+
   h3 {
     display: flex;
     align-items: center;
@@ -222,36 +309,92 @@
     color: var(--accent);
   }
 
-  .text {
-    flex: 1;
+  /* ---------- account name + password ---------- */
+
+  .form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 16px;
+    padding: 4px 0 4px;
+  }
+
+  .field {
+    display: block;
     min-width: 0;
-    margin: 0;
+  }
+
+  .cap {
+    display: block;
+    font-family: var(--font-head);
     font-size: 13px;
+    font-weight: 700;
     line-height: 20px;
+    letter-spacing: 0.01em;
+    text-transform: uppercase;
     color: var(--muted);
   }
 
-  .text.empty,
-  .text.nosteam {
-    padding: 4px 0 14px;
+  input {
+    display: block;
+    width: 100%;
+    height: 36px;
+    margin-top: 4px;
+    padding: 0 12px;
+    font-family: var(--font-body);
+    font-size: 14px;
+    color: #fff;
+    background: var(--box);
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    outline: none;
+    user-select: text;
+    cursor: text;
   }
 
-  .text.nosteam {
-    padding-top: 14px;
-    border-bottom: 1px solid var(--line);
+  input:hover {
+    border-color: var(--line-strong);
   }
 
-  .text.bad {
-    padding: 0 0 10px;
+  input:focus {
+    background: rgba(0, 0, 0, 0.4);
+    border-color: var(--accent);
+  }
+
+  input:disabled {
+    opacity: 0.5;
+  }
+
+  .submit {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  /* Room for one line, so progress and errors never move the form. */
+  .status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    min-height: 20px;
+    font-size: 13px;
+    line-height: 20px;
+    color: var(--text-soft);
+  }
+
+  .error {
     color: var(--red-text);
   }
 
-  .line {
+  .trust {
     display: flex;
     align-items: center;
-    gap: 12px;
-    min-height: 44px;
-    padding: 0 0 12px;
+    gap: 10px;
+    margin: 12px 0 14px;
+    font-size: 12px;
+    line-height: 18px;
+    color: var(--muted);
   }
 
   /* ---------- QR ---------- */
@@ -398,6 +541,14 @@
 
   .link:hover {
     color: var(--accent);
+  }
+
+  .own {
+    margin: 0;
+    padding: 12px 0;
+    font-size: 12px;
+    line-height: 18px;
+    color: var(--muted);
   }
 
   :global(.anim) .qr {

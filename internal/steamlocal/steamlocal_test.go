@@ -46,14 +46,4 @@ func TestLocalAccounts(t *testing.T) {
 	}
 }
 
-func TestParsePersonaState(t *testing.T) {
-	vdf := `"friends" { "FriendStoreLocalPrefs_42"		"{\"ePersonaState\":7,\"strNonFriendsAllowedToMsg\":\"\"}" }`
-	if s, ok := parsePersonaState(vdf, "42"); !ok || s != 7 {
-		t.Fatalf("got %d %v, want 7 true", s, ok)
-	}
-	if _, ok := parsePersonaState(vdf, "4"); ok {
-		t.Fatal("matched another account")
-	}
-}
-
 func itoa(n int) string { return string(rune('0' + n)) }

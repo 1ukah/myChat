@@ -49,6 +49,8 @@
         ["login", { view: "settings", mock: "login" }],
         ["watching", { view: "settings", mock: "watching" }],
         ["nosteam", { view: "settings", mock: "nosteam" }],
+        ["guard", { view: "settings", mock: "guard" }],
+        ["email", { view: "settings", mock: "email" }],
         ["expired", { view: "settings", mock: "expired" }],
         ["error", { view: "settings", mock: "error" }],
         ["online", { view: "settings", mock: "online" }],

@@ -112,7 +112,7 @@
 
   // Extra words a setting can be found by, besides its label.
   const INDEX: readonly { tab: TabId; section: string; label: string; words?: string }[] = [
-    { tab: "account", section: "steam", label: "Steam account", words: "sign in login log out switch qr code" },
+    { tab: "account", section: "steam", label: "Steam account", words: "sign in login log out switch saved account password steam guard qr code" },
     { tab: "chat", section: "chat-box", label: "Open chat", words: "hotkey key bind shortcut" },
     { tab: "chat", section: "chat-box", label: "Close after sending" },
     { tab: "chat", section: "pop-ups", label: "Show new message pop-ups", words: "toast notification" },
@@ -126,7 +126,7 @@
     { tab: "overlay", section: "animation", label: "Animation speed", words: "fast normal slow" },
     { tab: "overlay", section: "position", label: "Distance from bottom", words: "offset place" },
     { tab: "overlay", section: "position", label: "Preview in game position", words: "test pop-up toast" },
-    { tab: "help", section: "commands", label: "Commands", words: "/r /w /p /help /clear whisper reply party" },
+    { tab: "help", section: "commands", label: "Commands", words: "/r /w /help /clear whisper reply" },
     { tab: "help", section: "keys", label: "Keys", words: "enter esc tab arrows page paste" },
     { tab: "help", section: "about", label: "Quit myChat", words: "exit close about" },
   ];
@@ -216,7 +216,7 @@
       : { text: `${label} settings are back to their defaults.`, bad: false };
   }
 
-  // ---- Steam summary (top right, and the counters in the rail) ----
+  // ---- Steam summary (top right) ----
 
   const steam = $derived.by(() => {
     const s = app.status;
@@ -235,8 +235,6 @@
         return { tone: "bad", ring: "offline", name, text: "Offline" } as const;
     }
   });
-
-  const online = $derived(steam.tone === "on");
 
   // ---- background texture ----
 
@@ -406,31 +404,8 @@
     {/if}
   </footer>
 
-  <!-- The right rail: contour lines, and two counters like CS2's friends rail. -->
-  <aside class="rail">
-    <button
-      type="button"
-      class="count"
-      class:off={!online}
-      title="Friends online"
-      aria-label="Friends online: {online ? app.status.friendsOnline : 'unknown'}"
-      onclick={() => pickTab("account")}
-    >
-      <Icon name="signal" size={24} />
-      <span>{online ? app.status.friendsOnline : "–"}</span>
-    </button>
-    <button
-      type="button"
-      class="count"
-      class:off={!online || app.status.partySize === 0}
-      title="In your CS2 party"
-      aria-label="In your party: {online && app.status.partySize > 0 ? app.status.partySize : 'none'}"
-      onclick={() => pickTab("account")}
-    >
-      <Icon name="group" size={24} />
-      <span>{online && app.status.partySize > 0 ? app.status.partySize : "–"}</span>
-    </button>
-  </aside>
+  <!-- The right rail: contour lines, like CS2's friends rail. -->
+  <aside class="rail"></aside>
 </div>
 
 <style>
@@ -881,43 +856,10 @@
 
   .rail {
     grid-area: rail;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    gap: 2px;
-    padding-bottom: 52px;
     background:
       var(--topo) 120px 40px / 560px 560px,
       rgba(86, 99, 112, 0.34);
     border-left: 1px solid rgba(0, 0, 0, 0.3);
-  }
-
-  .count {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 3px;
-    height: 62px;
-    padding: 0;
-    font-family: var(--font-head);
-    font-size: 12px;
-    font-weight: 600;
-    line-height: 12px;
-    font-variant-numeric: tabular-nums;
-    color: #fff;
-    background: rgba(255, 255, 255, 0.08);
-    border: 0;
-    cursor: pointer;
-  }
-
-  .count.off {
-    color: var(--muted);
-  }
-
-  .count:hover {
-    color: var(--accent);
-    background: rgba(255, 255, 255, 0.16);
   }
 
   /* ---------- focus and motion ---------- */
@@ -931,7 +873,6 @@
   .anim .tab,
   .anim .search,
   .anim .reset,
-  .anim .count,
   .anim .window button {
     transition:
       color 120ms,

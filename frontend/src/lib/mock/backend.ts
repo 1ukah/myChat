@@ -7,17 +7,22 @@
 //   ?view=overlay&mock=toaststream  a new pop-up message every 2 s
 //   ?view=overlay&mock=suggest    chat box while typing "/w s", with an error
 //   ?view=overlay&mock=offline    chat box while Steam is reconnecting
-//   ?view=settings&mock=login     logged out: three Steam accounts on this PC
+//   ?view=settings&mock=login     logged out: Steam accounts, password form, QR folded
 //   ?view=settings&mock=watching  waiting for a sign-in in the Steam app
-//   ?view=settings&mock=nosteam   Steam not installed: QR only
+//   ?view=settings&mock=nosteam   Steam not installed: password and QR only
+//   ?view=settings&mock=guard     Steam Guard code step (authenticator app)
+//   ?view=settings&mock=email     Steam Guard code step (email)
 //   ?view=settings&mock=expired   login screen with the "expired" banner
-//   ?view=settings&mock=error     a failed "use this account"
-//   ?view=settings&mock=online    logged in and online (&source=qr for a QR login)
+//   ?view=settings&mock=error     a failed password sign-in
+//   ?view=settings&mock=online    logged in and online (&source=qr|password, default steam)
 //   ?view=settings&mock=offline   logged in, Steam unreachable
 //
-// Login in the mock: "Use this account" goes online after about 700 ms; the
+// Sign-in in the mock: "Use this account" goes online after about 400 ms; the
 // account named "expired" is rejected. Opening the Steam sign-in "signs in"
-// after about 3 s and goes online. The QR is shown but never scanned.
+// after about 3 s. Password "guard" leads to the Steam Guard step (code from
+// the app), "email" to the email-code step, "wrong" is rejected, and anything
+// else signs in. Guard code ABCDE is right; other codes are wrong. The QR is
+// shown but never scanned.
 //
 // Extra switches: &blur=1  &anim=0  &avatars=0  &scale=0.75
 //                 &style=fade|slide-up|slide-down|slide-left|slide-right|typewriter
@@ -25,7 +30,7 @@
 //                 &layout=stack|group  &max=1..5  &long=1 (a long pop-up message)
 //
 // The chat engine below is a small imitation of internal/chat, good enough to
-// try the keys: text, arrows, Tab, /w name, /r, /p, /help, /clear, PgUp/PgDn,
+// try the keys: text, arrows, Tab, /w name, /r, /help, /clear, PgUp/PgDn,
 // Enter, Esc. A message containing "fail" fails to send.
 
 import type { Backend, Handlers } from "../backend";
@@ -112,7 +117,6 @@ const STILL: [number, string][] = [
 const HELP = [
   "/r [msg] – reply to the last whisper",
   "/w name [msg] – whisper a friend",
-  "/p [msg] – message your CS2 party",
   "Tab – cycle recent people · ↑↓ – sent history",
   "PgUp/PgDn – scroll · Esc – close",
 ];
@@ -198,20 +202,26 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     `Steam has no saved login for ${account}. Sign in to Steam with "Remember me" on`;
 
   const loggedIn = view === "overlay" || mock === "online" || mock === "offline";
-  const source = params.get("source") === "qr" ? "qr" : "steam";
+  const source = ["qr", "password"].includes(params.get("source") ?? "")
+    ? (params.get("source") as string)
+    : "steam";
   let status = new M.Status(
     !loggedIn
       ? { state: "needs_login", detail: mock === "expired" ? EXPIRED : "" }
       : mock === "offline"
         ? { state: "offline", detail: "Connection lost. Trying again in 5 s.", accountName: "sant1_cs", source, personaName: "sant1" }
-        : { state: "online", accountName: "sant1_cs", source, personaName: "sant1", friendsOnline: 7, partySize: 2 },
+        : { state: "online", accountName: "sant1_cs", source, personaName: "sant1" },
   );
   let login = new M.LoginState(
     mock === "expired"
       ? { phase: "idle", error: EXPIRED }
       : mock === "error"
-        ? { phase: "error", method: "steam", account: "expired", error: noLogin("expired") }
-        : { phase: "idle" },
+        ? { phase: "error", method: "password", account: "sant1_cs", error: "Wrong account name or password." }
+        : mock === "guard"
+          ? { phase: "guard", method: "password", account: "sant1_cs", guards: ["device_code", "device_confirmation"] }
+          : mock === "email"
+            ? { phase: "guard", method: "password", account: "sant1_cs", guards: ["email_code"], emailHint: "gmail.com" }
+            : { phase: "idle" },
   );
   let loginTimers: number[] = [];
 
@@ -260,10 +270,7 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     emit("status", status);
     setLogin({ phase: "done", method, account });
     loginTimers = [
-      window.setTimeout(
-        () => setStatus({ state: "online", personaName: persona, friendsOnline: 7, partySize: 2 }),
-        300,
-      ),
+      window.setTimeout(() => setStatus({ state: "online", personaName: persona }), 300),
     ];
   };
   /**
@@ -319,8 +326,8 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     if (ch.kind === "whisper") ch.online = friend(ch.targetId)?.online ?? false;
     let hint = "";
     if (sugg.length > 0) hint = "Tab or Enter to pick";
-    else if (channel.kind === "none" && lastFrom) hint = "/r to reply · /w name · /p party";
-    else if (channel.kind === "none") hint = "/w name to whisper · /p party · /help";
+    else if (channel.kind === "none" && lastFrom) hint = "/r to reply · /w name";
+    else if (channel.kind === "none") hint = "/w name to whisper · /help";
     return new C.ComposerState({
       text: chars.join(""),
       caret,
@@ -427,7 +434,7 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     return { all: groups.flatMap(onlineFirst), exact: groups[0] };
   };
 
-  /** Live channel switching: "/r ", "/p " and "/w name " act at once. */
+  /** Live channel switching: "/r " and "/w name " act at once. */
   const afterEdit = (): void => {
     histPos = history.length;
     sugg = [];
@@ -443,10 +450,6 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
         return;
       }
       setWhisper(f);
-      chars = [];
-      caret = 0;
-    } else if ((cmd === "/p" || cmd === "/party") && arg === "") {
-      channel = new C.Channel({ kind: "party", targetName: "Party" });
       chars = [];
       caret = 0;
     } else if (WHISPER.test(cmd)) {
@@ -498,18 +501,6 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     return true;
   };
 
-  const sendParty = (text: string): boolean => {
-    if (status.partySize === 0) {
-      error = "You are not in a CS2 party";
-      return false;
-    }
-    const entry = add({ kind: "party", peerName: `Party (${status.partySize})`, text, status: "pending" });
-    chars = [];
-    caret = 0;
-    window.setTimeout(() => update(entry, "sent"), 600);
-    return true;
-  };
-
   /** Returns true when a message was accepted for sending. */
   const command = (t: string): boolean => {
     const fields = t.split(/\s+/);
@@ -528,11 +519,6 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
       setWhisper(f);
       if (rest === "") return clear(), false;
       return sendWhisper(f, rest);
-    }
-    if (cmd === "/p" || cmd === "/party") {
-      channel = new C.Channel({ kind: "party", targetName: "Party" });
-      if (rest === "") return clear(), false;
-      return sendParty(rest);
     }
     if (WHISPER.test(cmd)) {
       if (fields.length < 2) {
@@ -578,8 +564,7 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     if (t.startsWith("/")) return command(t) ? "sent" : "";
     const to = friend(channel.targetId);
     if (channel.kind === "whisper" && to) return sendWhisper(to, t) ? "sent" : "";
-    if (channel.kind === "party") return sendParty(t) ? "sent" : "";
-    error = "Pick who to message: /w name, /r or /p";
+    error = "Pick who to message: /w name or /r";
     return "";
   };
 
@@ -711,7 +696,6 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
       { time: at(18), kind: "in", ...peer(ahmed), text: "مرحبا، هل تلعب الليلة؟" },
       { time: at(14), kind: "in", ...peer(sandro), text: "back in 5, grabbing food" },
       { time: at(12), kind: "in", ...peer(long), text: "did you see the new operation trailer? https://store.steampowered.com/news/app/730/view/000000000000000000 the maps look great and I think we should try the co-op missions this weekend" },
-      { time: at(9), kind: "party", peerName: "Party (2)", text: "buy armor this round, save next", status: "sent" },
       { time: at(7), kind: "in", ...peer(mira), text: "rotate B, they stacked A again" },
       { time: at(6), kind: "out", ...peer(mira), text: "on my way, smoke window", status: "sent" },
       { time: at(4), kind: "out", ...peer(dmitri), text: "ready when you are", status: "failed", detail: "Steam did not answer" },
@@ -816,6 +800,8 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     // The QR is shown and then simply waits: nobody scans it in the mock.
     startLogin() {
       stopLogin();
+      stopWatch();
+      emitLocal();
       setLogin({ phase: "waiting", method: "qr" });
       loginTimers = [
         window.setTimeout(
@@ -851,7 +837,47 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
 
     openSteamLogin() {
       console.info("mock: OpenSteamLogin (the Steam app would open now)");
+      stopLogin();
       watch(false);
+      return done();
+    },
+
+    // Passwords are compared with the mock's trigger words and then dropped.
+    loginWithPassword(account, password) {
+      stopLogin();
+      stopWatch();
+      emitLocal();
+      const name = account.trim();
+      if (!name || !password) {
+        setLogin({ phase: "error", method: "password", account: name, error: "Enter your account name and password." });
+        return done();
+      }
+      const base = { method: "password", account: name };
+      const outcome: Partial<M.LoginState> | null =
+        password === "wrong"
+          ? { ...base, phase: "error", error: "Wrong account name or password." }
+          : password === "guard"
+            ? { ...base, phase: "guard", guards: ["device_code", "device_confirmation"] }
+            : password === "email"
+              ? { ...base, phase: "guard", guards: ["email_code"], emailHint: "gmail.com" }
+              : null;
+      setLogin({ ...base, phase: "submitting" });
+      loginTimers = [
+        window.setTimeout(() => (outcome ? setLogin(outcome) : finishLogin("password", name)), 900),
+      ];
+      return done();
+    },
+
+    submitGuardCode(code) {
+      if (login.phase !== "guard") return done();
+      const step = { ...login };
+      setLogin({ ...step, checking: true, codeError: "" });
+      loginTimers = [
+        window.setTimeout(() => {
+          if (code.trim().toUpperCase() === "ABCDE") finishLogin("password", step.account);
+          else setLogin({ ...step, checking: false, codeError: "Wrong Steam Guard code." });
+        }, 700),
+      ];
       return done();
     },
 

@@ -1,6 +1,6 @@
 // Package chat is the chat box logic, modelled on World of Warcraft chat:
-// a sticky channel, /r to reply, /w to whisper, /p for the party, Tab to
-// cycle recent people, and a shared chat log.
+// a sticky channel, /r to reply, /w to whisper, Tab to cycle recent people,
+// and a shared chat log.
 package chat
 
 import (
@@ -17,7 +17,6 @@ type Friend struct {
 	Name   string
 	Online bool
 	InGame string
-	Group  string // CS2 party ID from rich presence
 	Avatar string // avatar image URL
 }
 
@@ -42,7 +41,6 @@ type Notifier interface {
 const (
 	KindIn     = "in"     // whisper from a friend
 	KindOut    = "out"    // whisper to a friend
-	KindParty  = "party"  // message sent to the party
 	KindSystem = "system" // help and info lines
 	KindError  = "error"
 )
@@ -71,7 +69,6 @@ type Entry struct {
 const (
 	ChannelNone    = "none"
 	ChannelWhisper = "whisper"
-	ChannelParty   = "party"
 )
 
 // Channel is where plain text goes when Enter is pressed.
@@ -122,7 +119,6 @@ const (
 var (
 	whisperCmds = map[string]bool{"/w": true, "/whisper": true, "/t": true, "/tell": true, "/msg": true, "/m": true}
 	replyCmds   = map[string]bool{"/r": true, "/reply": true}
-	partyCmds   = map[string]bool{"/p": true, "/party": true}
 )
 
 type echoKey struct {
@@ -214,9 +210,9 @@ func (e *Engine) composerLocked() ComposerState {
 	case len(e.sugg) > 0:
 		s.Hint = "Tab or Enter to pick"
 	case e.channel.Kind == ChannelNone && e.lastFrom != 0:
-		s.Hint = "/r to reply · /w name · /p party"
+		s.Hint = "/r to reply · /w name"
 	case e.channel.Kind == ChannelNone:
-		s.Hint = "/w name to whisper · /p party · /help"
+		s.Hint = "/w name to whisper · /help"
 	}
 	return s
 }
@@ -347,11 +343,6 @@ func (e *Engine) touchLocked(id uint64) {
 func (e *Engine) setWhisperLocked(id uint64) {
 	e.chanID = id
 	e.channel = Channel{Kind: ChannelWhisper, TargetID: idStr(id), TargetName: e.nameLocked(id)}
-}
-
-func (e *Engine) setPartyLocked() {
-	e.chanID = 0
-	e.channel = Channel{Kind: ChannelParty, TargetName: "Party"}
 }
 
 // Insert types text at the caret (used for paste).
@@ -505,7 +496,7 @@ func (e *Engine) pickSuggestionLocked() {
 }
 
 // afterEditLocked implements live channel switching, as in WoW: typing
-// "/r ", "/p " or "/w name " turns the line into that channel at once.
+// "/r " or "/w name " turns the line into that channel at once.
 func (e *Engine) afterEditLocked() {
 	e.histPos = len(e.history)
 	t := string(e.text)
@@ -526,9 +517,6 @@ func (e *Engine) afterEditLocked() {
 			return
 		}
 		e.setWhisperLocked(e.lastFrom)
-		e.text, e.caret = nil, 0
-	case partyCmds[cmd] && arg == "":
-		e.setPartyLocked()
 		e.text, e.caret = nil, 0
 	case whisperCmds[cmd]:
 		q := strings.TrimSpace(arg)
@@ -627,13 +615,10 @@ func (e *Engine) enterLocked() Action {
 	if strings.HasPrefix(t, "/") {
 		return e.commandLocked(t)
 	}
-	switch e.channel.Kind {
-	case ChannelWhisper:
+	if e.channel.Kind == ChannelWhisper {
 		return e.sendWhisperLocked(e.chanID, t)
-	case ChannelParty:
-		return e.sendPartyLocked(t)
 	}
-	e.errMsg = "Pick who to message: /w name, /r or /p"
+	e.errMsg = "Pick who to message: /w name or /r"
 	return ActNone
 }
 
@@ -658,13 +643,6 @@ func (e *Engine) commandLocked(t string) Action {
 			return ActNone
 		}
 		return e.sendWhisperLocked(e.lastFrom, rest)
-	case partyCmds[cmd]:
-		e.setPartyLocked()
-		if rest == "" {
-			e.text, e.caret = nil, 0
-			return ActNone
-		}
-		return e.sendPartyLocked(rest)
 	case whisperCmds[cmd]:
 		words := fields[1:]
 		if len(words) == 0 {
@@ -704,7 +682,6 @@ func (e *Engine) commandLocked(t string) Action {
 		for _, l := range []string{
 			"/r [msg] – reply to the last whisper",
 			"/w name [msg] – whisper a friend",
-			"/p [msg] – message your CS2 party",
 			"Tab – cycle recent people · ↑↓ – sent history",
 			"PgUp/PgDn – scroll · Esc – close",
 		} {
@@ -740,63 +717,6 @@ func (e *Engine) sendWhisperLocked(to uint64, msg string) Action {
 		}
 		e.updateEntry(ent.ID, StatusSent, "")
 		e.b.Ack(to, time.Now())
-	}()
-	return ActSent
-}
-
-// PartyMembers returns friends in the same CS2 party as the user.
-func (e *Engine) partyMembersLocked() ([]Friend, string) {
-	self, ok := e.b.Lookup(e.b.SelfID())
-	if !ok || self.Group == "" {
-		return nil, "You are not in a CS2 party"
-	}
-	var out []Friend
-	for _, f := range e.b.Friends() {
-		if f.Group == self.Group && f.ID != self.ID {
-			out = append(out, f)
-		}
-	}
-	if len(out) == 0 {
-		return nil, "No friends in your party"
-	}
-	return out, ""
-}
-
-func (e *Engine) sendPartyLocked(msg string) Action {
-	members, problem := e.partyMembersLocked()
-	if problem != "" {
-		e.errMsg = problem
-		return ActNone
-	}
-	name := "Party (" + strconv.Itoa(len(members)) + ")"
-	ent := e.addLocked(Entry{Kind: KindParty, PeerName: name, Text: msg, Status: StatusPending})
-	for _, m := range members {
-		e.echoes = append(e.echoes, echoKey{to: m.ID, text: msg, at: time.Now()})
-	}
-	e.text, e.caret = nil, 0
-	go func() {
-		var failed []string
-		var wg sync.WaitGroup
-		var fmu sync.Mutex
-		for _, m := range members {
-			wg.Add(1)
-			go func(m Friend) {
-				defer wg.Done()
-				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-				defer cancel()
-				if err := e.b.Send(ctx, m.ID, msg); err != nil {
-					fmu.Lock()
-					failed = append(failed, m.Name)
-					fmu.Unlock()
-				}
-			}(m)
-		}
-		wg.Wait()
-		if len(failed) > 0 {
-			e.updateEntry(ent.ID, StatusFailed, "Not sent to "+strings.Join(failed, ", "))
-			return
-		}
-		e.updateEntry(ent.ID, StatusSent, "")
 	}()
 	return ActSent
 }

@@ -23,7 +23,7 @@ interface AppState {
   status: M.Status;
   config: M.ConfigView;
   login: M.LoginState;
-  /** Accounts the Steam client saved on this PC, and the sign-in watch. */
+  /** Accounts the Steam app saved on this PC, and the sign-in watch. */
   local: M.LocalLogins;
   layout: M.Layout;
   /** The pop-up messages shown in toast mode, oldest first. */
@@ -128,6 +128,10 @@ function fire(f: () => Promise<void>): void {
 export const overlayReady = (): void => fire(() => backend.overlayReady());
 export const startLogin = (): void => fire(() => backend.startLogin());
 export const cancelLogin = (): void => fire(() => backend.cancelLogin());
+/** The password is handed to Go and not kept here. */
+export const loginWithPassword = (account: string, password: string): void =>
+  fire(() => backend.loginWithPassword(account, password));
+export const submitGuardCode = (code: string): void => fire(() => backend.submitGuardCode(code));
 
 /** Re-reads Steam's saved accounts (they change when the user signs in to Steam). */
 export const refreshLocalLogins = (): void =>

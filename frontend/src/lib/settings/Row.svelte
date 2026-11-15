@@ -17,7 +17,7 @@
     error?: string;
     /** The setting has no effect right now. */
     dim?: boolean;
-    children: Snippet;
+    children?: Snippet;
   } = $props();
 </script>
 
@@ -30,7 +30,7 @@
       <div class="note">{hint}</div>
     {/if}
   </div>
-  <div class="control">{@render children()}</div>
+  {#if children}<div class="control">{@render children()}</div>{/if}
 </div>
 
 <style>

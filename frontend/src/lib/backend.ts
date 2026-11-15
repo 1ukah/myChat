@@ -28,7 +28,7 @@ export interface Backend {
   snapshot(): Promise<M.Snapshot>;
   overlayReady(): Promise<void>;
   saveConfig(c: Cfg.Config): Promise<M.ConfigView>;
-  /** Accounts the Steam client saved on this PC (also pushed as an event). */
+  /** Accounts the Steam app saved on this PC (also pushed as an event). */
   localLogins(): Promise<M.LocalLogins>;
   /** Rejects with a message when Steam has no usable login for the account. */
   useSteamAccount(account: string): Promise<void>;
@@ -36,7 +36,11 @@ export interface Backend {
   openSteamLogin(): Promise<void>;
   /** Starts a QR login. */
   startLogin(): Promise<void>;
-  /** Stops a QR login and the Steam sign-in watch. */
+  /** Starts an account name + password login; progress arrives as login events. */
+  loginWithPassword(account: string, password: string): Promise<void>;
+  /** Sends the Steam Guard code during the "guard" phase. */
+  submitGuardCode(code: string): Promise<void>;
+  /** Stops any login in progress and the Steam sign-in watch. */
   cancelLogin(): Promise<void>;
   logout(): Promise<void>;
   previewToast(): Promise<void>;
@@ -64,6 +68,8 @@ export const wailsBackend: Backend = {
   useSteamAccount: (account) => ChatService.UseSteamAccount(account),
   openSteamLogin: () => ChatService.OpenSteamLogin(),
   startLogin: () => ChatService.StartLogin(),
+  loginWithPassword: (account, password) => ChatService.LoginWithPassword(account, password),
+  submitGuardCode: (code) => ChatService.SubmitGuardCode(code),
   cancelLogin: () => ChatService.CancelLogin(),
   logout: () => ChatService.Logout(),
   previewToast: () => ChatService.PreviewToast(),

@@ -18,10 +18,11 @@
     search: "M6.75 11a4.25 4.25 0 1 0 0-8.5 4.25 4.25 0 0 0 0 8.5z M10 10l4 4",
     // CS2's RESET icon: a clock inside an arrow that turns back.
     history: "M1.5 3v3.5h3.5 M2.6 10.2a5.75 5.75 0 1 0 .3-5.2l-1.4 1.5 M8 5v3.2l2.2 1.4",
-    // Friends rail: a broadcast mast.
-    signal: "M8 9.5v5 M8 8.2a.9.9 0 1 0 0-1.8.9.9 0 0 0 0 1.8z M5.3 9.9a3.6 3.6 0 1 1 5.4 0 M3.2 11.6a6.3 6.3 0 1 1 9.6 0",
-    group: "M5.5 7a2.25 2.25 0 1 0 0-4.5 2.25 2.25 0 0 0 0 4.5z M1.5 13c.3-2.4 1.9-3.6 4-3.6s3.7 1.2 4 3.6 M10.4 6.9a2 2 0 1 0-.5-3.8 M11.2 9.5c1.8.3 3 1.5 3.3 3.5",
     check: "M3.5 8.5l3 3 6-7",
+    lock: "M3.5 7.5h9v6.5h-9z M5.5 7.5v-2a2.5 2.5 0 0 1 5 0v2",
+    phone: "M4.5 1.5h7v13h-7z M7 12.5h2",
+    mail: "M1.5 3.5h13v9h-13z M1.5 3.5l6.5 5.5 6.5-5.5",
+    back: "M10 3l-5 5 5 5",
   } as const;
 
   export type IconName = keyof typeof paths;

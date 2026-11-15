@@ -7,7 +7,6 @@
   const commands: [string, string][] = [
     ["/r", "Reply to the last person who whispered you. Type /r and a space, then your message."],
     ["/w name", "Whisper a friend. Start typing the name and pick from the list."],
-    ["/p", "Message everyone in your CS2 party."],
     ["/help", "List the commands in the chat box."],
     ["/clear", "Empty the chat log."],
   ];

@@ -15,7 +15,6 @@ import (
 	"mychat/internal/config"
 	"mychat/internal/input"
 	"mychat/internal/steam"
-	"mychat/internal/steamlocal"
 	"mychat/internal/win"
 )
 
@@ -52,13 +51,11 @@ type ModeInfo struct {
 
 // Status is the Steam connection summary.
 type Status struct {
-	State         string `json:"state"` // offline | connecting | online | needs_login
-	Detail        string `json:"detail"`
-	AccountName   string `json:"accountName"`
-	Source        string `json:"source"` // "steam" | "qr" | ""
-	PersonaName   string `json:"personaName"`
-	FriendsOnline int    `json:"friendsOnline"`
-	PartySize     int    `json:"partySize"` // friends in your CS2 party, 0 if none
+	State       string `json:"state"` // offline | connecting | online | needs_login
+	Detail      string `json:"detail"`
+	AccountName string `json:"accountName"`
+	Source      string `json:"source"` // "steam" | "qr" | "password" | ""
+	PersonaName string `json:"personaName"`
 }
 
 // ConfigView is the config plus derived display values.
@@ -126,8 +123,9 @@ type App struct {
 	lastRefresh time.Time
 	login       LoginState
 	loginCancel context.CancelFunc
-	watchCancel context.CancelFunc // waiting for a Steam client sign-in
-	steamToken  string             // token in use with the Steam source
+	credLogin   *steam.CredentialLogin // password login waiting for Steam Guard
+	watchCancel context.CancelFunc     // waiting for a Steam app sign-in
+	steamToken  string                 // token in use with the Steam source
 	status      Status
 	ready       bool
 
@@ -139,7 +137,6 @@ func newApp(store *config.Store) *App {
 	a := &App{store: store, mode: ModeHidden, login: LoginState{Phase: "idle"}}
 	a.cfg = store.Load()
 	a.steam = steam.New(a.cfg.MachineSeed)
-	a.steam.SetPersonaSource(steamlocal.PersonaState)
 	a.engine = chat.New(backend{a.steam}, notifier{a})
 	a.status = Status{State: string(steam.StateOffline)}
 	return a
@@ -240,6 +237,7 @@ func (a *App) onKey(ev input.Event) {
 func (a *App) onSteam(ev any) {
 	switch e := ev.(type) {
 	case steam.StatusEvent:
+		log.Printf("steam: %s %s", e.State, e.Detail)
 		a.setStatus(func(s *Status) {
 			s.State = string(e.State)
 			s.Detail = e.Detail
@@ -248,10 +246,10 @@ func (a *App) onSteam(ev any) {
 			a.onLoginExpired()
 		}
 		if e.State == steam.StateOnline {
-			a.updateFriendStatus()
+			a.updatePersonaName()
 		}
 	case steam.FriendsEvent:
-		a.updateFriendStatus()
+		a.updatePersonaName()
 		a.engine.Refresh()
 	case steam.MessageEvent:
 		ent, isNew := a.engine.Incoming(e.Partner, e.Text, e.Time, e.Echo)
@@ -261,23 +259,9 @@ func (a *App) onSteam(ev any) {
 	}
 }
 
-func (a *App) updateFriendStatus() {
+func (a *App) updatePersonaName() {
 	self, _ := a.steam.Friend(a.steam.SelfID())
-	online, party := 0, 0
-	group := self.PlayerGroup()
-	for _, f := range a.steam.Friends() {
-		if f.PersonaState != 0 {
-			online++
-		}
-		if group != "" && f.PlayerGroup() == group {
-			party++
-		}
-	}
-	a.setStatus(func(s *Status) {
-		s.PersonaName = self.Name
-		s.FriendsOnline = online
-		s.PartySize = party
-	})
+	a.setStatus(func(s *Status) { s.PersonaName = self.Name })
 }
 
 func (a *App) setStatus(f func(*Status)) {
@@ -339,7 +323,7 @@ func (a *App) openComposer() {
 	})
 	a.emit(EvMode, info)
 	if refresh {
-		a.steam.RefreshPersonas()
+		a.steam.RefreshProfiles()
 	}
 	a.engine.AckAll()
 }
@@ -604,11 +588,11 @@ func (s *ChatService) Quit() { s.a.app.Quit() }
 type backend struct{ c *steam.Client }
 
 func toChat(f steam.Friend) chat.Friend {
-	game := f.GameName
-	if game == "" && f.GameID == 730 {
+	game := ""
+	if f.GameID == 730 {
 		game = "Counter-Strike 2"
 	}
-	return chat.Friend{ID: f.SteamID, Name: f.Name, Online: f.PersonaState != 0, InGame: game, Group: f.PlayerGroup(), Avatar: f.AvatarURL()}
+	return chat.Friend{ID: f.SteamID, Name: f.Name, Online: f.PersonaState != 0, InGame: game, Avatar: f.AvatarURL()}
 }
 
 func (b backend) SelfID() uint64 { return b.c.SelfID() }

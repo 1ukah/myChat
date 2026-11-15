@@ -32,8 +32,9 @@ export class Config {
 
     /**
      * LoginSource is how myChat logs in: "steam" (the login saved by the
-     * Steam client on this PC), "qr" (myChat's own QR session) or "" (not
-     * chosen yet). SteamAccount is the Steam account name for "steam".
+     * Steam app on this PC), "qr" or "password" (myChat's own login, kept in
+     * session.dat) or "" (not chosen yet). SteamAccount is the Steam account
+     * name for "steam".
      */
     "loginSource": string;
     "steamAccount": string;

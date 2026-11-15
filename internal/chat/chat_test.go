@@ -46,11 +46,11 @@ func (nopNotifier) ComposerChanged(ComposerState) {}
 
 func newTest() (*Engine, *fakeBackend) {
 	b := &fakeBackend{
-		self: Friend{ID: 1, Name: "me", Group: "g1"},
+		self: Friend{ID: 1, Name: "me"},
 		friends: []Friend{
-			{ID: 10, Name: "Leo DiCaprio", Online: true, Group: "g1"},
+			{ID: 10, Name: "Leo DiCaprio", Online: true},
 			{ID: 11, Name: "Leo Messi", Online: true},
-			{ID: 12, Name: "Frisk", Online: false, Group: "g1"},
+			{ID: 12, Name: "Frisk", Online: false},
 			{ID: 13, Name: "SANT1", Online: true},
 		},
 	}
@@ -142,20 +142,6 @@ func TestReplyAndTabCycle(t *testing.T) {
 	typeText(e, "sup")
 	e.HandleKey("", "Enter", false)
 	if got := b.waitSent(t, 1); got[0] != "13:sup" {
-		t.Fatalf("sent %v", got)
-	}
-}
-
-func TestParty(t *testing.T) {
-	e, b := newTest()
-	typeText(e, "/p ")
-	if c := e.Composer(); c.Channel.Kind != ChannelParty {
-		t.Fatalf("got %+v", c)
-	}
-	typeText(e, "rush b")
-	e.HandleKey("", "Enter", false)
-	got := b.waitSent(t, 2)
-	if len(got) != 2 {
 		t.Fatalf("sent %v", got)
 	}
 }

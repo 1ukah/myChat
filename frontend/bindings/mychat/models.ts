@@ -42,8 +42,9 @@ export class ConfigView {
 
     /**
      * LoginSource is how myChat logs in: "steam" (the login saved by the
-     * Steam client on this PC), "qr" (myChat's own QR session) or "" (not
-     * chosen yet). SteamAccount is the Steam account name for "steam".
+     * Steam app on this PC), "qr" or "password" (myChat's own login, kept in
+     * session.dat) or "" (not chosen yet). SteamAccount is the Steam account
+     * name for "steam".
      */
     "loginSource": string;
     "steamAccount": string;
@@ -152,7 +153,7 @@ export class Layout {
 }
 
 /**
- * LocalLogins lists the accounts the Steam client on this PC knows.
+ * LocalLogins lists the accounts the Steam app on this PC knows.
  */
 export class LocalLogins {
     "steamInstalled": boolean;
@@ -201,12 +202,13 @@ export class LocalLogins {
  */
 export class LoginState {
     /**
-     * idle | waiting (QR shown) | done | error
+     * idle | waiting (QR shown) | submitting (password sent) | guard (Steam
+     * Guard needed) | done | error
      */
     "phase": string;
 
     /**
-     * "steam" | "qr" | ""
+     * "steam" | "qr" | "password" | ""
      */
     "method": string;
     "url": string;
@@ -217,6 +219,28 @@ export class LoginState {
     "qr": string[];
     "error": string;
     "account": string;
+
+    /**
+     * Guard step: which confirmations Steam accepts. Values: "device_code"
+     * (authenticator app code), "email_code", "device_confirmation" (approve
+     * in the Steam mobile app), "email_confirmation".
+     */
+    "guards": string[];
+
+    /**
+     * e.g. "gmail.com"
+     */
+    "emailHint": string;
+
+    /**
+     * last wrong-code message
+     */
+    "codeError": string;
+
+    /**
+     * a code is being checked
+     */
+    "checking": boolean;
 
     /** Creates a new LoginState instance. */
     constructor($$source: Partial<LoginState> = {}) {
@@ -238,6 +262,18 @@ export class LoginState {
         if (!("account" in $$source)) {
             this["account"] = "";
         }
+        if (!("guards" in $$source)) {
+            this["guards"] = [];
+        }
+        if (!("emailHint" in $$source)) {
+            this["emailHint"] = "";
+        }
+        if (!("codeError" in $$source)) {
+            this["codeError"] = "";
+        }
+        if (!("checking" in $$source)) {
+            this["checking"] = false;
+        }
 
         Object.assign(this, $$source);
     }
@@ -247,9 +283,13 @@ export class LoginState {
      */
     static createFrom($$source: any = {}): LoginState {
         const $$createField3_0 = $$createType3;
+        const $$createField6_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("qr" in $$parsedSource) {
             $$parsedSource["qr"] = $$createField3_0($$parsedSource["qr"]);
+        }
+        if ("guards" in $$parsedSource) {
+            $$parsedSource["guards"] = $$createField6_0($$parsedSource["guards"]);
         }
         return new LoginState($$parsedSource as Partial<LoginState>);
     }
@@ -407,16 +447,10 @@ export class Status {
     "accountName": string;
 
     /**
-     * "steam" | "qr" | ""
+     * "steam" | "qr" | "password" | ""
      */
     "source": string;
     "personaName": string;
-    "friendsOnline": number;
-
-    /**
-     * friends in your CS2 party, 0 if none
-     */
-    "partySize": number;
 
     /** Creates a new Status instance. */
     constructor($$source: Partial<Status> = {}) {
@@ -434,12 +468,6 @@ export class Status {
         }
         if (!("personaName" in $$source)) {
             this["personaName"] = "";
-        }
-        if (!("friendsOnline" in $$source)) {
-            this["friendsOnline"] = 0;
-        }
-        if (!("partySize" in $$source)) {
-            this["partySize"] = 0;
         }
 
         Object.assign(this, $$source);
