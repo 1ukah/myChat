@@ -52,7 +52,7 @@ func Default() Config {
 		Hotkey:         Hotkey{Code: "KeyI"},
 		CloseAfterSend: true,
 		Animations:     true,
-		Blur:           false, // DWM blur-behind turns the overlay opaque
+		Blur:           false, // unused: DWM blur-behind turns the overlay opaque
 		AnimationStyle: "slide-up",
 		AnimationSpeed: "normal",
 		ShowAvatars:    true,
@@ -76,6 +76,9 @@ var AnimationSpeeds = map[string]int{"fast": 120, "normal": 200, "slow": 320}
 // Sanitize clamps values to safe ranges.
 func (c *Config) Sanitize() {
 	d := Default()
+	// Windows blur-behind made the overlay opaque and was removed; clear it
+	// from configs saved before that.
+	c.Blur = false
 	if c.Hotkey.Code == "" {
 		c.Hotkey = d.Hotkey
 	}

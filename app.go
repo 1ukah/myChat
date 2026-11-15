@@ -323,7 +323,6 @@ func (a *App) openComposer() {
 	a.engine.Reset()
 	a.inp.Capture(true)
 	application.InvokeSync(func() {
-		a.ov.setBlur(cfg.Blur)
 		a.ov.show(overlayWidth, composerHeight, cfg.BottomOffset, cfg.Scale)
 	})
 	a.emit(EvMode, info)
@@ -381,7 +380,6 @@ func (a *App) toast(ent chat.Entry) {
 
 	if wasHidden {
 		application.InvokeSync(func() {
-			a.ov.setBlur(cfg.Blur)
 			a.ov.show(overlayWidth, toastHeight, cfg.BottomOffset, cfg.Scale)
 		})
 	}

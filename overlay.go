@@ -52,6 +52,3 @@ func (o *overlay) hide() {
 	win.ShowWindow(o.hwnd, win.SW_HIDE)
 }
 
-func (o *overlay) setBlur(on bool) {
-	win.AccentBlur(o.hwnd, on, 0x01000000)
-}

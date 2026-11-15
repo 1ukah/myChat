@@ -37,7 +37,6 @@ var (
 	pMonitorFromWindow        = user32.NewProc("MonitorFromWindow")
 	pGetMonitorInfoW          = user32.NewProc("GetMonitorInfoW")
 	pIsWindowVisible          = user32.NewProc("IsWindowVisible")
-	pSetWindowCompositionAttr = user32.NewProc("SetWindowCompositionAttribute")
 	pSetLayeredWindowAttrs    = user32.NewProc("SetLayeredWindowAttributes")
 	pDwmSetWindowAttribute    = dwmapi.NewProc("DwmSetWindowAttribute")
 	pGetDpiForMonitor         = shcore.NewProc("GetDpiForMonitor")
@@ -293,34 +292,3 @@ func DarkFrame(hwnd uintptr) { dwmSet(hwnd, dwmwaUseImmersiveDarkMode, 1) }
 
 // SystemBackdrop sets the Windows 11 system backdrop (1 none, 3 acrylic).
 func SystemBackdrop(hwnd uintptr, kind uint32) { dwmSet(hwnd, dwmwaSystemBackdropType, kind) }
-
-type accentPolicy struct {
-	AccentState   uint32
-	AccentFlags   uint32
-	GradientColor uint32
-	AnimationID   uint32
-}
-
-type winCompAttrData struct {
-	Attrib uint32
-	PvData unsafe.Pointer
-	CbData uintptr
-}
-
-// AccentBlur enables or disables DWM blur-behind for a window through the
-// accent API. Unlike the Windows 11 system backdrop it also works while the
-// window is inactive, which this overlay always is. tint is 0xAABBGGRR.
-func AccentBlur(hwnd uintptr, on bool, tint uint32) bool {
-	if pSetWindowCompositionAttr.Find() != nil {
-		return false
-	}
-	ap := accentPolicy{}
-	if on {
-		ap.AccentState = 3 // ACCENT_ENABLE_BLURBEHIND
-		ap.AccentFlags = 2
-		ap.GradientColor = tint
-	}
-	data := winCompAttrData{Attrib: 19, PvData: unsafe.Pointer(&ap), CbData: unsafe.Sizeof(ap)} // WCA_ACCENT_POLICY
-	r, _, _ := pSetWindowCompositionAttr.Call(hwnd, uintptr(unsafe.Pointer(&data)))
-	return r != 0
-}

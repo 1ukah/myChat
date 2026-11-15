@@ -56,17 +56,6 @@
       onchange={(showAvatars) => set("showAvatars", { showAvatars })}
     />
   </Row>
-  <Row
-    label="Blur behind (experimental, may look solid)"
-    hint="Windows blur can turn the whole overlay opaque. Leave it off for a see-through chat box."
-    error={errors.blur}
-  >
-    <Toggle
-      label="Blur behind (experimental, may look solid)"
-      checked={app.config.blur}
-      onchange={(blur) => set("blur", { blur })}
-    />
-  </Row>
   <Row label="Size" hint="Scale of the chat box and pop-ups." error={errors.scale}>
     <Slider
       label="Overlay size in percent"

@@ -118,7 +118,6 @@
     { tab: "chat", section: "pop-ups", label: "Show new message pop-ups", words: "toast notification" },
     { tab: "chat", section: "pop-ups", label: "Pop-up duration", words: "toast seconds time" },
     { tab: "overlay", section: "appearance", label: "Show avatars", words: "pictures" },
-    { tab: "overlay", section: "appearance", label: "Blur behind", words: "background transparent" },
     { tab: "overlay", section: "appearance", label: "Size", words: "scale zoom" },
     { tab: "overlay", section: "animation", label: "Animations", words: "motion" },
     { tab: "overlay", section: "animation", label: "Animation style", words: "fade slide typewriter" },

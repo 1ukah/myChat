@@ -37,7 +37,6 @@ func (a *App) demo() {
 		info := a.modeInfoLocked()
 		a.mu.Unlock()
 		application.InvokeSync(func() {
-			a.ov.setBlur(cfg.Blur)
 			a.ov.show(overlayWidth, composerHeight, cfg.BottomOffset, cfg.Scale)
 		})
 		a.emit(EvMode, info)
