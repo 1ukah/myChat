@@ -25,8 +25,8 @@
     name: string;
     /** Diameter in CSS px. */
     size: number;
-    /** Ring colour: whisper violet, green (party, online), grey (offline), light blue, or no ring. */
-    ring?: "whisper" | "green" | "offline" | "accent" | "none";
+    /** Ring colour: whisper violet, green (party, online), grey (offline), light blue, gold (selected), or no ring. */
+    ring?: "whisper" | "green" | "offline" | "accent" | "gold" | "none";
     /** Sits in a line of text (chat log) instead of a flex row. */
     inline?: boolean;
   } = $props();
@@ -89,6 +89,10 @@
 
   .accent {
     --ring: var(--accent);
+  }
+
+  .gold {
+    --ring: var(--gold);
   }
 
   .letter {

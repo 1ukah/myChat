@@ -7,8 +7,6 @@
     variant = "outline",
     size = "md",
     icon,
-    type = "button",
-    wide = false,
     disabled = false,
     onclick,
     children,
@@ -17,17 +15,13 @@
     variant?: "outline" | "accent" | "primary" | "go" | "danger";
     size?: "md" | "lg";
     icon?: IconName;
-    /** "submit" inside a form; then `onclick` is not needed. */
-    type?: "button" | "submit";
-    /** Fill the width of the container. */
-    wide?: boolean;
     disabled?: boolean;
-    onclick?: () => void;
+    onclick: () => void;
     children: Snippet;
   } = $props();
 </script>
 
-<button {type} class="btn {variant} {size}" class:wide {disabled} {onclick}>
+<button type="button" class="btn {variant} {size}" {disabled} {onclick}>
   {#if icon}<Icon name={icon} size={size === "lg" ? 18 : 16} />{/if}
   <span>{@render children()}</span>
 </button>
@@ -86,10 +80,6 @@
 
   .accent:active {
     background: rgba(134, 197, 255, 0.4);
-  }
-
-  .btn.wide {
-    width: 100%;
   }
 
   .primary {

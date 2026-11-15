@@ -1,266 +1,318 @@
 <script lang="ts">
-  // Steam sign-in, laid out like the Steam client's own: account name and
-  // password on the left, "or sign in with QR" on the right. If Steam Guard
-  // is needed, the form is replaced by the code step.
-  //
-  // The password lives only in the field's own state until it is handed to
-  // Go, and is cleared the moment it is submitted. It is never stored,
-  // logged or shown.
-  import { untrack } from "svelte";
-  import { app, loginWithPassword, startLogin } from "../store.svelte";
+  // The login screen. myChat never asks for a password. Three ways in:
+  //   1. Use Steam on this PC: the login the Steam app already saved (default).
+  //   2. Sign in with the Steam app: open Steam's own sign-in; Go watches for
+  //      the new login and continues on its own.
+  //   3. QR code: myChat's own session. Collapsed until asked for.
+  // If Steam is not installed, only the QR is shown.
+  import { onMount, untrack } from "svelte";
+  import {
+    app,
+    cancelLogin,
+    openSteamLogin,
+    refreshLocalLogins,
+    startLogin,
+  } from "../store.svelte";
   import Button from "../ui/Button.svelte";
   import Icon from "../ui/Icon.svelte";
   import QrCode from "../ui/QrCode.svelte";
   import Spinner from "../ui/Spinner.svelte";
-  import GuardStep from "./GuardStep.svelte";
+  import AccountCards from "./AccountCards.svelte";
 
   const login = $derived(app.login);
-  const busy = $derived(login.phase === "submitting");
-  const qr = $derived(login.phase === "waiting" ? (login.qr ?? []) : []);
+  const local = $derived(app.local);
+  const hasSteam = $derived(local.steamInstalled);
+  const accounts = $derived(local.accounts ?? []);
+  const anyUsable = $derived(accounts.some((a) => a.hasLogin));
 
-  let account = $state(app.login.account ?? "");
-  let password = $state("");
-  /** Why the last password sign-in failed. Kept here: restarting the QR replaces LoginState. */
-  let formError = $state("");
-  let qrError = $state("");
+  // ---- banner: why the login screen is showing (for example an expired login) ----
 
-  // The QR code runs whenever this screen is open: start it when idle, and
-  // again after a failed password sign-in (which cancelled it). A QR failure
-  // is not retried automatically, so a dead connection cannot loop. Nothing
-  // starts until Go has said that a login is needed (not while it is still
-  // loading a saved session at startup).
+  // Remembered here, because opening the QR replaces LoginState.
+  let reason = $state("");
   $effect(() => {
-    const l = login;
-    const needed = app.status.state === "needs_login";
-    untrack(() => {
-      switch (l.phase) {
-        case "idle":
-          if (needed) startLogin();
-          break;
-        case "waiting":
-          qrError = "";
-          break;
-        case "submitting":
-          formError = "";
-          break;
-        case "error":
-          if (l.method === "qr") {
-            qrError = l.error || "Could not get a QR code from Steam.";
-          } else {
-            formError = l.error || "Sign-in failed.";
-            if (l.account) account = l.account;
-            if (needed) startLogin();
-          }
-          break;
-      }
-    });
+    if (login.phase === "idle" && login.error) reason = login.error;
   });
 
-  function submit(e: SubmitEvent): void {
-    e.preventDefault();
-    if (busy || !account.trim() || !password) return;
-    const secret = password;
-    password = "";
-    formError = "";
-    loginWithPassword(account.trim(), secret);
+  // A failed Steam login for an account that has no card to show it on.
+  const stray = $derived(
+    login.phase === "error" &&
+      login.method === "steam" &&
+      !accounts.some((a) => a.accountName.toLowerCase() === login.account.trim().toLowerCase())
+      ? login.error
+      : "",
+  );
+  const banner = $derived(stray || reason);
+
+  // ---- 2. Steam app sign-in ----
+
+  let opening = $state(false);
+  let openError = $state("");
+
+  async function openSteam(): Promise<void> {
+    opening = true;
+    openError = "";
+    openError = await openSteamLogin();
+    opening = false;
   }
+
+  // ---- 3. QR ----
+
+  // The panel follows the state: it is open exactly while a QR login is
+  // running or has failed, so it can never disagree with Go.
+  const qrActive = $derived(
+    login.method === "qr" && (login.phase === "waiting" || login.phase === "error"),
+  );
+  const qrOpen = $derived(!hasSteam || qrActive);
+  const qr = $derived(qrActive && login.phase === "waiting" ? (login.qr ?? []) : []);
+  const qrError = $derived(
+    qrActive && login.phase === "error"
+      ? login.error || "Could not get a QR code from Steam."
+      : "",
+  );
+
+  function toggleQr(): void {
+    if (qrActive) cancelLogin();
+    else startLogin();
+  }
+
+  // Without Steam the QR is the only way, so it starts by itself. A failed QR
+  // is not retried automatically: a dead connection cannot loop.
+  $effect(() => {
+    if (!hasSteam && login.phase === "idle" && app.status.state === "needs_login") {
+      untrack(startLogin);
+    }
+  });
+
+  // Steam's saved accounts may have changed since the app started.
+  onMount(refreshLocalLogins);
 </script>
 
-<div class="signin">
-  {#if login.phase === "guard"}
-    <GuardStep />
-  {:else}
-    <div class="columns">
-      <form class="form" onsubmit={submit}>
-        <label class="field">
-          <span class="cap accent">Sign in with account name</span>
-          <input
-            type="text"
-            name="username"
-            bind:value={account}
-            autocomplete="username"
-            autocapitalize="off"
-            spellcheck="false"
-            disabled={busy}
-          />
-        </label>
-        <label class="field">
-          <span class="cap">Password</span>
-          <input
-            type="password"
-            name="password"
-            bind:value={password}
-            autocomplete="current-password"
-            disabled={busy}
-          />
-        </label>
-        <div class="submit">
-          <Button
-            type="submit"
-            variant="primary"
-            size="lg"
-            wide
-            disabled={busy || !account.trim() || !password}
-          >
-            {busy ? "Signing in…" : "Sign in"}
-          </Button>
-        </div>
-        <div class="status" aria-live="polite">
-          {#if busy}
-            <Spinner size={14} label="Signing in" /><span>Contacting Steam…</span>
-          {:else if formError}
-            <span class="error" role="alert">{formError}</span>
-          {/if}
-        </div>
-      </form>
-
-      <div class="qr">
-        <div class="cap accent">Or sign in with QR</div>
-        <div class="code" class:dim={busy}>
-          {#if qrError}
-            <span class="wait bad">{qrError}</span>
-          {:else if qr.length > 0}
-            <QrCode rows={qr} size={200} label="Steam sign-in QR code" />
-          {:else}
-            <span class="wait">{busy ? "Paused" : "Getting a code…"}</span>
-          {/if}
-        </div>
-        <p class="how">Steam mobile app → Steam Guard → scan</p>
-        <button type="button" class="link" disabled={busy} onclick={startLogin}>
-          <Icon name="retry" /><span>{qrError ? "Try again" : "New code"}</span>
-        </button>
-      </div>
+<div class="login">
+  {#if banner}
+    <div class="banner" role="alert">
+      <Icon name="alert" />
+      <span>{banner}</span>
     </div>
   {/if}
 
-  <p class="trust">
-    <Icon name="lock" />
-    <span>
-      Your password goes only to Steam, encrypted with Steam's own key. myChat never stores it.
-    </span>
-  </p>
+  {#if hasSteam}
+    <section class="way">
+      <h3 class="main"><Icon name="pc" /><span>Use Steam on this PC</span></h3>
+      {#if accounts.length > 0}
+        <AccountCards />
+      {:else}
+        <p class="text empty">
+          The Steam app has no saved account on this PC yet. Sign in with the Steam app below.
+        </p>
+      {/if}
+      {#if local.error}
+        <p class="text bad">{local.error}</p>
+      {/if}
+    </section>
+
+    <section class="way">
+      <h3><Icon name="open" /><span>Sign in with the Steam app</span></h3>
+      <div class="line">
+        {#if local.watching}
+          <Spinner size={16} label="Waiting" />
+          <p class="text" aria-live="polite">Waiting for you to sign in to Steam…</p>
+          <Button onclick={cancelLogin}>Cancel</Button>
+        {:else}
+          <p class="text">
+            Sign in to Steam with "Remember me" on. myChat continues on its own.
+          </p>
+          <Button
+            variant={anyUsable ? "outline" : "primary"}
+            icon="open"
+            disabled={opening}
+            onclick={openSteam}
+          >
+            Open Steam sign-in
+          </Button>
+        {/if}
+      </div>
+      {#if openError}
+        <p class="text bad" role="alert">{openError}</p>
+      {/if}
+    </section>
+  {:else}
+    <p class="text nosteam">
+      {local.error || "Steam is not installed on this PC."} You can still sign in with a QR code.
+    </p>
+  {/if}
+
+  <section class="way">
+    {#if hasSteam}
+      <button type="button" class="fold" aria-expanded={qrOpen} onclick={toggleQr}>
+        <Icon name="qr" />
+        <span>Sign in with QR code</span>
+        <span class="chevron" class:open={qrOpen}><Icon name="chevron" /></span>
+      </button>
+    {:else}
+      <h3 class="main"><Icon name="qr" /><span>Sign in with QR code</span></h3>
+    {/if}
+
+    {#if qrOpen}
+      <div class="qr">
+        <!-- Always white and the same size, so nothing moves when the code
+             arrives or Steam refreshes it. -->
+        <div class="code">
+          {#if qrError}
+            <span class="wait bad">{qrError}</span>
+          {:else if qr.length > 0}
+            <QrCode rows={qr} size={184} label="Steam sign-in QR code" />
+          {:else}
+            <span class="wait">Getting a code…</span>
+          {/if}
+        </div>
+        <div class="guide">
+          <ol>
+            <li><span class="n">1</span><span>Open the <b>Steam</b> app on your phone.</span></li>
+            <li><span class="n">2</span><span>Tap the <b>Steam Guard</b> shield icon.</span></li>
+            <li><span class="n">3</span><span>Scan this code and approve the sign-in.</span></li>
+          </ol>
+          <p class="fine">myChat keeps its own session for this. Nothing is typed in here.</p>
+          <button type="button" class="link" onclick={startLogin}>
+            <Icon name="retry" /><span>{qrError ? "Try again" : "New code"}</span>
+          </button>
+        </div>
+      </div>
+    {/if}
+  </section>
 </div>
 
 <style>
-  .signin {
-    background: var(--row);
+  /* ---------- banner ---------- */
+
+  .banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    font-size: 13px;
+    line-height: 20px;
+    color: #ffd9a8;
+    background: rgba(224, 178, 82, 0.12);
+    border-bottom: 1px solid var(--line);
+    box-shadow: inset 3px 0 0 var(--gold);
+  }
+
+  /* ---------- the three ways ---------- */
+
+  .way {
     border-bottom: 1px solid var(--line);
   }
 
-  .columns {
-    display: flex;
-  }
-
-  /* ---------- left: account name and password ---------- */
-
-  .form {
-    flex: 1;
-    min-width: 0;
-    padding: 24px 28px 20px 16px;
-  }
-
-  .field {
-    display: block;
-  }
-
-  .field + .field {
-    margin-top: 16px;
-  }
-
-  .cap {
-    display: block;
-    font-family: var(--font-head);
-    font-size: 14px;
-    font-weight: 600;
-    line-height: 20px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--muted);
-  }
-
-  .cap.accent {
-    color: var(--accent);
-  }
-
-  input {
-    display: block;
-    width: 100%;
-    height: 40px;
-    margin-top: 6px;
-    padding: 0 12px;
-    font-family: var(--font-body);
-    font-size: 15px;
-    color: #fff;
-    background: rgba(0, 0, 0, 0.42);
-    border: 1px solid var(--line);
-    border-radius: 2px;
-    outline: none;
-    user-select: text;
-    cursor: text;
-  }
-
-  input:hover {
-    border-color: var(--line-strong);
-  }
-
-  input:focus {
-    background: rgba(0, 0, 0, 0.58);
-    border-color: var(--accent);
-  }
-
-  input:disabled {
-    opacity: 0.5;
-  }
-
-  .submit {
-    margin-top: 20px;
-  }
-
-  /* Room for one line, so progress and errors never move the form. */
-  .status {
+  h3 {
     display: flex;
     align-items: center;
     gap: 8px;
-    min-height: 20px;
-    margin-top: 12px;
-    font-size: 13px;
-    line-height: 20px;
+    height: 36px;
+    margin: 0;
+    padding: 0 16px;
+    font-family: var(--font-head);
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
     color: var(--text-soft);
   }
 
-  .error {
+  h3.main {
+    color: var(--accent);
+  }
+
+  .text {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    font-size: 13px;
+    line-height: 20px;
+    color: var(--muted);
+  }
+
+  .text.empty,
+  .text.nosteam {
+    padding: 4px 16px 14px;
+  }
+
+  .text.nosteam {
+    padding-top: 14px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .text.bad {
+    padding: 0 16px 10px;
     color: var(--red-text);
   }
 
-  /* ---------- right: QR ---------- */
-
-  .qr {
-    flex: none;
+  .line {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    width: 264px;
-    padding: 24px 16px 20px;
-    border-left: 1px solid var(--line);
+    gap: 12px;
+    min-height: 44px;
+    padding: 0 16px 10px;
   }
 
-  /* Always white and always the same size, so nothing moves when the code
-     arrives or Steam refreshes it. */
+  /* ---------- QR ---------- */
+
+  .fold {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    height: 40px;
+    padding: 0 16px;
+    font-family: var(--font-head);
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-align: left;
+    text-transform: uppercase;
+    color: var(--text-soft);
+    background: none;
+    border: 0;
+    cursor: pointer;
+  }
+
+  .fold:hover {
+    color: var(--accent);
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .fold:focus-visible,
+  .link:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+
+  .chevron {
+    margin-left: auto;
+    color: var(--muted);
+  }
+
+  .chevron.open {
+    transform: rotate(180deg);
+  }
+
+  .qr {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    padding: 8px 16px 20px;
+  }
+
   .code {
+    flex: none;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 208px;
-    height: 208px;
-    margin-top: 10px;
-    padding: 12px;
+    width: 192px;
+    height: 192px;
+    padding: 10px;
     text-align: center;
     background: #fff;
     border-radius: 2px;
-  }
-
-  .code.dim {
-    opacity: 0.35;
   }
 
   .wait {
@@ -282,10 +334,49 @@
     color: #a3221d;
   }
 
-  .how {
-    margin: 10px 0 0;
+  .guide {
+    flex: 1;
+    min-width: 0;
+  }
+
+  ol {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  li {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 5px 0;
+    font-size: 14px;
+    line-height: 24px;
+    color: var(--text-soft);
+  }
+
+  li b {
+    font-weight: 600;
+    color: #fff;
+  }
+
+  .n {
+    flex: none;
+    width: 24px;
+    height: 24px;
+    font-family: var(--font-head);
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 22px;
+    text-align: center;
+    color: var(--accent);
+    border: 1px solid var(--accent-line);
+  }
+
+  .fine {
+    margin: 8px 0 0;
     font-size: 12px;
-    line-height: 20px;
+    line-height: 18px;
     color: var(--muted);
   }
 
@@ -293,15 +384,15 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    height: 20px;
-    margin-top: 4px;
+    height: 24px;
+    margin-top: 8px;
     padding: 0 4px;
     font-family: var(--font-head);
     font-size: 13px;
     font-weight: 600;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--muted);
+    color: var(--text-soft);
     background: none;
     border: 0;
     cursor: pointer;
@@ -311,28 +402,18 @@
     color: var(--accent);
   }
 
-  .link:disabled {
-    opacity: 0.4;
-    pointer-events: none;
+  :global(.anim) .qr {
+    animation: unfold 160ms var(--ease-out) both;
   }
 
-  .link:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-  }
-
-  /* ---------- trust line ---------- */
-
-  .trust {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin: 0;
-    padding: 12px 16px;
-    font-size: 12px;
-    line-height: 18px;
-    color: var(--muted);
-    border-top: 1px solid var(--line);
-    box-shadow: inset 3px 0 0 var(--green);
+  @keyframes unfold {
+    from {
+      opacity: 0;
+      transform: translateY(-6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
   }
 </style>

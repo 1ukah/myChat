@@ -1,26 +1,48 @@
 <script lang="ts">
-  import { app, logout } from "../store.svelte";
+  import { app, cancelLogin, logout, refreshLocalLogins } from "../store.svelte";
   import Avatar from "../ui/Avatar.svelte";
   import Button from "../ui/Button.svelte";
+  import AccountCards from "./AccountCards.svelte";
   import Login from "./Login.svelte";
   import Row from "./Row.svelte";
   import Section from "./Section.svelte";
 
   const status = $derived(app.status);
 
-  const loggedOut = $derived(status.state === "needs_login" || !status.accountName);
+  // A finished login sets the account a moment before Steam reports a
+  // connection state; "done" bridges that gap so the login screen does not
+  // flash back.
+  const loggedOut = $derived(
+    !status.accountName || (status.state === "needs_login" && app.login.phase !== "done"),
+  );
   const name = $derived(status.personaName || status.accountName || "Steam");
+  const viaSteam = $derived(status.source === "steam");
 
-  const state = $derived.by(() => {
+  const conn = $derived.by(() => {
     switch (status.state) {
       case "online":
         return { tone: "on", ring: "green", text: "Online" } as const;
       case "connecting":
+      case "needs_login":
         return { tone: "warn", ring: "accent", text: "Connecting" } as const;
       default:
         return { tone: "bad", ring: "offline", text: "Offline" } as const;
     }
   });
+
+  /** Showing Steam's saved accounts again, to change to another one. */
+  let switching = $state(false);
+
+  function startSwitch(): void {
+    refreshLocalLogins();
+    switching = true;
+  }
+
+  function cancelSwitch(): void {
+    // "Sign in in Steam" on a card may have started the sign-in watch.
+    if (app.local.watching) cancelLogin();
+    switching = false;
+  }
 </script>
 
 {#if loggedOut}
@@ -31,12 +53,12 @@
   <Section id="steam" title="Steam">
     <!-- Status card, in the style of a CS2 spectator player card. -->
     <div class="card">
-      <Avatar size={64} ring={state.ring} {name} />
+      <Avatar size={64} ring={conn.ring} {name} />
       <div class="who">
         <div class="name"><bdi>{name}</bdi></div>
         <div class="state">
-          <span class="dot {state.tone}"></span>
-          <span class="label">{state.text}</span>
+          <span class="dot {conn.tone}"></span>
+          <span class="label">{conn.text}</span>
           {#if status.accountName}
             <span class="account">· {status.accountName}</span>
           {/if}
@@ -59,9 +81,33 @@
       </div>
     </div>
 
-    <Row label="Log out" hint="Removes the saved Steam login from this PC.">
-      <Button variant="danger" icon="logout" onclick={logout}>Log out</Button>
-    </Row>
+    {#if switching && viaSteam}
+      <h3>Switch account</h3>
+      <AccountCards
+        current={status.accountName}
+        ondone={() => (switching = false)}
+        oncancel={cancelSwitch}
+      />
+    {:else}
+      <Row
+        label={viaSteam ? "Using Steam on this PC" : "QR login"}
+        hint={viaSteam
+          ? "myChat uses the login the Steam app saved on this PC. It never leaves this PC."
+          : "myChat keeps its own session from the QR code you scanned."}
+      >
+        {#if viaSteam}
+          <Button icon="swap" onclick={startSwitch}>Switch account</Button>
+        {/if}
+      </Row>
+      <Row
+        label="Log out"
+        hint={viaSteam
+          ? "Ends myChat's session. The Steam app stays signed in."
+          : "Removes myChat's saved login from this PC."}
+      >
+        <Button variant="danger" icon="logout" onclick={logout}>Log out</Button>
+      </Row>
+    {/if}
   </Section>
 {/if}
 
@@ -178,5 +224,18 @@
 
   .stats.off .num {
     color: var(--dim);
+  }
+
+  h3 {
+    height: 36px;
+    margin: 0;
+    padding: 0 16px;
+    font-family: var(--font-head);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 36px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
   }
 </style>

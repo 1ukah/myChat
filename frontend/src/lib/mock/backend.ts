@@ -6,15 +6,17 @@
 //   ?view=overlay&mock=toast      incoming-message pop-ups, one after another
 //   ?view=overlay&mock=suggest    chat box while typing "/w s", with an error
 //   ?view=overlay&mock=offline    chat box while Steam is reconnecting
-//   ?view=settings&mock=login     logged out: the Steam sign-in form with QR
-//   ?view=settings&mock=guard     Steam Guard code step
-//   ?view=settings&mock=error     a failed password sign-in
-//   ?view=settings&mock=online    logged in and online
+//   ?view=settings&mock=login     logged out: three Steam accounts on this PC
+//   ?view=settings&mock=watching  waiting for a sign-in in the Steam app
+//   ?view=settings&mock=nosteam   Steam not installed: QR only
+//   ?view=settings&mock=expired   login screen with the "expired" banner
+//   ?view=settings&mock=error     a failed "use this account"
+//   ?view=settings&mock=online    logged in and online (&source=qr for a QR login)
 //   ?view=settings&mock=offline   logged in, Steam unreachable
 //
-// Sign-in in the mock: password "guard" leads to the Steam Guard step (code
-// from the app), "email" to the email-code step, "wrong" is rejected, and
-// anything else signs in. Guard code ABCDE is right; other codes are wrong.
+// Login in the mock: "Use this account" goes online after about 700 ms; the
+// account named "expired" is rejected. Opening the Steam sign-in "signs in"
+// after about 3 s and goes online. The QR is shown but never scanned.
 //
 // Extra switches: &blur=0  &anim=0  &avatars=0  &scale=0.75
 //                 &style=fade|slide-up|slide-down|slide-left|slide-right|typewriter
@@ -29,6 +31,7 @@ import type { View } from "../store.svelte";
 import * as M from "../../../bindings/mychat/models";
 import * as C from "../../../bindings/mychat/internal/chat/models";
 import * as Cfg from "../../../bindings/mychat/internal/config/models";
+import * as SL from "../../../bindings/mychat/internal/steamlocal/models";
 
 interface Friend {
   id: string;
@@ -168,22 +171,49 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
 
   // ---------------- Steam status and login ----------------
 
+  const EXPIRED = "Steam's saved login for sant1_cs has expired. Sign in to Steam again.";
+  const noLogin = (account: string): string =>
+    `Steam has no saved login for ${account}. Sign in to Steam with "Remember me" on`;
+
   const loggedIn = view === "overlay" || mock === "online" || mock === "offline";
+  const source = params.get("source") === "qr" ? "qr" : "steam";
   let status = new M.Status(
     !loggedIn
-      ? { state: "needs_login" }
+      ? { state: "needs_login", detail: mock === "expired" ? EXPIRED : "" }
       : mock === "offline"
-        ? { state: "offline", detail: "Connection lost. Trying again in 5 s.", accountName: "sant1_cs", personaName: "sant1" }
-        : { state: "online", accountName: "sant1_cs", personaName: "sant1", friendsOnline: 7, partySize: 2 },
+        ? { state: "offline", detail: "Connection lost. Trying again in 5 s.", accountName: "sant1_cs", source, personaName: "sant1" }
+        : { state: "online", accountName: "sant1_cs", source, personaName: "sant1", friendsOnline: 7, partySize: 2 },
   );
   let login = new M.LoginState(
-    mock === "guard"
-      ? { phase: "guard", method: "password", account: "sant1_cs", guards: ["device_code", "device_confirmation"] }
+    mock === "expired"
+      ? { phase: "idle", error: EXPIRED }
       : mock === "error"
-        ? { phase: "error", method: "password", account: "sant1_cs", error: "Wrong account name or password." }
+        ? { phase: "error", method: "steam", account: "expired", error: noLogin("expired") }
         : { phase: "idle" },
   );
   let loginTimers: number[] = [];
+
+  // What the Steam app has saved on this PC: two accounts with a usable login
+  // (one most recent; "expired" is rejected when used) and one without.
+  const steamInstalled = mock !== "nosteam";
+  const accounts: SL.Account[] = steamInstalled
+    ? [
+        new SL.Account({ accountName: "sant1_cs", personaName: "sant1", steamId: "76561198000000100", mostRecent: true, hasLogin: mock !== "expired" }),
+        new SL.Account({ accountName: "expired", personaName: "Old Smurf", steamId: "76561198000000101", hasLogin: true }),
+        new SL.Account({ accountName: "mira_alt", personaName: "Mira", steamId: "76561198000000102", hasLogin: false }),
+      ]
+    : [];
+  let watching = false;
+  let watchTimer = 0;
+
+  const localLogins = (): M.LocalLogins =>
+    new M.LocalLogins({
+      steamInstalled,
+      accounts: accounts.map((a) => new SL.Account({ ...a })),
+      watching,
+      error: steamInstalled ? "" : "Steam is not installed on this PC.",
+    });
+  const emitLocal = (): void => emit("localLogins", localLogins());
 
   const setStatus = (s: Partial<M.Status>): void => {
     status = new M.Status({ ...status, ...s });
@@ -197,16 +227,43 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     loginTimers.forEach((t) => clearTimeout(t));
     loginTimers = [];
   };
+  const stopWatch = (): void => {
+    clearTimeout(watchTimer);
+    watching = false;
+  };
   /** Steam accepted the login: the session connects and comes online. */
   const finishLogin = (method: string, account: string): void => {
-    setStatus({ state: "connecting", accountName: account });
+    const persona = accounts.find((a) => a.accountName === account)?.personaName || account;
+    status = new M.Status({ state: "connecting", accountName: account, source: method });
+    emit("status", status);
     setLogin({ phase: "done", method, account });
     loginTimers = [
       window.setTimeout(
-        () => setStatus({ state: "online", personaName: "sant1", friendsOnline: 7, partySize: 2 }),
-        1200,
+        () => setStatus({ state: "online", personaName: persona, friendsOnline: 7, partySize: 2 }),
+        300,
       ),
     ];
+  };
+  /**
+   * After OpenSteamLogin: the user "signs in" to the Steam app after about
+   * 3 s. An account gains a saved login (or a new one appears) and is used.
+   */
+  const watch = (newAccount: boolean): void => {
+    stopWatch();
+    watching = true;
+    emitLocal();
+    watchTimer = window.setTimeout(() => {
+      watching = false;
+      let found = newAccount ? undefined : accounts.find((a) => !a.hasLogin);
+      if (!found) {
+        found = new SL.Account({ accountName: "new_login", personaName: "Fresh Start", steamId: "76561198000000103" });
+        accounts.unshift(found);
+      }
+      for (const a of accounts) a.mostRecent = a === found;
+      found.hasLogin = true;
+      emitLocal();
+      finishLogin("steam", found.accountName);
+    }, 3000);
   };
 
   // ---------------- chat engine (imitation) ----------------
@@ -637,7 +694,11 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
   };
 
   const scenario = (): void => {
-    if (view !== "overlay") return;
+    if (view !== "overlay") {
+      // Already waiting for a sign-in in the Steam app; a new account turns up.
+      if (mock === "watching") watch(true);
+      return;
+    }
     window.addEventListener("keydown", onKey);
 
     if (mock === "toast") {
@@ -687,6 +748,7 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
           status,
           config: configView(),
           login,
+          local: localLogins(),
           layout: new M.Layout({ width: 640, composerHeight: 360, toastHeight: 92 }),
         }),
       ),
@@ -724,54 +786,50 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
       return done();
     },
 
-    // Passwords are compared with the mock's trigger words and then dropped.
-    loginWithPassword(account, password) {
+    localLogins: () => Promise.resolve(localLogins()),
+
+    // Like Go: the call itself fails, and LoginState reports the same error.
+    useSteamAccount(account) {
       stopLogin();
+      stopWatch();
       const name = account.trim();
-      if (!name || !password) {
-        setLogin({ phase: "error", method: "password", error: "Enter your account name and password." });
-        return done();
-      }
-      const base = { method: "password", account: name };
-      const outcome: Partial<M.LoginState> | null =
-        password === "wrong"
-          ? { ...base, phase: "error", error: "Wrong account name or password." }
-          : password === "guard"
-            ? { ...base, phase: "guard", guards: ["device_code", "device_confirmation"] }
-            : password === "email"
-              ? { ...base, phase: "guard", guards: ["email_code"], emailHint: "sa***@gmail.com" }
-              : null;
-      setLogin({ ...base, phase: "submitting" });
-      loginTimers = [
-        window.setTimeout(() => (outcome ? setLogin(outcome) : finishLogin("password", name)), 900),
-      ];
-      return done();
+      return new Promise((resolve, reject) => {
+        window.setTimeout(() => {
+          const found = name ? accounts.find((a) => a.accountName === name) : accounts.find((a) => a.hasLogin);
+          emitLocal();
+          if (!found || !found.hasLogin || found.accountName === "expired") {
+            const message = noLogin(name || "this PC");
+            setLogin({ phase: "error", method: "steam", account: name, error: message });
+            reject(new Error(message));
+            return;
+          }
+          finishLogin("steam", found.accountName);
+          resolve();
+        }, 400);
+      });
     },
 
-    submitGuardCode(code) {
-      if (login.phase !== "guard") return done();
-      const step = { ...login };
-      setLogin({ ...step, checking: true, codeError: "" });
-      loginTimers = [
-        window.setTimeout(() => {
-          if (code.trim().toUpperCase() === "ABCDE") finishLogin("password", step.account);
-          else setLogin({ ...step, checking: false, codeError: "Wrong Steam Guard code." });
-        }, 700),
-      ];
+    openSteamLogin() {
+      console.info("mock: OpenSteamLogin (the Steam app would open now)");
+      watch(false);
       return done();
     },
 
     cancelLogin() {
       stopLogin();
+      stopWatch();
       setLogin({ phase: "idle" });
+      emitLocal();
       return done();
     },
 
     logout() {
       stopLogin();
+      stopWatch();
       status = new M.Status({ state: "needs_login" });
       emit("status", status);
       setLogin({ phase: "idle" });
+      emitLocal();
       return done();
     },
 

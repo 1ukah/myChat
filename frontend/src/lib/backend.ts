@@ -20,15 +20,22 @@ export interface Handlers {
   status(s: M.Status): void;
   config(c: M.ConfigView): void;
   login(l: M.LoginState): void;
+  localLogins(l: M.LocalLogins): void;
 }
 
 export interface Backend {
   snapshot(): Promise<M.Snapshot>;
   overlayReady(): Promise<void>;
   saveConfig(c: Cfg.Config): Promise<M.ConfigView>;
+  /** Accounts the Steam client saved on this PC (also pushed as an event). */
+  localLogins(): Promise<M.LocalLogins>;
+  /** Rejects with a message when Steam has no usable login for the account. */
+  useSteamAccount(account: string): Promise<void>;
+  /** Opens the Steam app; Go then watches for a new saved login. */
+  openSteamLogin(): Promise<void>;
+  /** Starts a QR login. */
   startLogin(): Promise<void>;
-  loginWithPassword(account: string, password: string): Promise<void>;
-  submitGuardCode(code: string): Promise<void>;
+  /** Stops a QR login and the Steam sign-in watch. */
   cancelLogin(): Promise<void>;
   logout(): Promise<void>;
   previewToast(): Promise<void>;
@@ -52,9 +59,10 @@ export const wailsBackend: Backend = {
   snapshot: () => ChatService.Snapshot(),
   overlayReady: () => ChatService.OverlayReady(),
   saveConfig: (c) => ChatService.SaveConfig(c),
+  localLogins: () => ChatService.LocalLogins(),
+  useSteamAccount: (account) => ChatService.UseSteamAccount(account),
+  openSteamLogin: () => ChatService.OpenSteamLogin(),
   startLogin: () => ChatService.StartLogin(),
-  loginWithPassword: (account, password) => ChatService.LoginWithPassword(account, password),
-  submitGuardCode: (code) => ChatService.SubmitGuardCode(code),
   cancelLogin: () => ChatService.CancelLogin(),
   logout: () => ChatService.Logout(),
   previewToast: () => ChatService.PreviewToast(),
@@ -73,6 +81,7 @@ export const wailsBackend: Backend = {
       Events.On(Ev.MychatStatus, (ev) => h.status(ev.data)),
       Events.On(Ev.MychatConfig, (ev) => h.config(ev.data)),
       Events.On(Ev.MychatLogin, (ev) => h.login(ev.data)),
+      Events.On(Ev.MychatLocalLogins, (ev) => h.localLogins(ev.data)),
     ];
     return () => off.forEach((f) => f());
   },

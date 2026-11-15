@@ -23,6 +23,8 @@ interface AppState {
   status: M.Status;
   config: M.ConfigView;
   login: M.LoginState;
+  /** Accounts the Steam client saved on this PC, and the sign-in watch. */
+  local: M.LocalLogins;
   layout: M.Layout;
   /** The entry shown in toast mode. */
   toast: C.Entry | null;
@@ -43,6 +45,7 @@ export const app: AppState = $state({
     showAvatars: true,
   }),
   login: new M.LoginState({ phase: "idle" }),
+  local: new M.LocalLogins({ steamInstalled: true }),
   layout: new M.Layout({ width: 640, composerHeight: 360, toastHeight: 92 }),
   toast: null,
 });
@@ -123,11 +126,38 @@ function fire(f: () => Promise<void>): void {
 export const overlayReady = (): void => fire(() => backend.overlayReady());
 export const startLogin = (): void => fire(() => backend.startLogin());
 export const cancelLogin = (): void => fire(() => backend.cancelLogin());
-export const submitGuardCode = (code: string): void => fire(() => backend.submitGuardCode(code));
 
-/** The password goes straight to Go (and from there only to Steam). It is never kept here. */
-export const loginWithPassword = (account: string, password: string): void =>
-  fire(() => backend.loginWithPassword(account, password));
+/** Re-reads Steam's saved accounts (they change when the user signs in to Steam). */
+export const refreshLocalLogins = (): void =>
+  fire(async () => {
+    app.local = await backend.localLogins();
+  });
+
+/**
+ * Logs in with the login the Steam app saved for this account.
+ * Returns "" on success, or the message to show on the account card.
+ */
+export async function useSteamAccount(account: string): Promise<string> {
+  try {
+    await backend.useSteamAccount(account);
+    return "";
+  } catch (e) {
+    return errorText(e);
+  }
+}
+
+/**
+ * Opens the Steam app so the user can sign in there; Go then watches for
+ * the new login and uses it. Returns "" or the message to show.
+ */
+export async function openSteamLogin(): Promise<string> {
+  try {
+    await backend.openSteamLogin();
+    return "";
+  } catch (e) {
+    return errorText(e);
+  }
+}
 export const logout = (): void => fire(() => backend.logout());
 export const previewToast = (): void => fire(() => backend.previewToast());
 export const hideSettings = (): void => fire(() => backend.hideSettings());
@@ -186,6 +216,9 @@ export async function start(view: View): Promise<void> {
     login: on((l) => {
       app.login = l;
     }),
+    localLogins: on((l) => {
+      app.local = l;
+    }),
   });
 
   try {
@@ -196,6 +229,7 @@ export async function start(view: View): Promise<void> {
     app.status = snap.status;
     app.config = confirmed = snap.config;
     app.login = snap.login;
+    app.local = snap.local;
     if (snap.layout.width > 0) app.layout = snap.layout;
   } catch (e) {
     console.error("myChat: snapshot failed:", e);

@@ -135,7 +135,8 @@
 
   const steam = $derived.by(() => {
     const s = app.status;
-    if (s.state === "needs_login" || !s.accountName) {
+    // Same rule as the Account tab: a finished login counts before Steam connects.
+    if (!s.accountName || (s.state === "needs_login" && app.login.phase !== "done")) {
       return { tone: "off", ring: "none", name: "Not signed in", text: "Steam" } as const;
     }
     const name = s.personaName || s.accountName;
@@ -143,6 +144,7 @@
       case "online":
         return { tone: "on", ring: "green", name, text: "Online" } as const;
       case "connecting":
+      case "needs_login":
         return { tone: "warn", ring: "accent", name, text: "Connecting" } as const;
       default:
         return { tone: "bad", ring: "offline", name, text: "Offline" } as const;
