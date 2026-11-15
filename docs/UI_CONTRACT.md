@@ -115,10 +115,12 @@ Snapshot   { mode; log; composer; status; config; login: LoginState; local: Loca
   then the new message text appears character by character; exit is a fade).
   The typewriter reveal takes at most ~600 ms and never delays what the user
   types in the input line.
-- Avatars (`showAvatars`): a circle with the friend's picture (`peerAvatar`,
-  `avatar`) left of the toast, chat lines, suggestions and the channel label.
-  Images come from `https://avatars.steamstatic.com/`. Show a letter circle while
-  the image loads or if it fails. When `showAvatars` is false, render none.
+- Avatars (`showAvatars`): the friend's picture (`peerAvatar`, `avatar`) left of
+  the toast, chat lines, suggestions and the channel label. Square, like the
+  CS2 friends list; a circle only where CS2 uses one (the current whisper
+  target in the input row). Images come from `https://avatars.steamstatic.com/`.
+  Show a letter tile while the image loads or if it fails. When `showAvatars` is
+  false, render none.
 - When `animations` is false: no transitions, no caret blink (steady caret).
 - Performance: animate only `transform` and `opacity`. No `setInterval`, no
   `requestAnimationFrame` loops, no work while mode is `hidden`. The caret blink
