@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" width="20" height="20">
+  <title>myChat (20 px)</title>
+  <!-- mychat-icon-small.svg on a 20 px grid: one unit is one pixel. -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1c1c1c"/>
+      <stop offset="0.5" stop-color="#060606"/>
+      <stop offset="1" stop-color="#000000"/>
+    </linearGradient>
+    <linearGradient id="skin" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ececec"/>
+      <stop offset="1" stop-color="#bcbcbc"/>
+    </linearGradient>
+    <clipPath id="head-clip"><circle cx="10" cy="6" r="4"/></clipPath>
+    <clipPath id="body-clip"><path d="M4 18V15A6 4 0 0 1 16 15V18Z"/></clipPath>
+  </defs>
+
+  <rect width="20" height="20" rx="4" fill="url(#tile)"/>
+
+  <!-- Head 6..14 x 2..10, gap 10..11, body 4..16 x 11..18. -->
+  <circle cx="10" cy="6" r="4" fill="url(#skin)"/>
+  <path d="M4 18V15A6 4 0 0 1 16 15V18Z" fill="url(#skin)"/>
+
+  <ellipse cx="10" cy="3.5" rx="5" ry="2.5" fill="#ffffff" clip-path="url(#head-clip)"/>
+  <ellipse cx="10" cy="11" rx="7" ry="2.5" fill="#ffffff" clip-path="url(#body-clip)"/>
+</svg>

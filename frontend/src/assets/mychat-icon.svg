@@ -1,48 +1,51 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
   <title>myChat</title>
   <defs>
+    <!-- Tile sheen: a faint lift in the top half, pure black below. -->
     <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#171a21"/>
-      <stop offset="1" stop-color="#1b2838"/>
+      <stop offset="0" stop-color="#232323"/>
+      <stop offset="0.5" stop-color="#080808"/>
+      <stop offset="1" stop-color="#000000"/>
     </linearGradient>
-    <radialGradient id="glow" cx="0.6" cy="0.62" r="0.6">
-      <stop offset="0" stop-color="#2a475e" stop-opacity="0.85"/>
-      <stop offset="1" stop-color="#2a475e" stop-opacity="0"/>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
     </radialGradient>
+    <linearGradient id="edge" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.28"/>
+      <stop offset="0.6" stop-color="#ffffff" stop-opacity="0.04"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.08"/>
+    </linearGradient>
+
+    <!-- Figure: near-white down to light grey, per shape. -->
+    <linearGradient id="skin" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f2f2f2"/>
+      <stop offset="1" stop-color="#b4b4b4"/>
+    </linearGradient>
+    <!-- Gloss: a white band, strongest at the top. -->
+    <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="1"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.55"/>
+    </linearGradient>
+
+    <clipPath id="head-clip"><circle cx="512" cy="330" r="150"/></clipPath>
+    <clipPath id="body-clip"><path d="M232 848V716A280 180 0 0 1 792 716V848Z"/></clipPath>
   </defs>
 
-  <!-- Steam's dark navy tile with a soft glow behind the figures. -->
-  <rect width="1024" height="1024" rx="64" fill="url(#tile)"/>
-  <rect width="1024" height="1024" rx="64" fill="url(#glow)"/>
+  <!-- Black app-icon tile (corner radius 20 %) with a soft glow behind the
+       figure and a hairline inner edge highlight. -->
+  <rect width="1024" height="1024" rx="204" fill="url(#tile)"/>
+  <circle cx="512" cy="520" r="470" fill="url(#glow)"/>
+  <rect x="5" y="5" width="1014" height="1014" rx="199" fill="none" stroke="url(#edge)" stroke-width="6"/>
 
-  <!-- Three people side by side, growing from left to right; together they
-       fill 83 % of the tile (87..937 both ways). Each body is a tall block
-       with a rounded top; the bodies overlap and their bottoms step down in
-       110 px steps. Each head is a "?" close above its body, drawn in a
-       100-unit box as a thick hook (stroke 20) and a big dot. -->
+  <!-- One person, centred: a round head above a domed, flat-bottomed body.
+       The figure spans 180..848 vertically (65 % of the tile), with a 56 px
+       gap between head and shoulders. -->
+  <circle cx="512" cy="330" r="150" fill="url(#skin)"/>
+  <path d="M232 848V716A280 180 0 0 1 792 716V848Z" fill="url(#skin)"/>
 
-  <!-- left, the smallest -->
-  <g fill="#c7d5e0" stroke="#c7d5e0">
-    <path stroke="none" d="M87 717V542A125 105 0 0 1 337 542V717Z"/>
-    <g transform="translate(212 170) scale(2.51)">
-      <path fill="none" stroke-width="20" stroke-linejoin="round" d="M-22 32A22 22 0 1 1 15.6 47.6Q2.6 60.6 0 70"/>
-      <circle stroke="none" cx="0" cy="87" r="13"/>
-    </g>
-  </g>
-  <!-- middle -->
-  <g fill="#96cbea" stroke="#96cbea">
-    <path stroke="none" d="M307 827V593A150 126 0 0 1 607 593V827Z"/>
-    <g transform="translate(457 129) scale(3.2)">
-      <path fill="none" stroke-width="20" stroke-linejoin="round" d="M-22 32A22 22 0 1 1 15.6 47.6Q2.6 60.6 0 70"/>
-      <circle stroke="none" cx="0" cy="87" r="13"/>
-    </g>
-  </g>
-  <!-- right, the biggest, in front -->
-  <g fill="#66c0f4" stroke="#66c0f4">
-    <path stroke="none" d="M577 937V647A180 150 0 0 1 937 647V937Z"/>
-    <g transform="translate(757 87) scale(3.9)">
-      <path fill="none" stroke-width="20" stroke-linejoin="round" d="M-22 32A22 22 0 1 1 15.6 47.6Q2.6 60.6 0 70"/>
-      <circle stroke="none" cx="0" cy="87" r="13"/>
-    </g>
-  </g>
+  <!-- Glossy highlights: white bands whose lower edges are arcs, across the
+       upper part of the head and across the shoulders. -->
+  <ellipse cx="512" cy="212" rx="210" ry="130" fill="url(#gloss)" clip-path="url(#head-clip)"/>
+  <ellipse cx="512" cy="548" rx="350" ry="130" fill="url(#gloss)" clip-path="url(#body-clip)"/>
 </svg>

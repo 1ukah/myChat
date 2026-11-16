@@ -199,9 +199,10 @@ tasks:
       - "appicon.icon"
     generates:
       - "darwin/icons.icns"
-      - "windows/icon.ico"
     cmds:
-      - wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename windows/icon.ico -iconcomposerinput appicon.icon -macassetdir darwin
+      # windows/icon.ico is made by icon/render.mjs, each size drawn from the
+      # SVGs; the one wails3 would shrink from appicon.png is thrown away.
+      - wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename "{{.TEMP}}/mychat-wails-icon.ico" -iconcomposerinput appicon.icon -macassetdir darwin
 
   dev:frontend:
     summary: Runs the frontend in development mode
