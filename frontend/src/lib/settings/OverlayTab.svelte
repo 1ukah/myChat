@@ -39,7 +39,7 @@
   ];
 
   const LOOKS = [
-    { value: "legacy", label: "Legacy", hint: "The dark CS2-style chat." },
+    { value: "legacy", label: "Legacy", hint: "The dark CS-style chat." },
     { value: "minimal", label: "Minimal", hint: "Dark blue-grey glass with light text, square and compact; a soft glow, fading out at the edges." },
   ] as const;
 
@@ -52,9 +52,9 @@
 </script>
 
 <Section id="appearance" title="Appearance">
-  <Row label="Chat look" hint={look.hint} error={errors.overlayStyle}>
+  <Row label="Chat theme" hint={look.hint} error={errors.overlayStyle}>
     <Select
-      label="Chat look"
+      label="Chat theme"
       value={look.value}
       options={LOOKS}
       onchange={(overlayStyle) => set("overlayStyle", { overlayStyle })}

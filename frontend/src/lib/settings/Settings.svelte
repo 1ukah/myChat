@@ -121,7 +121,7 @@
     { tab: "chat", section: "pop-ups", label: "Messages shown", words: "toast pop-up max count number how many recent" },
     { tab: "chat", section: "pop-ups", label: "Show images", words: "picture photo gif giphy embed media thumbnail chat box pop-up" },
     { tab: "chat", section: "pop-ups", label: "Also load image links", words: "picture photo gif giphy embed link url address site ip privacy" },
-    { tab: "overlay", section: "appearance", label: "Chat look", words: "style theme legacy minimal light cs2" },
+    { tab: "overlay", section: "appearance", label: "Chat theme", words: "style theme look legacy minimal light cs2" },
     { tab: "overlay", section: "appearance", label: "Show avatars", words: "pictures" },
     { tab: "overlay", section: "appearance", label: "Size", words: "scale zoom" },
     { tab: "overlay", section: "animation", label: "Animations", words: "motion" },
