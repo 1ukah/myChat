@@ -44,6 +44,8 @@ func main() {
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
+			// Pictures from chat messages, fetched by myChat (/media/<id>).
+			Middleware: a.media.Middleware,
 		},
 		Windows: application.WindowsOptions{
 			DisableQuitOnLastWindowClosed: true,

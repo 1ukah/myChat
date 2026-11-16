@@ -64,6 +64,19 @@ type Entry struct {
 	Text       string `json:"text"`
 	Status     string `json:"status"`
 	Detail     string `json:"detail"`
+	// Media are the pictures in the message (at most one for now); the text
+	// no longer holds the address of a picture shown here.
+	Media []Media `json:"media"`
+}
+
+// Media is a picture in a message, served to the UI by myChat itself.
+type Media struct {
+	ID     string `json:"id"`
+	URL    string `json:"url"`   // local address to load it from
+	Width  int    `json:"width"` // as the sender says or as decoded; 0 when unknown
+	Height int    `json:"height"`
+	Kind   string `json:"kind"`  // "upload" | "gif" | "link"
+	Title  string `json:"title"` // a GIF's title, if any
 }
 
 // Channel kinds.
@@ -256,7 +269,7 @@ func (e *Engine) AckAll() {
 
 // Incoming records a message from Steam. It returns the entry and whether it
 // is new (a toast is worth showing).
-func (e *Engine) Incoming(partner uint64, text string, at time.Time, echo bool) (Entry, bool) {
+func (e *Engine) Incoming(partner uint64, text string, media []Media, at time.Time, echo bool) (Entry, bool) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	if echo {
@@ -266,11 +279,11 @@ func (e *Engine) Incoming(partner uint64, text string, at time.Time, echo bool) 
 				return Entry{}, false
 			}
 		}
-		ent := e.addLocked(Entry{Kind: KindOut, PeerID: idStr(partner), PeerName: e.nameLocked(partner), PeerAvatar: e.avatarLocked(partner), Text: text, Status: StatusSent, Time: at.UnixMilli()})
+		ent := e.addLocked(Entry{Kind: KindOut, PeerID: idStr(partner), PeerName: e.nameLocked(partner), PeerAvatar: e.avatarLocked(partner), Text: text, Media: media, Status: StatusSent, Time: at.UnixMilli()})
 		e.touchLocked(partner)
 		return ent, false
 	}
-	ent := e.addLocked(Entry{Kind: KindIn, PeerID: idStr(partner), PeerName: e.nameLocked(partner), PeerAvatar: e.avatarLocked(partner), Text: text, Time: at.UnixMilli()})
+	ent := e.addLocked(Entry{Kind: KindIn, PeerID: idStr(partner), PeerName: e.nameLocked(partner), PeerAvatar: e.avatarLocked(partner), Text: text, Media: media, Time: at.UnixMilli()})
 	e.lastFrom = partner
 	e.touchLocked(partner)
 	e.unacked[partner] = at
@@ -297,6 +310,24 @@ func (e *Engine) addLocked(ent Entry) Entry {
 	}
 	e.notify(func() { e.n.EntryAdded(ent) })
 	return ent
+}
+
+// SetMedia gives a logged entry its pictures (once a linked picture has
+// loaded) and the text that goes with them. It reports false when the entry
+// has already left the log.
+func (e *Engine) SetMedia(id int64, text string, media []Media) (Entry, bool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	for i := range e.log {
+		if e.log[i].ID == id {
+			e.log[i].Text = text
+			e.log[i].Media = media
+			out := e.log[i]
+			e.notify(func() { e.n.EntryUpdated(out) })
+			return out, true
+		}
+	}
+	return Entry{}, false
 }
 
 func (e *Engine) updateEntry(id int64, status, detail string) {

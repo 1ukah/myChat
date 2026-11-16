@@ -58,7 +58,7 @@ func (a *App) demo() {
 		a.closeComposer("demo")
 	case "composer":
 		a.engine.System("Demo: chat box without key capture.")
-		a.engine.Incoming(1, sample.Text, time.Now(), false)
+		a.engine.Incoming(1, sample.Text, nil, time.Now(), false)
 		a.mu.Lock()
 		a.stopTimersLocked()
 		a.mode = ModeComposer

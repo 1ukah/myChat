@@ -62,7 +62,8 @@ type (
 	// client); Partner is then the receiver.
 	MessageEvent struct {
 		Partner uint64
-		Text    string
+		Text    string // Steam's plain-text version of the message
+		BBCode  string // the message as sent, with BBCode such as [img]
 		Time    time.Time
 		Echo    bool
 	}
@@ -409,6 +410,7 @@ func (c *Client) handleIncoming(body []byte) {
 	if entryType != chatEntryChatMsg || m.Partner == 0 {
 		return
 	}
+	m.BBCode = text
 	if plain != "" {
 		text = plain
 	}

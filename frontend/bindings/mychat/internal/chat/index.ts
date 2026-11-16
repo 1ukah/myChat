@@ -5,5 +5,6 @@ export {
     Channel,
     ComposerState,
     Entry,
+    Media,
     Suggestion
 } from "./models.js";

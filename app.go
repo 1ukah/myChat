@@ -14,6 +14,7 @@ import (
 	"mychat/internal/chat"
 	"mychat/internal/config"
 	"mychat/internal/input"
+	"mychat/internal/media"
 	"mychat/internal/steam"
 	"mychat/internal/win"
 )
@@ -110,6 +111,7 @@ type App struct {
 	store    *config.Store
 	steam    *steam.Client
 	engine   *chat.Engine
+	media    *media.Store
 	inp      *input.Manager
 	ov       overlay
 	settings *application.WebviewWindow
@@ -141,6 +143,7 @@ func newApp(store *config.Store) *App {
 	a.cfg = store.Load()
 	a.steam = steam.New(a.cfg.MachineSeed)
 	a.engine = chat.New(backend{a.steam}, notifier{a})
+	a.media = media.NewStore()
 	a.status = Status{State: string(steam.StateOffline)}
 	return a
 }
@@ -268,10 +271,76 @@ func (a *App) onSteam(ev any) {
 		a.updatePersonaName()
 		a.engine.Refresh()
 	case steam.MessageEvent:
-		ent, isNew := a.engine.Incoming(e.Partner, e.Text, e.Time, e.Echo)
-		if isNew {
-			a.toast(ent)
+		a.incoming(e)
+	}
+}
+
+// linkWait is how long a linked picture may take to load before its message
+// stays text only.
+const linkWait = 10 * time.Second
+
+// incoming logs a message and shows it as a pop-up. A picture the message
+// carries is fetched by myChat and shown with it, per the image settings:
+// Steam uploads and GIFs come with their size and show at once; a linked
+// picture is checked first and added to the message once it has loaded.
+func (a *App) incoming(e steam.MessageEvent) {
+	a.mu.Lock()
+	show, links := a.cfg.ShowImages, a.cfg.ImageLinks
+	a.mu.Unlock()
+
+	text := e.Text
+	var pics []chat.Media
+	var later *media.Found
+	if f, ok := media.Find(e.BBCode, e.Text); ok && show && (f.Trusted || links) {
+		id := a.media.Start(f.URL)
+		if f.Width > 0 {
+			pics = []chat.Media{toMedia(id, f, f.Width, f.Height)}
+			text = media.StripText(text, f)
+		} else {
+			later = &f
 		}
+	}
+
+	ent, isNew := a.engine.Incoming(e.Partner, text, pics, e.Time, e.Echo)
+	if isNew {
+		a.toast(ent)
+	}
+	if later != nil && ent.ID != 0 {
+		go a.attachLater(ent.ID, e.Text, *later)
+	}
+}
+
+func toMedia(id string, f media.Found, w, h int) chat.Media {
+	return chat.Media{ID: id, URL: media.Prefix + id, Width: w, Height: h, Kind: f.Kind, Title: f.Title}
+}
+
+// attachLater adds a linked picture to its message once it has loaded and
+// proved to be a picture.
+func (a *App) attachLater(entryID int64, plain string, f media.Found) {
+	ctx, cancel := context.WithTimeout(context.Background(), linkWait)
+	defer cancel()
+	id := media.ID(f.URL)
+	pic, err := a.media.Wait(ctx, id)
+	if err != nil {
+		return
+	}
+	ent, ok := a.engine.SetMedia(entryID, media.StripText(plain, f), []chat.Media{toMedia(id, f, pic.Width, pic.Height)})
+	if !ok {
+		return
+	}
+	a.mu.Lock()
+	found := false
+	for i := range a.toasts {
+		if a.toasts[i].ID == ent.ID {
+			a.toasts[i] = ent
+			found = true
+		}
+	}
+	list := Toasts{Entries: append([]chat.Entry(nil), a.toasts...)}
+	showing := a.mode == ModeToast
+	a.mu.Unlock()
+	if found && showing {
+		a.emit(EvToasts, list)
 	}
 }
 

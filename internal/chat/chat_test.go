@@ -151,8 +151,8 @@ func TestReplyAndTabCycle(t *testing.T) {
 		t.Fatal("expected error with no whisper yet")
 	}
 	e.Reset()
-	e.Incoming(13, "yo", time.Now(), false)
-	e.Incoming(10, "hey", time.Now(), false)
+	e.Incoming(13, "yo", nil, time.Now(), false)
+	e.Incoming(10, "hey", nil, time.Now(), false)
 	typeText(e, "/r ")
 	if c := e.Composer(); c.Channel.TargetID != "10" {
 		t.Fatalf("reply target %+v", c)
@@ -168,13 +168,34 @@ func TestReplyAndTabCycle(t *testing.T) {
 	}
 }
 
+func TestSetMedia(t *testing.T) {
+	e, _ := newTest()
+	pic := []Media{{ID: "a", URL: "/media/a", Width: 4, Height: 3, Kind: "gif"}}
+	ent, isNew := e.Incoming(13, "", pic, time.Now(), false)
+	if !isNew || len(ent.Media) != 1 || ent.Media[0].ID != "a" {
+		t.Fatalf("incoming %+v", ent)
+	}
+	link, _ := e.Incoming(13, "https://example.com/b.png", nil, time.Now(), false)
+	got, ok := e.SetMedia(link.ID, "", []Media{{ID: "b", URL: "/media/b", Kind: "link"}})
+	if !ok || got.Text != "" || len(got.Media) != 1 {
+		t.Fatalf("set media %+v %v", got, ok)
+	}
+	log := e.Log()
+	if last := log[len(log)-1]; last.ID != link.ID || last.Media[0].ID != "b" {
+		t.Fatalf("log not updated: %+v", last)
+	}
+	if _, ok := e.SetMedia(-1, "", nil); ok {
+		t.Fatal("unknown entry updated")
+	}
+}
+
 func TestEchoDedupe(t *testing.T) {
 	e, b := newTest()
 	typeText(e, "/w sant1 ")
 	typeText(e, "hi")
 	e.HandleKey("", "Enter", false)
 	b.waitSent(t, 1)
-	if _, isNew := e.Incoming(13, "hi", time.Now(), true); isNew {
+	if _, isNew := e.Incoming(13, "hi", nil, time.Now(), true); isNew {
 		t.Fatal("echo should not be new")
 	}
 	n := 0

@@ -131,6 +131,12 @@ export class Entry {
     "status": string;
     "detail": string;
 
+    /**
+     * Media are the pictures in the message (at most one for now); the text
+     * no longer holds the address of a picture shown here.
+     */
+    "media": Media[];
+
     /** Creates a new Entry instance. */
     constructor($$source: Partial<Entry> = {}) {
         if (!("id" in $$source)) {
@@ -160,6 +166,9 @@ export class Entry {
         if (!("detail" in $$source)) {
             this["detail"] = "";
         }
+        if (!("media" in $$source)) {
+            this["media"] = [];
+        }
 
         Object.assign(this, $$source);
     }
@@ -168,8 +177,72 @@ export class Entry {
      * Creates a new Entry instance from a string or object.
      */
     static createFrom($$source: any = {}): Entry {
+        const $$createField9_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("media" in $$parsedSource) {
+            $$parsedSource["media"] = $$createField9_0($$parsedSource["media"]);
+        }
         return new Entry($$parsedSource as Partial<Entry>);
+    }
+}
+
+/**
+ * Media is a picture in a message, served to the UI by myChat itself.
+ */
+export class Media {
+    "id": string;
+
+    /**
+     * local address to load it from
+     */
+    "url": string;
+
+    /**
+     * as the sender says or as decoded; 0 when unknown
+     */
+    "width": number;
+    "height": number;
+
+    /**
+     * "upload" | "gif" | "link"
+     */
+    "kind": string;
+
+    /**
+     * a GIF's title, if any
+     */
+    "title": string;
+
+    /** Creates a new Media instance. */
+    constructor($$source: Partial<Media> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("url" in $$source)) {
+            this["url"] = "";
+        }
+        if (!("width" in $$source)) {
+            this["width"] = 0;
+        }
+        if (!("height" in $$source)) {
+            this["height"] = 0;
+        }
+        if (!("kind" in $$source)) {
+            this["kind"] = "";
+        }
+        if (!("title" in $$source)) {
+            this["title"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Media instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Media {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Media($$parsedSource as Partial<Media>);
     }
 }
 
@@ -225,3 +298,5 @@ export class Suggestion {
 const $$createType0 = Channel.createFrom;
 const $$createType1 = Suggestion.createFrom;
 const $$createType2 = $Create.Array($$createType1);
+const $$createType3 = Media.createFrom;
+const $$createType4 = $Create.Array($$createType3);

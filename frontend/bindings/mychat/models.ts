@@ -42,6 +42,14 @@ export class ConfigView {
      */
     "toastLayout": string;
     "toastMax": number;
+
+    /**
+     * ShowImages shows pictures sent through Steam chat and /giphy GIFs in
+     * pop-ups and the chat box. ImageLinks also loads pictures from links
+     * to other sites, which lets those sites see the user's IP address.
+     */
+    "showImages": boolean;
+    "imageLinks": boolean;
     "bottomOffset": number;
     "scale": number;
 
@@ -105,6 +113,12 @@ export class ConfigView {
         }
         if (!("toastMax" in $$source)) {
             this["toastMax"] = 0;
+        }
+        if (!("showImages" in $$source)) {
+            this["showImages"] = false;
+        }
+        if (!("imageLinks" in $$source)) {
+            this["imageLinks"] = false;
         }
         if (!("bottomOffset" in $$source)) {
             this["bottomOffset"] = 0;

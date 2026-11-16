@@ -43,8 +43,13 @@ type Config struct {
 	// ToastLayout is how several new messages show: "stack" (one box per
 	// message) or "group" (consecutive messages from one person share a
 	// box). ToastMax is how many messages show at once (1..5).
-	ToastLayout  string  `json:"toastLayout"`
-	ToastMax     int     `json:"toastMax"`
+	ToastLayout string `json:"toastLayout"`
+	ToastMax    int    `json:"toastMax"`
+	// ShowImages shows pictures sent through Steam chat and /giphy GIFs in
+	// pop-ups and the chat box. ImageLinks also loads pictures from links
+	// to other sites, which lets those sites see the user's IP address.
+	ShowImages   bool    `json:"showImages"`
+	ImageLinks   bool    `json:"imageLinks"`
 	BottomOffset int     `json:"bottomOffset"`
 	Scale        float64 `json:"scale"`
 	// OverlayStyle is the look of the chat box and pop-ups: "legacy" (CS2
@@ -77,6 +82,8 @@ func Default() Config {
 		ToastSeconds:     6,
 		ToastLayout:      "group",
 		ToastMax:         3,
+		ShowImages:       true,
+		ImageLinks:       false,
 		BottomOffset:     150,
 		Scale:            1,
 		OverlayStyle:     "legacy",
