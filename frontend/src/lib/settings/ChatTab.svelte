@@ -2,7 +2,7 @@
   import type * as Cfg from "../../../bindings/mychat/internal/config/models";
   import { app, saveConfig } from "../store.svelte";
   import HotkeyInput from "../ui/HotkeyInput.svelte";
-  import Segmented from "../ui/Segmented.svelte";
+  import Select from "../ui/Select.svelte";
   import Slider from "../ui/Slider.svelte";
   import Toggle from "../ui/Toggle.svelte";
   import Row from "./Row.svelte";
@@ -92,7 +92,7 @@
     />
   </Row>
   <Row label="Multiple messages" hint={layout.hint} error={errors.toastLayout} dim={off}>
-    <Segmented
+    <Select
       label="Multiple messages"
       value={layout.value}
       options={LAYOUTS}
@@ -105,11 +105,35 @@
     error={errors.toastMax}
     dim={off}
   >
-    <Segmented
+    <Select
       label="Messages shown"
       value={count}
       options={COUNTS}
       onchange={(v) => set("toastMax", { toastMax: Number(v) })}
+    />
+  </Row>
+  <Row
+    label="Show images"
+    hint="Pictures and GIFs sent in Steam chat, in pop-ups and the chat box."
+    error={errors.showImages}
+  >
+    <Toggle
+      label="Show images"
+      checked={app.config.showImages}
+      onchange={(showImages) => set("showImages", { showImages })}
+    />
+  </Row>
+  <Row
+    label="Also load image links"
+    hint="Pictures from links to other sites. Those sites can see your IP address."
+    error={errors.imageLinks}
+    dim={!app.config.showImages}
+  >
+    <Toggle
+      label="Also load image links"
+      checked={app.config.imageLinks}
+      disabled={!app.config.showImages}
+      onchange={(imageLinks) => set("imageLinks", { imageLinks })}
     />
   </Row>
 </Section>

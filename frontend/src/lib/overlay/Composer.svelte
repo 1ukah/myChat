@@ -8,6 +8,7 @@
   import type * as M from "../../../bindings/mychat/models";
   import Avatar from "../ui/Avatar.svelte";
   import ChatLine from "./ChatLine.svelte";
+  import { CHAT_THUMB, fitSize, pictureOf } from "./media";
 
   let {
     composer,
@@ -16,6 +17,7 @@
     status,
     live,
     avatars = false,
+    images = true,
     minimal = false,
     typewriter = false,
   }: {
@@ -28,7 +30,9 @@
     live: boolean;
     /** Show friends' avatars (setting `showAvatars`). */
     avatars?: boolean;
-    /** The Minimal look (`overlayStyle`): pale steel-blue, square, fading at the edges. */
+    /** Draw the pictures in messages (setting `showImages`); off shows a label instead. */
+    images?: boolean;
+    /** The Minimal look (`overlayStyle`): dark blue-grey glass, light text, fading at the edges. */
     minimal?: boolean;
     /** Animation style is "typewriter". Never applies to the input line. */
     typewriter?: boolean;
@@ -66,8 +70,54 @@
 
   // ---- thin scrollbar, drawn from the scroll position Go reports ----
 
-  /** About how many lines fit in the log box (the Minimal one is lower). */
-  const fit = $derived(minimal ? 10 : 12);
+  // ---- pictures in the log ----
+  //
+  // A message with a picture is a line plus a thumbnail, so fewer of them
+  // fit. PgUp/PgDn move the log by PAGE messages (Go decides that), so the
+  // newest PAGE messages in view must fit in the box together, or a press
+  // would skip some. One thumbnail gets the full 90 px; when several
+  // pictures are among those messages, all thumbnails get lower.
+
+  /** Messages per PgUp/PgDn press (internal/chat). */
+  const PAGE = 5;
+  /** What a thumbnail adds besides its own height (margins, frame). */
+  const PIC_PAD = 8;
+  /** A message whose picture is only the "Image" label (pictures off). */
+  const LABEL_H = 18;
+  /** A line of text. */
+  const lineH = $derived(minimal ? 20 : 21);
+
+  const pics = $derived(lines.some((e) => pictureOf(e) !== null));
+  /** Height of the log box for lines. Minimal grows when there are pictures. */
+  const room = $derived(minimal ? (pics && images ? 263 : 200) : 270);
+
+  const thumbH = $derived.by(() => {
+    const n = lines.slice(-PAGE).filter((e) => pictureOf(e) !== null).length;
+    if (n === 0) return CHAT_THUMB.h;
+    const each = Math.floor((room - PAGE * lineH) / n) - PIC_PAD;
+    return Math.min(CHAT_THUMB.h, Math.max(16, each));
+  });
+
+  /** About how many of the lines in view fit in the log box (for the scrollbar). */
+  const fit = $derived.by(() => {
+    if (!pics) return minimal ? 10 : 12;
+    let left = room;
+    let n = 0;
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const m = pictureOf(lines[i]);
+      const extra = !m
+        ? 0
+        : images
+          ? fitSize(m.width, m.height, CHAT_THUMB.w, thumbH).h + PIC_PAD
+          : LABEL_H;
+      if (lineH + extra > left) break;
+      left -= lineH + extra;
+      n++;
+    }
+    // Every line in view fits: the box could hold more (as without pictures).
+    if (n === lines.length) n += Math.floor(left / lineH);
+    return Math.max(1, n);
+  });
   const bar = $derived.by(() => {
     if (total <= fit) return null;
     const size = Math.max(14, (fit / total) * 100);
@@ -109,9 +159,9 @@
 <div class="composer" class:live class:minimal>
   <div class="frame">
     <div class="log">
-      <div class="lines">
+      <div class="lines" class:pics={pics && images}>
         {#each lines as entry (entry.id)}
-          <ChatLine {entry} {avatars} {minimal} {typewriter} />
+          <ChatLine {entry} {avatars} {images} {thumbH} {minimal} {typewriter} />
         {:else}
           <div class="empty">No messages yet.</div>
         {/each}
@@ -599,35 +649,38 @@
   }
 
   /* ---------- Minimal look ----------
-     "Angelic", in the CS:GO Panorama palette: pale steel-blue bands (never
-     white) with dark slate text, square corners and no frame. Nothing blurs
+     Lit glass, after the CS2 Panorama panels: dim, see-through blue-grey
+     bands with near-white text, square corners and no frame. Nothing blurs
      the game here, so the softness is drawn:
 
-       - each band (log, input) is a translucent tint on a pseudo-element
-         whose left and right ends are masked away to nothing (--ends), so
-         there is no edge to see, only colour that thins out;
-       - the log also fades upwards, and its oldest lines with it;
-       - a wide, faint cyan haze sits behind the whole box, and the text
-         carries a pale glow (--halo), which together read as blur;
-       - the only line is a hairline under the input that fades out too.
+       - each band (log, input) is a translucent dark tint on a
+         pseudo-element whose left and right ends are masked away to nothing
+         over a short distance (--ends, --fade), so there is no edge to see
+         and no long trail either;
+       - each band has a bright cyan-white hairline on its top edge, with a
+         few px of light under it, both fading out with the band;
+       - the oldest lines fade out under the top of the log;
+       - a tight, faint cyan bloom sits just behind the box, and the text
+         carries a small pale glow over a 1 px dark edge (--halo), so it
+         reads on a bright scene as well as a dark one.
 
-     The tint is dense where the text is (about 0.85), so the dark text reads
-     over a dark scene, and blue-grey enough to show on a bright one. The
-     log is only as tall as its lines, up to ten of them. */
+     The tint is about 0.7 to 0.77 where the text is: dark enough for white
+     text over a bright scene, and still clearly see-through. The log is
+     only as tall as its lines, up to ten of them. */
 
   .minimal {
     --avatar-radius: 0px;
-    --ink: #0e1a26;
-    --blue: #0f4f86;
-    --muted: #465869;
-    --dim: #6f8294;
+    --ink: #f4f8fb;
+    --blue: #a3d6ff;
+    --muted: #a9b9c8;
+    --dim: #7f92a4;
     --whisper: var(--blue);
-    --green: #1f8a4c;
-    --gold: #a86a00;
-    --red-text: #a3271f;
-    --tile: #5b7186;
-    --fade: 60px;
-    --halo: 0 0 6px rgba(222, 235, 244, 0.9);
+    --green: #6fdc98;
+    --gold: #f2c264;
+    --red-text: #ff9d94;
+    --tile: #4a5f75;
+    --fade: 34px;
+    --halo: 0 1px 1px rgba(4, 10, 18, 0.55), 0 0 5px rgba(178, 226, 255, 0.5);
     --ends: linear-gradient(
       to right,
       transparent 0,
@@ -654,18 +707,18 @@
     background: none;
   }
 
-  /* The haze: a soft cyan cloud around the box that dies out before the
-     window edge. */
+  /* The bloom: a faint cyan glow that hugs the box and is gone a few px
+     past the ends of the bands. */
   .minimal .frame::before {
     content: "";
     position: absolute;
     z-index: -1;
-    inset: -20px -70px -14px;
+    inset: -8px -44px;
     background: radial-gradient(
       closest-side,
-      rgba(159, 209, 242, 0.26) 0,
-      rgba(159, 209, 242, 0.22) 62%,
-      rgba(159, 209, 242, 0) 100%
+      rgba(120, 196, 255, 0.16) 0,
+      rgba(120, 196, 255, 0.12) 70%,
+      rgba(120, 196, 255, 0) 100%
     );
   }
 
@@ -676,8 +729,8 @@
     background: none;
   }
 
-  /* The tinted bands. They reach past the text on both sides and thin out
-     there; the text itself stays on the dense middle. */
+  /* The tinted bands. They reach a little past the text on both sides and
+     thin out there; the text itself stays on the dense middle. */
   .minimal .log::before,
   .minimal .input::before {
     content: "";
@@ -692,18 +745,28 @@
     flex: none;
   }
 
-  /* Fades in from nothing at the top; a short feather at the bottom. */
+  /* Hairline and a little light on top, then the dark tint, a touch
+     thinner at the top; a short feather at the bottom. */
   .minimal .log::before {
-    background: linear-gradient(
-      to bottom,
-      rgba(201, 216, 228, 0) 0,
-      rgba(201, 216, 228, 0.82) 18px,
-      rgba(169, 191, 208, 0.88) calc(100% - 3px),
-      rgba(169, 191, 208, 0) 100%
-    );
+    background:
+      linear-gradient(
+          to right,
+          rgba(150, 214, 255, 0.6),
+          rgba(236, 248, 255, 0.9) 50%,
+          rgba(150, 214, 255, 0.6)
+        )
+        top / 100% 1px no-repeat,
+      linear-gradient(to bottom, rgba(168, 222, 255, 0.2), rgba(168, 222, 255, 0) 8px),
+      linear-gradient(
+        to bottom,
+        rgba(34, 48, 64, 0.6) 0,
+        rgba(30, 43, 58, 0.7) 18px,
+        rgba(19, 29, 41, 0.75) calc(100% - 3px),
+        rgba(19, 29, 41, 0) 100%
+      );
   }
 
-  /* Old lines leave through the same fade as the tint. */
+  /* Old lines fade out under the top edge. */
   .minimal .lines {
     position: relative;
     inset: auto;
@@ -711,6 +774,11 @@
     padding: 16px 16px 7px 12px;
     -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 16px);
     mask-image: linear-gradient(to bottom, transparent 0, #000 16px);
+  }
+
+  /* With pictures in view the log may grow to the height of the window. */
+  .minimal .lines.pics {
+    max-height: 286px;
   }
 
   .minimal .empty {
@@ -724,9 +792,10 @@
     right: 4px;
     width: 3px;
     margin: 18px 0 6px;
-    background: rgba(15, 55, 90, 0.4);
+    background: rgba(196, 230, 255, 0.45);
   }
 
+  /* A small dark pill with the same lit top edge. */
   .minimal .newer {
     right: 12px;
     height: 18px;
@@ -736,9 +805,12 @@
     line-height: 18px;
     letter-spacing: 0;
     text-transform: none;
-    color: #e2f0f9;
-    background: rgba(15, 79, 134, 0.92);
+    color: var(--blue);
+    background: rgba(15, 25, 37, 0.92);
     border-radius: 1px;
+    box-shadow:
+      inset 0 1px 0 rgba(190, 230, 255, 0.55),
+      0 0 8px rgba(120, 196, 255, 0.35);
   }
 
   .minimal .pop {
@@ -747,24 +819,24 @@
     bottom: 6px;
   }
 
-  /* Opaque, so the log lines behind do not show through; a glow instead of
-     a border, and a hairline on top that fades out at both ends. */
+  /* Opaque, so the log lines behind do not show through; a tight glow
+     instead of a border, and a hairline on top that fades out at both ends. */
   .minimal .suggest {
     padding: 4px;
     background:
       linear-gradient(
           to right,
-          rgba(226, 241, 250, 0),
-          rgba(226, 241, 250, 0.95) 28%,
-          rgba(159, 209, 242, 0.9) 68%,
-          rgba(159, 209, 242, 0)
+          rgba(236, 248, 255, 0),
+          rgba(236, 248, 255, 0.9) 28%,
+          rgba(150, 214, 255, 0.7) 68%,
+          rgba(150, 214, 255, 0)
         )
         top / 100% 1px no-repeat,
-      linear-gradient(#cfdce7, #b6c9d8);
+      linear-gradient(#243241, #18232f);
     border-radius: 1px;
     box-shadow:
-      0 0 22px rgba(159, 209, 242, 0.5),
-      0 3px 12px rgba(16, 34, 52, 0.22);
+      0 0 12px rgba(120, 196, 255, 0.32),
+      0 3px 10px rgba(0, 0, 0, 0.4);
   }
 
   .minimal .shead {
@@ -793,14 +865,14 @@
     color: var(--muted);
   }
 
-  /* The pick: soft cyan that runs out towards the right. */
+  /* The pick: soft cyan light that runs out towards the right. */
   .minimal .srow.sel {
-    color: #08314f;
+    color: #fff;
     background: linear-gradient(
       to right,
-      rgba(159, 209, 242, 0.95),
-      rgba(159, 209, 242, 0.5) 62%,
-      rgba(159, 209, 242, 0)
+      rgba(120, 196, 255, 0.42),
+      rgba(120, 196, 255, 0.2) 62%,
+      rgba(120, 196, 255, 0)
     );
     box-shadow: inset 2px 0 0 var(--blue);
   }
@@ -819,12 +891,12 @@
     margin-top: 4px;
     font-size: 13px;
     font-weight: 600;
-    color: #7d1712;
-    background: linear-gradient(to right, #e3c1c2, #d6c6d0);
+    color: #ffd6d1;
+    background: linear-gradient(to right, #4d1e23, #33212d);
     border-radius: 1px;
     box-shadow:
       inset 2px 0 0 var(--red-text),
-      0 0 16px rgba(159, 209, 242, 0.35);
+      0 0 10px rgba(120, 196, 255, 0.22);
   }
 
   .minimal .input {
@@ -833,23 +905,18 @@
     padding: 0 13px 0 12px;
   }
 
-  /* A little brighter than the log, with the one hairline: under the text,
-     cyan, fading out with the band. */
+  /* A little denser than the log, with the same lit top edge. */
   .minimal .input::before {
     background:
       linear-gradient(
           to right,
-          rgba(159, 209, 242, 0.9),
-          rgba(226, 241, 250, 0.95) 50%,
-          rgba(159, 209, 242, 0.9)
+          rgba(150, 214, 255, 0.6),
+          rgba(236, 248, 255, 0.9) 50%,
+          rgba(150, 214, 255, 0.6)
         )
-        bottom / 100% 1px no-repeat,
-      linear-gradient(
-        to bottom,
-        rgba(212, 225, 235, 0) 0,
-        rgba(212, 225, 235, 0.86) 3px,
-        rgba(187, 206, 220, 0.9) 100%
-      );
+        top / 100% 1px no-repeat,
+      linear-gradient(to bottom, rgba(168, 222, 255, 0.2), rgba(168, 222, 255, 0) 8px),
+      linear-gradient(to bottom, rgba(36, 50, 66, 0.73) 0, rgba(21, 31, 44, 0.77) 100%);
   }
 
   .minimal .label {
@@ -873,26 +940,28 @@
 
   .minimal .caret {
     height: 18px;
-    background: var(--blue);
+    background: #d6eeff;
+    box-shadow: 0 0 4px rgba(150, 214, 255, 0.8);
   }
 
   .minimal .send {
     font-size: 12px;
     letter-spacing: 0;
     text-transform: none;
-    color: #62768a;
+    color: var(--dim);
   }
 
   .minimal .send.ready {
     color: var(--blue);
+    text-shadow: var(--halo);
   }
 
   .minimal .dot {
     border-radius: 1px;
   }
 
-  /* The hints sit on short strips of the same tint, faded at both ends, so
-     they read over any scene. */
+  /* The hints sit on short strips of the same dark tint, faded at both
+     ends, so they read over any scene. */
   .minimal .foot {
     width: 500px;
     height: 24px;
@@ -900,7 +969,7 @@
     font-size: 11px;
     font-weight: 400;
     line-height: 18px;
-    color: #223344;
+    color: #c9d6e2;
     text-shadow: var(--halo);
   }
 
@@ -908,13 +977,13 @@
   .minimal .keys {
     height: 18px;
     margin-top: 5px;
-    padding: 0 20px;
+    padding: 0 16px;
     background: linear-gradient(
       to right,
-      rgba(201, 216, 228, 0),
-      rgba(201, 216, 228, 0.8) 20px,
-      rgba(190, 208, 222, 0.8) calc(100% - 20px),
-      rgba(190, 208, 222, 0)
+      rgba(24, 36, 50, 0),
+      rgba(24, 36, 50, 0.68) 16px,
+      rgba(24, 36, 50, 0.68) calc(100% - 16px),
+      rgba(24, 36, 50, 0)
     );
   }
 

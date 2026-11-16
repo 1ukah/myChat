@@ -1,0 +1,208 @@
+<script lang="ts">
+  // One picture of a message, in a box of its final size from the start
+  // (Go sends width and height), so nothing jumps when the image arrives:
+  // a quiet placeholder first, then the image fades in. GIFs simply play.
+  //
+  // When pictures are switched off, or the image cannot be loaded, a small
+  // muted label ("Image" / "GIF") stands in, so a message that was only a
+  // picture is never empty.
+  //
+  // The only address ever put into `src` is `media.url`, and only when it
+  // points at myChat itself.
+  import { tick } from "svelte";
+  import type * as C from "../../../bindings/mychat/internal/chat/models";
+  import { fitSize, isLocal } from "./media";
+
+  let {
+    media,
+    show,
+    maxW,
+    maxH,
+    minimal = false,
+    onsize,
+  }: {
+    media: C.Media;
+    /** Setting `showImages`; off draws the label instead. */
+    show: boolean;
+    maxW: number;
+    maxH: number;
+    /** The Minimal look: no frame, feathered edges. */
+    minimal?: boolean;
+    /** The box changed size after it was drawn (the real size was unknown). */
+    onsize?: () => void;
+  } = $props();
+
+  // Remembered per address, so a new picture in the same place starts over.
+  let loaded = $state("");
+  let failed = $state("");
+  let natural = $state<{ url: string; w: number; h: number } | null>(null);
+
+  const label = $derived(media.kind === "gif" ? "GIF" : "Image");
+  const usable = $derived(show && isLocal(media.url) && failed !== media.url);
+  const known = $derived(media.width > 0 && media.height > 0);
+  const size = $derived.by(() => {
+    if (known) return fitSize(media.width, media.height, maxW, maxH);
+    const n = natural?.url === media.url ? natural : null;
+    return fitSize(n?.w ?? 0, n?.h ?? 0, maxW, maxH);
+  });
+
+  function onload(e: Event): void {
+    const img = e.currentTarget as HTMLImageElement;
+    if (!known) {
+      natural = { url: media.url, w: img.naturalWidth, h: img.naturalHeight };
+      if (onsize) void tick().then(onsize);
+    }
+    loaded = media.url;
+  }
+
+  function onerror(): void {
+    failed = media.url;
+    if (onsize) void tick().then(onsize);
+  }
+</script>
+
+{#if usable}
+  <span
+    class="pic"
+    class:minimal
+    class:ready={loaded === media.url}
+    style:width="{size.w}px"
+    style:aspect-ratio="{size.w} / {size.h}"
+  >
+    <img
+      src={media.url}
+      alt={media.title || label}
+      width={size.w}
+      height={size.h}
+      decoding="async"
+      draggable="false"
+      {onload}
+      {onerror}
+    />
+  </span>
+{:else}
+  <span class="label" class:minimal>
+    <svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true">
+      <path d="M1.5 2.5h9v7h-9z M2 8.5l2.6-2.8 2 2 1.4-1.3 2.5 2.4" fill="none" stroke="currentColor" stroke-width="1.1" />
+    </svg>
+    <span>{label}</span>
+  </span>
+{/if}
+
+<style>
+  /* Legacy: square, with a thin dark frame like CS2's own panels. The
+     frame is drawn outside the picture; the 1 px margin keeps its outer
+     edge in line with the text. The fill is the placeholder. */
+  .pic {
+    position: relative;
+    flex: none;
+    display: inline-block;
+    max-width: calc(100% - 2px);
+    margin: 1px;
+    overflow: hidden;
+    vertical-align: top;
+    background: rgba(255, 255, 255, 0.07);
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.85);
+  }
+
+  /* A faint band of light on the placeholder; it only moves with
+     animations on, and is gone once the image is there. */
+  .pic::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      100deg,
+      rgba(255, 255, 255, 0) 30%,
+      rgba(255, 255, 255, 0.07) 50%,
+      rgba(255, 255, 255, 0) 70%
+    );
+  }
+
+  .pic.ready::before {
+    display: none;
+  }
+
+  img {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    user-select: none;
+  }
+
+  .ready img {
+    opacity: 1;
+  }
+
+  /* Minimal: no frame. The edges are feathered over a few px instead, so
+     the picture sits in the glass band the way the band sits in the game. */
+  .pic.minimal {
+    max-width: 100%;
+    margin: 0;
+    background: rgba(168, 222, 255, 0.09);
+    box-shadow: none;
+    -webkit-mask-image:
+      linear-gradient(to right, transparent 0, #000 3px, #000 calc(100% - 3px), transparent 100%),
+      linear-gradient(to bottom, transparent 0, #000 3px, #000 calc(100% - 3px), transparent 100%);
+    mask-image:
+      linear-gradient(to right, transparent 0, #000 3px, #000 calc(100% - 3px), transparent 100%),
+      linear-gradient(to bottom, transparent 0, #000 3px, #000 calc(100% - 3px), transparent 100%);
+    -webkit-mask-composite: source-in;
+    mask-composite: intersect;
+  }
+
+  .pic.minimal::before {
+    background: linear-gradient(
+      100deg,
+      rgba(190, 230, 255, 0) 30%,
+      rgba(190, 230, 255, 0.1) 50%,
+      rgba(190, 230, 255, 0) 70%
+    );
+  }
+
+  /* "Image" / "GIF": small and muted, with a tiny picture glyph. */
+  .label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 16px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 16px;
+    letter-spacing: 0.01em;
+    vertical-align: top;
+    color: var(--muted);
+  }
+
+  .label svg {
+    flex: none;
+    opacity: 0.85;
+  }
+
+  .label.minimal {
+    font-weight: 400;
+    letter-spacing: 0;
+    color: #a9b9c8;
+  }
+
+  /* Opacity only, and only with animations on. */
+  :global(.anim) img {
+    transition: opacity 180ms ease-out;
+  }
+
+  :global(.anim) .pic:not(.ready)::before {
+    animation: wait 1.4s ease-in-out infinite alternate;
+  }
+
+  @keyframes wait {
+    from {
+      opacity: 0.2;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+</style>

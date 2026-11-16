@@ -3,7 +3,7 @@
 // of this is on the real app's path.
 //
 //   ?view=overlay&mock=composer   chat box with a sample log (you can type)
-//   ?view=overlay&mock=toast      four pop-up messages (A, A, B, A), standing still
+//   ?view=overlay&mock=toast      five pop-up messages (A, A, B, B, A), three with pictures, standing still
 //   ?view=overlay&mock=toaststream  a new pop-up message every 2 s
 //   ?view=overlay&mock=suggest    chat box while typing "/w s", with an error
 //   ?view=overlay&mock=offline    chat box while Steam is reconnecting
@@ -28,6 +28,13 @@
 //                 &style=fade|slide-up|slide-down|slide-left|slide-right|typewriter
 //                 &speed=fast|normal|slow  &bg=dark|bright|mixed
 //                 &layout=stack|group  &max=1..5  &long=1 (a long pop-up message)
+//                 &images=0 (Show images off: labels instead of pictures)
+//                 &pics=0 (sample messages without pictures)
+//                 &links=1 (Also load image links on: a linked picture arrives 1.2 s after its message)
+//
+// Pictures: there is no /media/ server here, so the samples point at bundled
+// files (a photo, also used cropped as a portrait, and an animated GIF) and
+// one at a missing address, which fails and shows the "Image" label.
 //
 // The chat engine below is a small imitation of internal/chat, good enough to
 // try the keys: text, arrows, Tab, /w name, /r, /help, /clear, PgUp/PgDn,
@@ -41,6 +48,31 @@ import * as M from "../../../bindings/mychat/models";
 import * as C from "../../../bindings/mychat/internal/chat/models";
 import * as Cfg from "../../../bindings/mychat/internal/config/models";
 import * as SL from "../../../bindings/mychat/internal/steamlocal/models";
+import photoUrl from "../../assets/preview-bg.jpg";
+import gifUrl from "../../assets/sample.gif";
+
+/** Sample pictures: what Go would serve from /media/<id>. */
+const PICS = {
+  /** A landscape photo sent through Steam chat. */
+  photo: { url: photoUrl, width: 1280, height: 720, kind: "upload", title: "" },
+  /** A portrait one (the same file, cropped by the box). */
+  tall: { url: photoUrl, width: 720, height: 1280, kind: "upload", title: "" },
+  /** /giphy. */
+  gif: { url: gifUrl, width: 120, height: 68, kind: "gif", title: "Blue gradient" },
+  /** The download failed: Go answers 404. */
+  broken: { url: "/media/missing", width: 800, height: 450, kind: "upload", title: "" },
+  /** A picture behind an address in the message; its size is not known ahead. */
+  link: { url: photoUrl, width: 0, height: 0, kind: "link", title: "" },
+} as const;
+
+type Pic = keyof typeof PICS;
+
+const mediaOf = (pic: Pic, id: number): C.Media[] => [
+  new C.Media({ id: `mock-${pic}-${id}`, ...PICS[pic] }),
+];
+
+/** The address a linked picture is written as. */
+const LINK = "https://example.com/clutch.png";
 
 interface Friend {
   id: string;
@@ -103,24 +135,28 @@ const LONG =
   "this is a deliberately long message to show how a pop-up clamps its text to two lines and ends with an ellipsis instead of growing or pushing anything around";
 
 /** `mock=toaststream`: who writes what, in turn. People repeat, so groups form. */
-const INCOMING: [number, string][] = [
+const INCOMING: [number, string, Pic?][] = [
   [1, "we need one more for premier, you in?"],
-  [1, "queue pops in 2 min"],
+  [1, "look at this lineup", "photo"],
   [0, "gg, that last round was insane"],
+  [0, "", "gif"],
   [2, "ты где? заходи в лобби"],
   [2, "жду"],
-  [2, "ну давай быстрее"],
+  [2, "", "tall"],
   [3, LONG],
+  [3, `this one ${LINK}`, "link"],
   [4, "おつかれ！また明日"],
+  [4, "", "broken"],
   [0, "one more?"],
 ];
 
-/** `mock=toast`: A, A, B, A. */
-const STILL: [number, string][] = [
+/** `mock=toast`: A, A, B, B, A: text, text + photo, a failed picture, text, a GIF. */
+const STILL: [number, string, Pic?][] = [
   [0, "gg, that last round was insane"],
-  [0, "one more after this?"],
+  [0, "look at this", "photo"],
+  [1, "", "broken"],
   [1, "we need one more for premier, you in?"],
-  [0, "ok queueing"],
+  [0, "", "gif"],
 ];
 
 const HELP = [
@@ -200,6 +236,8 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     toastLayout: params.get("layout") === "stack" ? "stack" : "group",
     // The real default is 3; the overlay mocks show more unless told otherwise.
     toastMax: max >= 1 && max <= 5 ? max : view === "overlay" ? 5 : 3,
+    showImages: flag("images", true),
+    imageLinks: flag("links", false),
     bottomOffset: 150,
     scale: scale >= 0.75 && scale <= 1.5 ? scale : 1,
     machineSeed: "mock",
@@ -428,12 +466,43 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     emit("mode", modeInfo());
   };
 
-  const incoming = (from: Friend, text: string): void => {
-    const entry = add({ kind: "in", ...peer(from), text });
+  /** `&pics=0`: the sample messages come without their pictures. */
+  const withPics = flag("pics", true);
+
+  /**
+   * Like Go once it has checked a linked picture: the same entry again, now
+   * with the picture and without the address, to the log and to the pop-ups
+   * if it is still on screen.
+   */
+  const attach = (entry: C.Entry, pic: Pic): void => {
+    const next = new C.Entry({
+      ...entry,
+      text: entry.text.replace(LINK, "").trim(),
+      media: mediaOf(pic, entry.id),
+    });
+    if (!log.some((e) => e.id === next.id)) return;
+    log = log.map((e) => (e.id === next.id ? next : e));
+    emit("entryUpdated", next);
+    if (toasts.some((e) => e.id === next.id)) {
+      toasts = toasts.map((e) => (e.id === next.id ? next : e));
+      emit("toasts", new M.Toasts({ entries: [...toasts] }));
+    }
+  };
+
+  const incoming = (from: Friend, text: string, pic?: Pic): void => {
+    const linked = pic === "link";
+    // A message that was only a picture still says something without it.
+    if (!withPics) pic = undefined;
+    const media = pic && !linked ? mediaOf(pic, nextId) : [];
+    const entry = add({ kind: "in", ...peer(from), text: text || (pic ? "" : "(picture)"), media });
     lastFrom = from.id;
     touch(from.id);
     changed();
     toast(entry);
+    // The address stays as text unless image links are on.
+    if (pic && linked && cfg.showImages && cfg.imageLinks) {
+      window.setTimeout(() => attach(entry, "link"), 1200);
+    }
   };
 
   const setWhisper = (f: Friend): void => {
@@ -715,7 +784,7 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     const at = (minutesAgo: number): number => now - minutesAgo * 60_000;
     // `long` has a broken avatar URL and `sandro` has none: both show the letter tile.
     const [sant1, mira, dmitri, long, sakura, sandro, ahmed] = FRIENDS;
-    const lines: Partial<C.Entry>[] = [
+    const lines: (Partial<C.Entry> & { pic?: Pic })[] = [
       { time: at(34), kind: "system", text: "Connected to Steam as sant1." },
       { time: at(31), kind: "in", ...peer(dmitri), text: "привет, го катку?" },
       { time: at(30), kind: "out", ...peer(dmitri), text: "через 10 минут", status: "sent" },
@@ -723,14 +792,23 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
       { time: at(18), kind: "in", ...peer(ahmed), text: "مرحبا، هل تلعب الليلة؟" },
       { time: at(14), kind: "in", ...peer(sandro), text: "back in 5, grabbing food" },
       { time: at(12), kind: "in", ...peer(long), text: "did you see the new operation trailer? https://store.steampowered.com/news/app/730/view/000000000000000000 the maps look great and I think we should try the co-op missions this weekend" },
+      { time: at(10), kind: "in", ...peer(sakura), text: "", pic: "gif" },
+      { time: at(9), kind: "in", ...peer(sandro), text: "", pic: "broken" },
       { time: at(7), kind: "in", ...peer(mira), text: "rotate B, they stacked A again" },
+      { time: at(7), kind: "in", ...peer(mira), text: "this spot, remember it", pic: "photo" },
       { time: at(6), kind: "out", ...peer(mira), text: "on my way, smoke window", status: "sent" },
+      { time: at(5), kind: "out", ...peer(mira), text: "", pic: "tall", status: "sent" },
       { time: at(4), kind: "out", ...peer(dmitri), text: "ready when you are", status: "failed", detail: "Steam did not answer" },
       { time: at(3), kind: "error", text: "Steam connection lost. Reconnecting…" },
       { time: at(2), kind: "system", text: "Back online." },
       { time: at(1), kind: "in", ...peer(sant1), text: "one more after this?" },
     ];
-    log = lines.map((l) => new C.Entry({ id: nextId++, ...l }));
+    log = lines
+      .filter((l) => withPics || !l.pic)
+      .map(({ pic, ...l }) => {
+        const id = nextId++;
+        return new C.Entry({ id, ...l, media: pic ? mediaOf(pic, id) : [] });
+      });
     mru = [sant1.id, mira.id, dmitri.id, long.id, sakura.id, ahmed.id];
     lastFrom = sant1.id;
   };
@@ -746,7 +824,9 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     if (mock === "toast") {
       const long = params.has("long") && params.get("long") !== "0";
       window.setTimeout(() => {
-        STILL.forEach(([who, text], i) => incoming(FRIENDS[who], long && i === 2 ? LONG : text));
+        STILL.forEach(([who, text, pic], i) =>
+          incoming(FRIENDS[who], long && i === 3 ? LONG : text, pic),
+        );
       }, 300);
       return;
     }
@@ -754,8 +834,8 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     if (mock === "toaststream") {
       let n = 0;
       const next = (): void => {
-        const [who, text] = INCOMING[n++ % INCOMING.length];
-        incoming(FRIENDS[who], text);
+        const [who, text, pic] = INCOMING[n++ % INCOMING.length];
+        incoming(FRIENDS[who], text, pic);
         window.setTimeout(next, 2000);
       };
       window.setTimeout(next, 400);

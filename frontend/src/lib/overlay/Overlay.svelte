@@ -16,7 +16,7 @@
   const open = $derived(app.mode.mode === "composer");
   const live = $derived(app.mode.mode !== "hidden");
   const motion = $derived(motionOf(app.mode, app.mode.hideDelayMs));
-  /** The chat look: Legacy (CS2 style) or Minimal (pale Panorama bands). */
+  /** The chat look: Legacy (CS2 style) or Minimal (dark Panorama glass bands). */
   const minimal = $derived(asLook(app.mode.overlayStyle) === "minimal");
 
   // What was last on screen. After `hidden` it stays mounted so the exit
@@ -94,6 +94,7 @@
             {status}
             live={open}
             avatars={app.mode.showAvatars}
+            images={app.config.showImages}
             {minimal}
             typewriter={motion.typewriter}
           />
@@ -104,6 +105,7 @@
             hotkey={app.config.hotkeyLabel}
             {live}
             avatars={app.mode.showAvatars}
+            images={app.config.showImages}
             {minimal}
             {motion}
           />

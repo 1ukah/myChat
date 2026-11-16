@@ -101,6 +101,15 @@
       ],
     ],
     [
+      "images",
+      [
+        ["on", { images: "1", pics: "1" }],
+        ["off", { images: "0", pics: "1" }],
+        ["none", { pics: "0" }],
+        ["links", { images: "1", pics: "1", links: "1" }],
+      ],
+    ],
+    [
       "avatars",
       [
         ["on", { avatars: "1" }],

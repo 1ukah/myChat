@@ -1,7 +1,8 @@
 <script lang="ts" generics="T extends string">
   // Dropdown: the value in semibold type with a chevron
-  // ("Slide up ⌄"), and a flat list that opens below. The chosen
-  // option is the steel-blue box of the selected tab.
+  // ("Slide up ⌄"), and a flat list that opens below, or above when there
+  // is no room below (the last row of a page). The chosen option is the
+  // steel-blue box of the selected tab.
   import { tick } from "svelte";
   import Icon from "./Icon.svelte";
 
@@ -21,6 +22,8 @@
   } = $props();
 
   let open = $state(false);
+  /** The list opens above the value instead of below. */
+  let up = $state(false);
   let root = $state<HTMLElement>();
   let trigger = $state<HTMLButtonElement>();
 
@@ -29,9 +32,24 @@
   const items = (): HTMLElement[] =>
     Array.from(root?.querySelectorAll<HTMLElement>('[role="option"]') ?? []);
 
+  /** Top and bottom of what the list may cover: the scrolling pane, else the window. */
+  function room(): { top: number; bottom: number } {
+    for (let el = root?.parentElement; el; el = el.parentElement) {
+      const flow = getComputedStyle(el).overflowY;
+      if (flow === "auto" || flow === "scroll") return el.getBoundingClientRect();
+    }
+    return { top: 0, bottom: window.innerHeight };
+  }
+
   async function show(): Promise<void> {
+    up = false;
     open = true;
     await tick();
+    const box = root?.querySelector<HTMLElement>(".list")?.getBoundingClientRect();
+    const top = trigger?.getBoundingClientRect().top ?? 0;
+    // Above only if it does not fit below and does fit above.
+    const pane = room();
+    if (box && box.bottom > pane.bottom && top - 2 - box.height >= pane.top) up = true;
     (items().find((el) => el.getAttribute("aria-selected") === "true") ?? items()[0])?.focus();
   }
 
@@ -86,7 +104,7 @@
   </button>
 
   {#if open}
-    <div class="list" role="listbox" aria-label={label}>
+    <div class="list" class:up role="listbox" aria-label={label}>
       {#each options as option (option.value)}
         <button
           type="button"
@@ -151,6 +169,11 @@
     background: var(--menu);
     border: 1px solid var(--line);
     box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55);
+  }
+
+  .list.up {
+    top: auto;
+    bottom: calc(100% + 2px);
   }
 
   .option {

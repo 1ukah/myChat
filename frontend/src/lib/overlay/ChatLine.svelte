@@ -9,17 +9,25 @@
   import { clock, playerColor } from "../format";
   import { isFresh } from "../store.svelte";
   import Avatar from "../ui/Avatar.svelte";
+  import { CHAT_THUMB, pictureOf } from "./media";
+  import Picture from "./Picture.svelte";
   import Typed from "./Typed.svelte";
 
   let {
     entry,
     avatars = false,
+    images = true,
+    thumbH = CHAT_THUMB.h,
     minimal = false,
     typewriter = false,
   }: {
     entry: C.Entry;
     avatars?: boolean;
-    /** The Minimal look: "name: text" and "To name: text", dark slate on pale steel-blue. */
+    /** Draw the message's picture (setting `showImages`); off shows a label instead. */
+    images?: boolean;
+    /** Height limit for the thumbnail; the chat box lowers it when pictures crowd. */
+    thumbH?: number;
+    /** The Minimal look: "name: text" and "To name: text", near-white on dark blue-grey glass. */
     minimal?: boolean;
     /** Animation style is "typewriter": a new incoming message types itself out. */
     typewriter?: boolean;
@@ -34,6 +42,8 @@
   const pending = $derived(entry.status === "pending");
   const failed = $derived(entry.status === "failed");
   const tint = $derived(playerColor(entry.peerId || entry.peerName));
+  /** Arrives later for a linked picture: the entry is replaced as a whole. */
+  const pic = $derived(pictureOf(entry));
 </script>
 
 {#snippet face()}{#if avatars}<Avatar inline size={16} {tint} src={entry.peerAvatar} name={entry.peerName} />{:else}<span class="dot" style:color={tint}>{minimal ? "■" : "●"}</span>{" "}{/if}{/snippet}
@@ -53,6 +63,11 @@
       </svg>
       <span>{entry.detail || "Not sent"}</span>
     </span>
+  {/if}
+  {#if pic}
+    <!-- A thumbnail under the line. The unseen copy of the time puts it
+         exactly where the message starts. -->
+    <div class="media" class:plain={!images}><span class="time ghost" aria-hidden="true">{clock(entry.time)}</span>{" "}<Picture media={pic} show={images} maxW={CHAT_THUMB.w} maxH={thumbH} {minimal} /></div>
   {/if}
 </div>
 
@@ -105,6 +120,21 @@
     color: var(--c);
   }
 
+  /* No line height of its own: exactly as tall as the picture. */
+  .media {
+    margin: 2px 0 4px;
+    line-height: 0;
+    white-space: nowrap;
+  }
+
+  .media.plain {
+    margin: 0 0 2px;
+  }
+
+  .ghost {
+    visibility: hidden;
+  }
+
   .dot {
     font-size: 11px;
     vertical-align: 1px;
@@ -142,24 +172,25 @@
     flex: none;
   }
 
-  /* ---------- Minimal look: dark slate text on the pale steel-blue band,
-     with a pale glow instead of the hard shadow ---------- */
+  /* ---------- Minimal look: near-white text on the dark blue-grey band,
+     with a small pale glow over a 1 px dark edge instead of the hard
+     shadow (the same value as --halo in the chat box and pop-ups) ---------- */
 
   .minimal {
     font-family: var(--font-ui);
     font-size: 14px;
     font-weight: 400;
     line-height: 20px;
-    color: #0e1a26;
-    text-shadow: 0 0 6px rgba(222, 235, 244, 0.9);
+    color: #f4f8fb;
+    text-shadow: 0 1px 1px rgba(4, 10, 18, 0.55), 0 0 5px rgba(178, 226, 255, 0.5);
   }
 
   .minimal.in {
-    --c: #0f4f86;
+    --c: #a3d6ff;
   }
 
   .minimal.out {
-    --c: #3a4c5e;
+    --c: #b9c8d6;
   }
 
   .minimal .who {
@@ -167,29 +198,29 @@
   }
 
   .minimal.out .text {
-    color: #22313f;
+    color: #dbe5ee;
   }
 
   .minimal.system {
     font-weight: 400;
-    color: #40525f;
+    color: #b7c6d4;
   }
 
   .minimal.error {
     font-weight: 600;
-    color: #9c211a;
+    color: #ff9d94;
   }
 
   .minimal .time {
     font-size: 11px;
     font-weight: 400;
-    color: #4a5c6d;
+    color: #a9b9c8;
   }
 
   .minimal .fail {
     font-size: 12px;
     font-weight: 600;
-    color: #9c211a;
+    color: #ff9d94;
   }
 
   /* A new line uses a shorter, smaller version of the panel's motion

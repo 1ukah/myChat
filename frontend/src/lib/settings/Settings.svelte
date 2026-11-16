@@ -1,11 +1,10 @@
 <script lang="ts">
   // The settings window (frameless, 980×680, resizable): a top bar with the
-  // icon, the nav and the account, a tab row with the search button, a second
+  // name, the nav and the account, a tab row with the search button, a second
   // row of sub-tabs, a centred column of rows on a smoky blue-grey
   // background, and Reset at the bottom right. Set in Inter throughout.
   import { onDestroy, setContext, tick } from "svelte";
   import * as Cfg from "../../../bindings/mychat/internal/config/models";
-  import iconUrl from "../../assets/mychat-icon.svg";
   import { app, hideSettings, minimiseSettings, saveConfig } from "../store.svelte";
   import Avatar from "../ui/Avatar.svelte";
   import Icon from "../ui/Icon.svelte";
@@ -120,6 +119,8 @@
     { tab: "chat", section: "pop-ups", label: "Pop-up duration", words: "toast seconds time" },
     { tab: "chat", section: "pop-ups", label: "Multiple messages", words: "toast pop-up layout stack group grouped discord sender" },
     { tab: "chat", section: "pop-ups", label: "Messages shown", words: "toast pop-up max count number how many recent" },
+    { tab: "chat", section: "pop-ups", label: "Show images", words: "picture photo gif giphy embed media thumbnail chat box pop-up" },
+    { tab: "chat", section: "pop-ups", label: "Also load image links", words: "picture photo gif giphy embed link url address site ip privacy" },
     { tab: "overlay", section: "appearance", label: "Chat look", words: "style theme legacy minimal light cs2" },
     { tab: "overlay", section: "appearance", label: "Show avatars", words: "pictures" },
     { tab: "overlay", section: "appearance", label: "Size", words: "scale zoom" },
@@ -195,6 +196,8 @@
         toastSeconds: 6,
         toastLayout: "group",
         toastMax: 3,
+        showImages: true,
+        imageLinks: false,
       };
       const h = app.config.hotkey;
       if (h.code !== "KeyI" || h.ctrl || h.shift || h.alt) {
@@ -251,7 +254,6 @@
 <div class="settings" class:anim={app.config.animations} style:--topo="url({topo})">
   <header class="top">
     <div class="mark">
-      <img src={iconUrl} alt="" width="24" height="24" draggable="false" />
       <span>myChat</span>
     </div>
 
@@ -465,14 +467,6 @@
     line-height: 24px;
     letter-spacing: -0.01em;
     color: #fff;
-  }
-
-  .mark img {
-    flex: none;
-    display: block;
-    width: 24px;
-    height: 24px;
-    border-radius: 2px;
   }
 
   /* Centred in the window, whatever sits left and right of it. */

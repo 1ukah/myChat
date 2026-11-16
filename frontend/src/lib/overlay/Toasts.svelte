@@ -10,11 +10,18 @@
   // name as a small coloured header, the message as the readable part.
   // Only a newly added message animates in; what is already on screen slides
   // up to make room (transform only, one Web Animation per box, no loops).
+  //
+  // A message can carry a picture, drawn under its text. The window is only
+  // 360 px high, so: the newest picture is shown at full size (300 × 150 at
+  // most), pictures in older messages shrink to thumbnails (40 px high), and
+  // if the list still does not fit, the oldest messages are left out (`fit`).
   import { untrack } from "svelte";
   import type * as C from "../../../bindings/mychat/internal/chat/models";
   import { clock, playerColor } from "../format";
   import Avatar from "../ui/Avatar.svelte";
+  import { pictureOf, TOAST_FULL, TOAST_THUMB } from "./media";
   import type { Motion } from "./motion";
+  import Picture from "./Picture.svelte";
   import Typed from "./Typed.svelte";
 
   let {
@@ -23,6 +30,7 @@
     hotkey,
     live,
     avatars = false,
+    images = true,
     minimal = false,
     motion,
   }: {
@@ -36,13 +44,17 @@
     live: boolean;
     /** Show the senders' avatars (setting `showAvatars`). */
     avatars?: boolean;
-    /** The Minimal look (`overlayStyle`): pale steel-blue, square, fading at the edges. */
+    /** Draw the pictures in messages (setting `showImages`); off shows a label instead. */
+    images?: boolean;
+    /** The Minimal look (`overlayStyle`): dark blue-grey glass, light text, fading at the edges. */
     minimal?: boolean;
     motion: Motion;
   } = $props();
 
   interface Line {
     entry: C.Entry;
+    /** The message's picture, if it has one. */
+    media: C.Media | null;
     /** Joined a box that was already on screen: the line itself moves in. */
     fresh: boolean;
     /** Typewriter style: the text types itself out. */
@@ -94,7 +106,12 @@
           });
       nextMarks.set(entry.id, mark);
 
-      const line: Line = { entry, fresh: mark.enter === "line", typed: mark.typed };
+      const line: Line = {
+        entry,
+        media: pictureOf(entry),
+        fresh: mark.enter === "line",
+        typed: mark.typed,
+      };
       if (join) {
         last.lines.push(line);
         nextKeys.set(entry.id, last.key);
@@ -121,6 +138,14 @@
     return out;
   });
 
+  /** The newest message with a picture: the only one shown at full size. */
+  const fullId = $derived.by(() => {
+    for (let i = entries.length - 1; i >= 0; i--) {
+      if (pictureOf(entries[i])) return entries[i].id;
+    }
+    return null;
+  });
+
   /** "Ctrl + F6" → "CTRL+F6", as CS2 writes key hints. */
   const key = $derived((hotkey || "I").replace(/\s*\+\s*/g, "+").toUpperCase());
   const typeDelay = $derived(Math.round(motion.enterMs * 0.6));
@@ -136,7 +161,34 @@
   const before = new Map<HTMLElement, { top: number; bottom: number }>();
   const sliding = new WeakMap<HTMLElement, Animation>();
 
-  const PARTS = ".face, .title, .text";
+  const PARTS = ".face, .title, .msg";
+
+  // ---- the height budget: what does not fit is left out, oldest first ----
+  //
+  // The list is built up from the bottom edge, so too much content sticks
+  // out above the top of the window. This walks from the oldest message on
+  // and hides whole messages until the rest fits: a line of a grouped box
+  // first, and the box itself with its last line. The newest message is
+  // never hidden, so it and the key hint are always fully visible (a
+  // full-size picture with two lines of text is about 220 px). Run after
+  // every change, starting from everything shown.
+
+  function fit(root: HTMLElement): void {
+    for (const el of root.querySelectorAll<HTMLElement>("[hidden]")) el.hidden = false;
+    const all = Array.from(root.querySelectorAll<HTMLElement>(".box"));
+    for (let b = 0; b < all.length; b++) {
+      const box = all[b];
+      // Everything older is hidden by now: this box is the top of the list.
+      const over = (): boolean => box.offsetTop < 0;
+      const msgs = Array.from(box.querySelectorAll<HTMLElement>(".msg"));
+      for (let m = 0; m < msgs.length - 1; m++) {
+        if (!over()) return;
+        msgs[m].hidden = true;
+      }
+      if (b === all.length - 1 || !over()) return;
+      box.hidden = true;
+    }
+  }
 
   function measure(root: HTMLElement): void {
     for (const box of root.querySelectorAll<HTMLElement>(".box")) {
@@ -164,7 +216,8 @@
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     for (const box of root.querySelectorAll<HTMLElement>(".box")) {
       const old = before.get(box);
-      if (!old) continue;
+      // Left out now, or was left out before: nothing to slide.
+      if (!old || box.hidden || old.bottom === old.top) continue;
       const top = box.offsetTop;
       const dTop = old.top - top;
       const dBottom = old.bottom - (top + box.offsetHeight);
@@ -187,9 +240,19 @@
 
   $effect(() => {
     void boxes;
+    void fullId;
+    void images;
+    void avatars;
+    void minimal;
+    if (list) fit(list);
     if (list && before.size > 0) play(list);
     before.clear();
   });
+
+  /** A picture's box changed after it was drawn (its size came with the image). */
+  function refit(): void {
+    if (list) fit(list);
+  }
 </script>
 
 <div class="toasts" class:minimal bind:this={list}>
@@ -206,14 +269,32 @@
           <span class="time">{clock(box.time)}</span>
         </div>
         {#each box.lines as line (line.entry.id)}
-          <div class="text" class:fresh={line.fresh}>
-            <bdi>
-              {#if line.typed}
-                <Typed text={line.entry.text} delay={typeDelay} />
-              {:else}
-                {line.entry.text}
-              {/if}
-            </bdi>
+          {@const full = line.entry.id === fullId}
+          <div class="msg" class:fresh={line.fresh}>
+            <!-- A message that is only a picture has no text. -->
+            {#if line.entry.text}
+              <div class="text">
+                <bdi>
+                  {#if line.typed}
+                    <Typed text={line.entry.text} delay={typeDelay} />
+                  {:else}
+                    {line.entry.text}
+                  {/if}
+                </bdi>
+              </div>
+            {/if}
+            {#if line.media}
+              <div class="media" class:plain={!images}>
+                <Picture
+                  media={line.media}
+                  show={images}
+                  maxW={full ? TOAST_FULL.w : TOAST_THUMB.w}
+                  maxH={full ? TOAST_FULL.h : TOAST_THUMB.h}
+                  {minimal}
+                  onsize={refit}
+                />
+              </div>
+            {/if}
           </div>
         {/each}
       </div>
@@ -320,6 +401,23 @@
       0 0 2px rgba(0, 0, 0, 0.7);
   }
 
+  /* The picture, under the text and in line with it. */
+  .media {
+    display: flex;
+    margin: 3px 0 2px;
+  }
+
+  /* Pictures are off: only the small label. */
+  .media.plain {
+    margin: 1px 0;
+  }
+
+  /* Left out by the height budget (see `fit`). */
+  .box:global([hidden]),
+  .msg:global([hidden]) {
+    display: none;
+  }
+
   /* One quiet key hint under the newest box. */
   .hint {
     flex: none;
@@ -340,21 +438,24 @@
   }
 
   /* ---------- Minimal look ----------
-     Each box is a band of pale Panorama steel-blue (never white) with dark
-     slate text, square, with no frame: the tint lives on a pseudo-element
-     that reaches past the text and is masked away to nothing at both ends
-     (--ends), with a feathered bottom. A faint cyan haze behind it and a
-     pale glow on the text stand in for blur. The one line is a hairline on
-     top that fades out with the band. The person's colour, darkened to read
-     on the tint, is kept for the name. Narrower than Legacy. */
+     Each box is a band of lit glass, after the CS2 Panorama panels: a dim,
+     see-through blue-grey tint with near-white text, square, with no frame.
+     The tint lives on a pseudo-element that reaches a little past the text
+     and is masked away to nothing at both ends (--ends, --fade), with a
+     feathered bottom. On its top edge is a bright cyan-white hairline with
+     a few px of light under it, fading out with the band. A tight, faint
+     cyan bloom behind it and a small pale glow on the text (over a 1 px
+     dark edge, for bright scenes) stand in for blur. The person's colour,
+     lightened to read on the dark tint, is kept for the name. Narrower than
+     Legacy. */
 
   .minimal {
     --width: 380px;
-    --fade: 46px;
+    --fade: 26px;
     --avatar-radius: 0px;
-    --muted: #4a5c6d;
-    --tile: #5b7186;
-    --halo: 0 0 6px rgba(222, 235, 244, 0.9);
+    --muted: #a9b9c8;
+    --tile: #4a5f75;
+    --halo: 0 1px 1px rgba(4, 10, 18, 0.55), 0 0 5px rgba(178, 226, 255, 0.5);
     --ends: linear-gradient(
       to right,
       transparent 0,
@@ -385,32 +486,33 @@
     background:
       linear-gradient(
           to right,
-          rgba(159, 209, 242, 0.85),
-          rgba(226, 241, 250, 0.95) 50%,
-          rgba(159, 209, 242, 0.85)
+          rgba(150, 214, 255, 0.6),
+          rgba(236, 248, 255, 0.9) 50%,
+          rgba(150, 214, 255, 0.6)
         )
         top / 100% 1px no-repeat,
+      linear-gradient(to bottom, rgba(168, 222, 255, 0.2), rgba(168, 222, 255, 0) 8px),
       linear-gradient(
         to bottom,
-        rgba(206, 220, 231, 0.86) 0,
-        rgba(174, 195, 211, 0.88) calc(100% - 4px),
-        rgba(169, 191, 208, 0) 100%
+        rgba(34, 48, 64, 0.73) 0,
+        rgba(20, 30, 42, 0.75) calc(100% - 4px),
+        rgba(20, 30, 42, 0) 100%
       );
     -webkit-mask-image: var(--ends);
     mask-image: var(--ends);
   }
 
-  /* The haze around each band. */
+  /* The bloom: hugs the band and is gone a few px past its ends. */
   .minimal .box::after {
     content: "";
     position: absolute;
     z-index: -2;
-    inset: -12px -64px;
+    inset: -6px -34px;
     background: radial-gradient(
       closest-side,
-      rgba(159, 209, 242, 0.24) 0,
-      rgba(159, 209, 242, 0.2) 58%,
-      rgba(159, 209, 242, 0) 100%
+      rgba(120, 196, 255, 0.16) 0,
+      rgba(120, 196, 255, 0.12) 66%,
+      rgba(120, 196, 255, 0) 100%
     );
   }
 
@@ -420,7 +522,7 @@
 
   .minimal .name {
     letter-spacing: 0;
-    color: color-mix(in srgb, var(--who) 40%, #06182b);
+    color: color-mix(in srgb, var(--who) 58%, #fff);
     text-shadow: var(--halo);
   }
 
@@ -430,7 +532,7 @@
 
   .minimal .text {
     font-weight: 400;
-    color: #0e1a26;
+    color: #f4f8fb;
     text-shadow: var(--halo);
   }
 
@@ -438,26 +540,26 @@
     height: 17px;
   }
 
-  /* A short strip of the same tint, faded at both ends. */
+  /* A short strip of the same dark tint, faded at both ends. */
   .minimal .hint span {
-    padding: 0 18px;
+    padding: 0 14px;
     font-weight: 400;
     line-height: 17px;
     letter-spacing: 0;
-    color: #223344;
+    color: #c9d6e2;
     text-shadow: var(--halo);
     background: linear-gradient(
       to right,
-      rgba(201, 216, 228, 0),
-      rgba(201, 216, 228, 0.8) 18px,
-      rgba(190, 208, 222, 0.8) calc(100% - 18px),
-      rgba(190, 208, 222, 0)
+      rgba(24, 36, 50, 0),
+      rgba(24, 36, 50, 0.68) 14px,
+      rgba(24, 36, 50, 0.68) calc(100% - 14px),
+      rgba(24, 36, 50, 0)
     );
   }
 
   .minimal .hint b {
     font-weight: 700;
-    color: #0e1a26;
+    color: #f4f8fb;
   }
 
   /* A new message moves in the way the chosen style says (--dx/--dy). */
@@ -465,7 +567,7 @@
     animation: box-in var(--dur) var(--ease-out) both;
   }
 
-  :global(.anim) .text.fresh {
+  :global(.anim) .msg.fresh {
     animation: line-in var(--dur) var(--ease-out) both;
   }
 

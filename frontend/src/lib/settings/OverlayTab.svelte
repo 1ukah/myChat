@@ -9,7 +9,6 @@
   } from "../overlay/motion";
   import { app, previewToast, saveConfig } from "../store.svelte";
   import Button from "../ui/Button.svelte";
-  import Segmented from "../ui/Segmented.svelte";
   import Select from "../ui/Select.svelte";
   import Slider from "../ui/Slider.svelte";
   import Toggle from "../ui/Toggle.svelte";
@@ -41,7 +40,7 @@
 
   const LOOKS = [
     { value: "legacy", label: "Legacy", hint: "The dark CS2-style chat." },
-    { value: "minimal", label: "Minimal", hint: "Pale steel-blue, square and compact; the colour fades out at the edges." },
+    { value: "minimal", label: "Minimal", hint: "Dark blue-grey glass with light text, square and compact; a soft glow, fading out at the edges." },
   ] as const;
 
   const look = $derived(asLook(app.config.overlayStyle) === "minimal" ? LOOKS[1] : LOOKS[0]);
@@ -54,7 +53,7 @@
 
 <Section id="appearance" title="Appearance">
   <Row label="Chat look" hint={look.hint} error={errors.overlayStyle}>
-    <Segmented
+    <Select
       label="Chat look"
       value={look.value}
       options={LOOKS}
@@ -107,7 +106,7 @@
     />
   </Row>
   <Row label="Animation speed" error={errors.animationSpeed} dim={still}>
-    <Segmented
+    <Select
       label="Animation speed"
       value={asSpeed(app.config.animationSpeed)}
       options={SPEEDS}
