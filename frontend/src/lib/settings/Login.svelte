@@ -16,10 +16,12 @@
     loginWithPassword,
     openSteamLogin,
     refreshLocalLogins,
+    saveConfig,
     startLogin,
   } from "../store.svelte";
   import Button from "../ui/Button.svelte";
   import Icon from "../ui/Icon.svelte";
+  import NameEye from "../ui/NameEye.svelte";
   import QrCode from "../ui/QrCode.svelte";
   import Spinner from "../ui/Spinner.svelte";
   import AccountCards from "./AccountCards.svelte";
@@ -57,6 +59,15 @@
     openError = "";
     openError = await openSteamLogin();
     opening = false;
+  }
+
+  // The list masks every login name unless the user asks to see them; the
+  // eye in the heading is the same one as on the Account tab.
+  const showNames = $derived(app.config.showAccountName);
+  let eyeError = $state("");
+
+  async function toggleNames(): Promise<void> {
+    eyeError = await saveConfig({ showAccountName: !showNames });
   }
 
   // Steam's saved accounts may have changed since the app started.
@@ -118,8 +129,16 @@
   {:else}
     {#if local.steamInstalled}
       <section class="way">
-        <h3 class="main"><Icon name="pc" /><span>Use Steam on this PC</span></h3>
+        <div class="head">
+          <h3 class="main"><Icon name="pc" /><span>Use Steam on this PC</span></h3>
+          {#if accounts.length > 0}
+            <span class="eye"><NameEye shown={showNames} onclick={toggleNames} /></span>
+          {/if}
+        </div>
         {#if accounts.length > 0}
+          {#if eyeError}
+            <p class="text bad" role="alert">{eyeError}</p>
+          {/if}
           <AccountCards />
         {/if}
         {#if local.watching}
@@ -291,6 +310,21 @@
 
   h3.main {
     color: var(--accent);
+  }
+
+  .head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  /* The eye for the list below: level with the heading text, and over the
+     column of radio boxes at the right end of the rows. */
+  .eye {
+    flex: none;
+    display: flex;
+    margin: 6px 12px 0 0;
   }
 
   /* ---------- account name + password ---------- */

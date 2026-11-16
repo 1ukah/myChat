@@ -2,7 +2,7 @@
   import { app, cancelLogin, logout, refreshLocalLogins, saveConfig } from "../store.svelte";
   import Avatar from "../ui/Avatar.svelte";
   import Button from "../ui/Button.svelte";
-  import Icon from "../ui/Icon.svelte";
+  import NameEye from "../ui/NameEye.svelte";
   import NameMask from "../ui/NameMask.svelte";
   import AccountCards from "./AccountCards.svelte";
   import Login from "./Login.svelte";
@@ -86,16 +86,7 @@
           {:else}
             <span class="account veiled"><span aria-hidden="true">·</span><NameMask /></span>
           {/if}
-          <button
-            type="button"
-            class="eye"
-            aria-label={showAccount ? "Hide account name" : "Show account name"}
-            title={showAccount ? "Hide account name" : "Show account name"}
-            aria-pressed={showAccount}
-            onclick={toggleAccount}
-          >
-            <Icon name={showAccount ? "eye-off" : "eye"} size={14} />
-          </button>
+          <span class="eye"><NameEye shown={showAccount} onclick={toggleAccount} /></span>
         </div>
         {#if eyeError}
           <div class="detail bad" role="alert">{eyeError}</div>
@@ -190,30 +181,11 @@
     gap: 5px;
   }
 
-  /* Shows or hides the Steam login name. */
+  /* Shows or hides the Steam login names. */
   .eye {
     flex: none;
     display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 20px;
     margin-left: -2px;
-    padding: 0;
-    color: var(--muted);
-    background: none;
-    border: 0;
-    border-radius: 2px;
-    cursor: pointer;
-  }
-
-  .eye:hover {
-    color: var(--accent);
-  }
-
-  .eye:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 1px;
   }
 
   .detail {
@@ -257,10 +229,6 @@
     font-weight: 600;
     line-height: 32px;
     color: var(--accent);
-  }
-
-  :global(.anim) .eye {
-    transition: color 120ms;
   }
 
   /* The name and its mask are separate elements, so each fades in when the

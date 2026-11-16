@@ -3,7 +3,11 @@
   // square avatar, bold persona name, small grey account line, a pill tag,
   // and the scoreboard's blue highlight on the selected row. One primary
   // button uses the selected account. Accounts the Steam app is not signed in
-  // to are muted, show the "?" tile and offer "Sign in in Steam" instead.
+  // to are muted and offer "Sign in in Steam" instead.
+  //
+  // Steam's saved logins come without pictures, so every row shows the "?"
+  // tile; only the account in use can show its real picture. Login names are
+  // private: all of them are masked unless `showAccountName` is on.
   //
   // Used on the login screen and for "Switch account" when logged in.
   import { app, openSteamLogin, useSteamAccount } from "../store.svelte";
@@ -74,8 +78,8 @@
 <div class="cards" role="radiogroup" aria-label="Steam accounts on this PC">
   {#each accounts as a (a.accountName)}
     {@const inUse = current !== "" && same(a.accountName, current)}
-    <!-- The login name myChat is using stays masked unless the user asked to see it. -->
-    {@const veiled = inUse && !app.config.showAccountName}
+    <!-- Every login name stays masked unless the user asked to see them. -->
+    {@const veiled = !app.config.showAccountName}
     {@const name = a.personaName || (veiled ? "Steam account" : a.accountName)}
     {@const error = errorFor(a.accountName)}
     {#if a.hasLogin}
@@ -88,7 +92,12 @@
         disabled={pending !== ""}
         onclick={() => (picked = a.accountName)}
       >
-        <Avatar size={40} ring={a.accountName === selected ? "accent" : "none"} {name} />
+        <Avatar
+          size={40}
+          ring={a.accountName === selected ? "accent" : "none"}
+          src={inUse ? app.status.avatar : ""}
+          name=""
+        />
         <span class="who">
           <bdi class="persona">{name}</bdi>
           <span class="account">{#if veiled}<NameMask />{:else}{a.accountName}{/if}</span>
