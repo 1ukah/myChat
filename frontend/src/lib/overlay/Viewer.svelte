@@ -6,16 +6,26 @@
   //
   // Any click closes it (Go catches the click), and Esc while the chat box
   // is open. `onclick` is for the browser mock.
+  //
+  // With animations on, the picture grows out of its thumbnail into the
+  // middle while the dim fades in, and shrinks back into it on close.
   import type * as C from "../../../bindings/mychat/internal/chat/models";
   import { closePicture } from "../store.svelte";
   import { isLocal } from "./media";
+  import type { Motion } from "./motion";
+  import { pictureSpot } from "./spots";
 
   let {
     media,
+    motion,
+    closing = false,
     minimal = false,
     composer = false,
   }: {
     media: C.Media;
+    motion: Motion;
+    /** Closed: the closing animation plays, then the overlay removes it. */
+    closing?: boolean;
     /** The Minimal look. */
     minimal?: boolean;
     /** The chat box is open, so Esc closes the picture too. */
@@ -24,6 +34,9 @@
 
   /** Small pictures are enlarged up to this much. */
   const GROW = 2;
+  /** The zoom gets a little longer than the chat box's entry. */
+  const openMs = $derived(Math.round(motion.enterMs * 1.5));
+  const EASE = "cubic-bezier(0.2, 0.8, 0.2, 1)";
 
   let vw = $state(0);
   let vh = $state(0);
@@ -54,6 +67,60 @@
     const img = e.currentTarget as HTMLImageElement;
     natural = { url: media.url, w: img.naturalWidth, h: img.naturalHeight };
   }
+
+  // Go makes the window cover the monitor just before this mounts, and the
+  // window may still be its usual 640×360 for a moment. Nothing shows or
+  // animates until it has grown.
+  const big = $derived(vh > 361);
+
+  let frame = $state<HTMLElement>();
+  let opened = false;
+
+  /** The transform that puts the frame (at rest) over the thumbnail, or
+      null when the thumbnail is not on screen. */
+  function overThumbnail(el: HTMLElement): string | null {
+    const thumb = document.querySelector(`[data-spot="${CSS.escape(pictureSpot(media))}"]`);
+    if (!thumb) return null;
+    const t = thumb.getBoundingClientRect();
+    const f = el.getBoundingClientRect();
+    if (t.width < 1 || t.height < 1 || f.width < 1 || f.height < 1) return null;
+    const k = Math.min(t.width / f.width, t.height / f.height);
+    const dx = t.left + t.width / 2 - (f.left + f.width / 2);
+    const dy = t.top + t.height / 2 - (f.top + f.height / 2);
+    return `translate(${dx}px, ${dy}px) scale(${k})`;
+  }
+
+  $effect(() => {
+    if (!big || !size || !frame || opened) return;
+    opened = true;
+    if (!motion.on) return;
+    const from = overThumbnail(frame);
+    frame.animate(
+      from
+        ? [{ transform: from }, { transform: "none" }]
+        : [{ transform: "scale(0.85)", opacity: 0 }, { transform: "none", opacity: 1 }],
+      { duration: openMs, easing: EASE },
+    );
+  });
+
+  $effect(() => {
+    if (!closing || !frame || !motion.on || !opened) return;
+    const el = frame;
+    // Carry on from wherever the opening zoom is.
+    const was = getComputedStyle(el).transform;
+    for (const a of el.getAnimations()) a.cancel();
+    const to = overThumbnail(el);
+    el.animate(
+      to
+        ? [
+            { transform: was, opacity: 1 },
+            { transform: to, opacity: 1, offset: 0.7 },
+            { transform: to, opacity: 0 },
+          ]
+        : [{ transform: was, opacity: 1 }, { transform: "scale(0.85)", opacity: 0 }],
+      { duration: motion.exitMs, easing: EASE, fill: "forwards" },
+    );
+  });
 </script>
 
 <!-- The overlay never has keyboard focus, and Go handles the real clicks. -->
@@ -61,13 +128,17 @@
 <div
   class="viewer"
   class:minimal
+  class:open={big}
+  class:closing
+  style:--zoom="{openMs}ms"
   bind:clientWidth={vw}
   bind:clientHeight={vh}
   onclick={closePicture}
 >
+  <div class="dim"></div>
   <figure>
     {#if usable}
-      <div class="frame" class:ready={size !== null}>
+      <div class="frame" class:ready={size !== null} bind:this={frame}>
         <img
           src={media.url}
           alt={media.title || label}
@@ -115,12 +186,23 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.62);
     cursor: zoom-out;
     font-family: var(--font-head);
   }
 
+  /* Until the window covers the monitor (see `big`). */
+  .viewer:not(.open) {
+    visibility: hidden;
+  }
+
+  .dim {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.62);
+  }
+
   figure {
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -207,8 +289,11 @@
   /* Minimal: a cool dark dim, the lit hairline and a soft cyan glow
      around the picture, and the hint on a strip of glass. */
   .minimal {
-    background: rgba(8, 14, 22, 0.62);
     font-family: var(--font-ui);
+  }
+
+  .minimal .dim {
+    background: rgba(8, 14, 22, 0.62);
   }
 
   .minimal .frame {
@@ -247,25 +332,27 @@
     color: #f4f8fb;
   }
 
-  /* Opacity and transform only, and only with animations on. */
-  :global(.anim) .viewer {
-    animation: dim-in var(--dur) ease-out both;
+  /* Opacity only, and only with animations on. The picture's zoom is
+     played from the script, since it starts at the thumbnail. */
+  :global(.anim) .viewer.open .dim,
+  :global(.anim) .viewer.open figcaption {
+    animation: fade-in var(--zoom) ease-out both;
   }
 
-  :global(.anim) .frame.ready {
-    animation: grow-in var(--dur) var(--ease-out) both;
+  :global(.anim) .viewer.closing .dim,
+  :global(.anim) .viewer.closing figcaption {
+    animation: fade-out var(--out) ease-in both;
   }
 
-  @keyframes dim-in {
+  @keyframes fade-in {
     from {
       opacity: 0;
     }
   }
 
-  @keyframes grow-in {
-    from {
+  @keyframes fade-out {
+    to {
       opacity: 0;
-      transform: scale(0.96);
     }
   }
 </style>

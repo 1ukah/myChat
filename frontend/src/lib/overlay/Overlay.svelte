@@ -8,7 +8,7 @@
   // screen, at the bottom middle, `bottomOffset` px up.
   import { onMount, tick, untrack } from "svelte";
   import type * as C from "../../../bindings/mychat/internal/chat/models";
-  import { app, overlayReady } from "../store.svelte";
+  import { app, overlayReady, overlayResized } from "../store.svelte";
   import Composer from "./Composer.svelte";
   import { pictureOf } from "./media";
   import { asLook, motionOf } from "./motion";
@@ -68,6 +68,35 @@
   // ---- pictures that open when clicked ----
 
   const viewer = $derived(live ? app.mode.viewer : null);
+
+  // The picture drawn: a closed one stays while its closing animation plays
+  // (Go shrinks the window only after it).
+  let shownViewer = $state<C.Media | null>(null);
+  let closing = $state(false);
+  let closeTimer = 0;
+  /** Changes on each opening, so a picture reopened mid-close starts over. */
+  let opening = $state(0);
+  $effect(() => {
+    const v = viewer;
+    untrack(() => {
+      clearTimeout(closeTimer);
+      if (v) {
+        if (!shownViewer || closing || shownViewer.id !== v.id) opening++;
+        shownViewer = v;
+        closing = false;
+      } else if (shownViewer && motion.on && motion.exitMs > 0) {
+        closing = true;
+        closeTimer = window.setTimeout(() => {
+          shownViewer = null;
+          closing = false;
+        }, motion.exitMs);
+      } else {
+        shownViewer = null;
+        closing = false;
+      }
+    });
+  });
+
   /** How far the 640×360 area sits above the bottom of the monitor, in CSS px. */
   const lift = $derived(Math.max(0, app.config.bottomOffset) / (app.config.scale || 1));
 
@@ -119,6 +148,21 @@
     void tick()
       .then(fontsReady)
       .then(overlayReady);
+
+    // Go hides the window while it changes size (opening or closing a
+    // picture); it shows again once a frame at the new size is drawn.
+    let pending = 0;
+    const onResize = (): void => {
+      cancelAnimationFrame(pending);
+      pending = requestAnimationFrame(() => {
+        pending = requestAnimationFrame(overlayResized);
+      });
+    };
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      cancelAnimationFrame(pending);
+    };
   });
 </script>
 
@@ -157,8 +201,10 @@
         {/key}
       {/if}
     </div>
-    {#if viewer}
-      <Viewer media={viewer} {minimal} composer={open} />
+    {#if shownViewer}
+      {#key opening}
+        <Viewer media={shownViewer} {motion} {closing} {minimal} composer={open} />
+      {/key}
     {/if}
   </Stage>
 </div>

@@ -1069,6 +1069,7 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     },
     clickSpot: (key) => (clickSpot(key), done()),
     closePicture: () => (closePicture(), done()),
+    overlayResized: () => done(),
 
     hideSettings: () => (console.info("mock: HideSettings"), done()),
     minimiseSettings: () => (console.info("mock: MinimiseSettings"), done()),

@@ -172,6 +172,7 @@ export const previewToast = (): void => fire(() => backend.previewToast());
 export const setSpots = (spots: M.Spot[]): void => fire(() => backend.setSpots(spots));
 export const clickSpot = (key: string): void => fire(() => backend.clickSpot(key));
 export const closePicture = (): void => fire(() => backend.closePicture());
+export const overlayResized = (): void => fire(() => backend.overlayResized());
 export const hideSettings = (): void => fire(() => backend.hideSettings());
 export const minimiseSettings = (): void => fire(() => backend.minimiseSettings());
 export const quit = (): void => fire(() => backend.quit());

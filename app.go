@@ -160,6 +160,7 @@ type App struct {
 	status      Status
 	ready       bool
 	viewer      *chat.Media     // the picture open at full size
+	viewerGen   int             // counts opens and closes, so a late shrink knows it is stale
 	spots       []input.Spot    // pictures and names on screen that react to clicks
 	spotInfo    map[string]Spot // by Spot.Key
 
@@ -620,6 +621,7 @@ func (a *App) openViewer(m chat.Media) {
 		return
 	}
 	a.viewer = &m
+	a.viewerGen++
 	if a.toastTimer != nil {
 		a.toastTimer.Stop()
 		a.toastTimer = nil
@@ -635,7 +637,8 @@ func (a *App) openViewer(m chat.Media) {
 }
 
 // closeViewer closes the open picture. Pop-ups then get their full
-// duration again.
+// duration again. The window shrinks back once the UI has played the
+// closing animation.
 func (a *App) closeViewer() {
 	a.mu.Lock()
 	if a.viewer == nil {
@@ -643,19 +646,32 @@ func (a *App) closeViewer() {
 		return
 	}
 	a.viewer = nil
+	a.viewerGen++
+	gen := a.viewerGen
 	cfg, mode := a.cfg, a.mode
 	if mode == ModeToast && a.toastTimer == nil {
 		a.toastTimer = time.AfterFunc(time.Duration(cfg.ToastSeconds)*time.Second, a.endToast)
 	}
 	info := a.modeInfoLocked()
+	delay := a.animDelay()
 	a.mu.Unlock()
 	a.syncMouse()
 	a.emit(EvMode, info)
-	if mode != ModeHidden {
+	if mode == ModeHidden {
+		return
+	}
+	time.AfterFunc(delay, func() {
+		a.mu.Lock()
+		stale := a.viewerGen != gen || a.mode == ModeHidden
+		cfg := a.cfg
+		a.mu.Unlock()
+		if stale {
+			return
+		}
 		application.InvokeSync(func() {
 			a.ov.show(overlayWidth, composerHeight, cfg.BottomOffset, cfg.Scale)
 		})
-	}
+	})
 }
 
 func (a *App) showSettings() {
@@ -853,6 +869,10 @@ func (s *ChatService) ClickSpot(key string) {
 
 // ClosePicture closes the picture open at full size.
 func (s *ChatService) ClosePicture() { s.a.closeViewer() }
+
+// OverlayResized is called by the overlay once it has drawn at a new window
+// size, so a window made invisible for the resize can show again.
+func (s *ChatService) OverlayResized() { application.InvokeAsync(s.a.ov.reveal) }
 
 // PreviewToast shows a sample toast so the user can check position and look.
 func (s *ChatService) PreviewToast() {

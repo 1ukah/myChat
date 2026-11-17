@@ -297,6 +297,12 @@ func LayeredOpaque(hwnd uintptr) {
 	pSetLayeredWindowAttrs.Call(hwnd, 0, 255, 2) // LWA_ALPHA
 }
 
+// LayeredInvisible makes a WS_EX_LAYERED window draw nothing (alpha 0)
+// while it stays shown; LayeredOpaque brings it back.
+func LayeredInvisible(hwnd uintptr) {
+	pSetLayeredWindowAttrs.Call(hwnd, 0, 0, 2) // LWA_ALPHA
+}
+
 func IsWindowVisible(hwnd uintptr) bool {
 	r, _, _ := pIsWindowVisible.Call(hwnd)
 	return r != 0

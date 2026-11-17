@@ -97,6 +97,14 @@ export function OverlayReady(): $CancellablePromise<void> {
 }
 
 /**
+ * OverlayResized is called by the overlay once it has drawn at a new window
+ * size, so a window made invisible for the resize can show again.
+ */
+export function OverlayResized(): $CancellablePromise<void> {
+    return $Call.ByID(4294219131);
+}
+
+/**
  * PreviewToast shows a sample toast so the user can check position and look.
  */
 export function PreviewToast(): $CancellablePromise<void> {

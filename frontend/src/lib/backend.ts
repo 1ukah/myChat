@@ -52,6 +52,8 @@ export interface Backend {
   clickSpot(key: string): Promise<void>;
   /** Closes the picture open at full size. */
   closePicture(): Promise<void>;
+  /** Overlay only: it has drawn at a new window size (Go hides the window while it resizes). */
+  overlayResized(): Promise<void>;
   hideSettings(): Promise<void>;
   minimiseSettings(): Promise<void>;
   quit(): Promise<void>;
@@ -84,6 +86,7 @@ export const wailsBackend: Backend = {
   setSpots: (spots) => ChatService.SetSpots(spots),
   clickSpot: (key) => ChatService.ClickSpot(key),
   closePicture: () => ChatService.ClosePicture(),
+  overlayResized: () => ChatService.OverlayResized(),
   hideSettings: () => ChatService.HideSettings(),
   minimiseSettings: () => ChatService.MinimiseSettings(),
   quit: () => ChatService.Quit(),
