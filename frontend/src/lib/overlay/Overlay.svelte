@@ -97,6 +97,11 @@
     });
   });
 
+  /** Frames drawn at a new window size before Go shows the window again. */
+  const SETTLE_FRAMES = 4;
+  /** False from a window resize until Go is asked to show the window again. */
+  let settled = $state(true);
+
   /** How far the 640×360 area sits above the bottom of the monitor, in CSS px. */
   const lift = $derived(Math.max(0, app.config.bottomOffset) / (app.config.scale || 1));
 
@@ -150,13 +155,25 @@
       .then(overlayReady);
 
     // Go hides the window while it changes size (opening or closing a
-    // picture); it shows again once a frame at the new size is drawn.
+    // picture). Until a frame at the new size reaches the screen, WebView2
+    // shows its last one stretched over the window, and that lags a few
+    // frames behind the page (more with the game busy on the GPU). So Go
+    // shows the window only after SETTLE_FRAMES, and the picture starts
+    // opening then.
     let pending = 0;
     const onResize = (): void => {
+      settled = false;
       cancelAnimationFrame(pending);
-      pending = requestAnimationFrame(() => {
-        pending = requestAnimationFrame(overlayResized);
-      });
+      let left = SETTLE_FRAMES;
+      const step = (): void => {
+        if (--left > 0) {
+          pending = requestAnimationFrame(step);
+          return;
+        }
+        settled = true;
+        overlayResized();
+      };
+      pending = requestAnimationFrame(step);
     };
     window.addEventListener("resize", onResize);
     return () => {
@@ -203,7 +220,7 @@
     </div>
     {#if shownViewer}
       {#key opening}
-        <Viewer media={shownViewer} {motion} {closing} {minimal} composer={open} />
+        <Viewer media={shownViewer} {motion} {closing} {minimal} {settled} composer={open} />
       {/key}
     {/if}
   </Stage>

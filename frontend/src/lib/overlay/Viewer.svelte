@@ -20,6 +20,7 @@
     motion,
     closing = false,
     minimal = false,
+    settled = true,
     composer = false,
   }: {
     media: C.Media;
@@ -28,6 +29,8 @@
     closing?: boolean;
     /** The Minimal look. */
     minimal?: boolean;
+    /** The window has drawn at its current size and Go shows it again. */
+    settled?: boolean;
     /** The chat box is open, so Esc closes the picture too. */
     composer?: boolean;
   } = $props();
@@ -70,8 +73,8 @@
 
   // Go makes the window cover the monitor just before this mounts, and the
   // window may still be its usual 640×360 for a moment. Nothing shows or
-  // animates until it has grown.
-  const big = $derived(vh > 361);
+  // animates until it has grown and is on screen again (`settled`).
+  const big = $derived(vh > 361 && settled);
 
   let frame = $state<HTMLElement>();
   let opened = false;
