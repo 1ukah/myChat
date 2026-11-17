@@ -19,6 +19,7 @@ declare module "@wailsio/runtime" {
             "mychat:config": main$0.ConfigView;
             "mychat:entry": chat$0.Entry;
             "mychat:entry-updated": chat$0.Entry;
+            "mychat:hover": string;
             "mychat:local-logins": main$0.LocalLogins;
             "mychat:log-cleared": void;
             "mychat:login": main$0.LoginState;

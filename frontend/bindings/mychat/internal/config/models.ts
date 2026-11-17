@@ -34,6 +34,11 @@ export class Config {
     "toastMax": number;
 
     /**
+     * MessageSound plays myChat's own soft sound when a message arrives.
+     */
+    "messageSound": boolean;
+
+    /**
      * ShowImages shows pictures sent through Steam chat and /giphy GIFs in
      * pop-ups and the chat box. ImageLinks also loads pictures from links
      * to other sites, which lets those sites see the user's IP address.
@@ -102,6 +107,9 @@ export class Config {
         }
         if (!("toastMax" in $$source)) {
             this["toastMax"] = 0;
+        }
+        if (!("messageSound" in $$source)) {
+            this["messageSound"] = false;
         }
         if (!("showImages" in $$source)) {
             this["showImages"] = false;

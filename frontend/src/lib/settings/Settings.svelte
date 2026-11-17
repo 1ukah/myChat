@@ -116,6 +116,7 @@
     { tab: "chat", section: "chat-box", label: "Close after sending" },
     { tab: "chat", section: "chat-box", label: "Double-tap Enter to close", words: "double press twice empty line" },
     { tab: "chat", section: "pop-ups", label: "Show new message pop-ups", words: "toast notification" },
+    { tab: "chat", section: "pop-ups", label: "Message sound", words: "sound audio chime ding notification steam mute volume" },
     { tab: "chat", section: "pop-ups", label: "Pop-up duration", words: "toast seconds time" },
     { tab: "chat", section: "pop-ups", label: "Multiple messages", words: "toast pop-up layout stack group grouped discord sender" },
     { tab: "chat", section: "pop-ups", label: "Messages shown", words: "toast pop-up max count number how many recent" },

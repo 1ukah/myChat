@@ -378,6 +378,24 @@ func (e *Engine) setWhisperLocked(id uint64) {
 	e.channel = Channel{Kind: ChannelWhisper, TargetID: idStr(id), TargetName: e.nameLocked(id)}
 }
 
+// WhisperTo makes a person the one the input line whispers to, as when
+// their name is clicked. Text being typed stays, except a half-typed
+// "/w name" whose suggestions were showing: picking a person answers it.
+func (e *Engine) WhisperTo(id uint64) {
+	if id == 0 {
+		return
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if len(e.sugg) > 0 {
+		e.text, e.caret = nil, 0
+		e.sugg, e.suggSel = nil, 0
+	}
+	e.errMsg = ""
+	e.setWhisperLocked(id)
+	e.changed()
+}
+
 // Insert types text at the caret (used for paste).
 func (e *Engine) Insert(s string) {
 	e.mu.Lock()

@@ -2,6 +2,7 @@
   import type * as Cfg from "../../../bindings/mychat/internal/config/models";
   import { app, saveConfig } from "../store.svelte";
   import HotkeyInput from "../ui/HotkeyInput.svelte";
+  import Icon from "../ui/Icon.svelte";
   import Select from "../ui/Select.svelte";
   import Slider from "../ui/Slider.svelte";
   import Toggle from "../ui/Toggle.svelte";
@@ -77,6 +78,29 @@
     />
   </Row>
   <Row
+    label="Message sound"
+    hint="A soft, low chime when a friend writes to you."
+    error={errors.messageSound}
+  >
+    <Toggle
+      label="Message sound"
+      checked={app.config.messageSound}
+      onchange={(messageSound) => set("messageSound", { messageSound })}
+    />
+  </Row>
+  {#if app.config.messageSound}
+    <!-- Steam plays its own (loud) sound for the same message. -->
+    <div class="tip">
+      <Icon name="alert" size={14} />
+      <p>
+        Turn off Steam's own sound so you only hear this one. In the Steam app, open
+        <b>Settings › Notifications</b> and switch off
+        <b>“When I receive a direct chat message”</b>. This also turns off Steam's message
+        pop-up, so it no longer shows over your game.
+      </p>
+    </div>
+  {/if}
+  <Row
     label="Pop-up duration"
     hint="How long a pop-up stays on screen."
     error={errors.toastSeconds}
@@ -137,3 +161,33 @@
     />
   </Row>
 </Section>
+
+<style>
+  /* A suggestion under the row it belongs to: muted text with a thin
+     accent rule on the left. */
+  .tip {
+    display: flex;
+    gap: 10px;
+    margin: 10px 0 2px;
+    padding: 9px 12px;
+    color: var(--accent);
+    background: rgba(143, 211, 255, 0.06);
+    box-shadow: inset 2px 0 0 var(--accent-line);
+  }
+
+  .tip :global(.icon) {
+    margin-top: 1px;
+  }
+
+  .tip p {
+    margin: 0;
+    font-size: var(--fs-xs);
+    line-height: 16px;
+    color: var(--text-soft);
+  }
+
+  .tip b {
+    font-weight: 600;
+    color: var(--text);
+  }
+</style>

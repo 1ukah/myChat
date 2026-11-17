@@ -28,6 +28,8 @@ interface AppState {
   layout: M.Layout;
   /** The pop-up messages shown in toast mode, oldest first. */
   toasts: C.Entry[];
+  /** The clickable spot under the mouse pointer (`Spot.key`), or "". */
+  hover: string;
 }
 
 export const app: AppState = $state({
@@ -50,6 +52,7 @@ export const app: AppState = $state({
   local: new M.LocalLogins({ steamInstalled: true }),
   layout: new M.Layout({ width: 640, composerHeight: 360, toastHeight: 360 }),
   toasts: [],
+  hover: "",
 });
 
 let backend: Backend = wailsBackend;
@@ -166,6 +169,9 @@ export async function openSteamLogin(): Promise<string> {
 }
 export const logout = (): void => fire(() => backend.logout());
 export const previewToast = (): void => fire(() => backend.previewToast());
+export const setSpots = (spots: M.Spot[]): void => fire(() => backend.setSpots(spots));
+export const clickSpot = (key: string): void => fire(() => backend.clickSpot(key));
+export const closePicture = (): void => fire(() => backend.closePicture());
 export const hideSettings = (): void => fire(() => backend.hideSettings());
 export const minimiseSettings = (): void => fire(() => backend.minimiseSettings());
 export const quit = (): void => fire(() => backend.quit());
@@ -224,6 +230,9 @@ export async function start(view: View): Promise<void> {
     }),
     localLogins: on((l) => {
       app.local = l;
+    }),
+    hover: on((key) => {
+      app.hover = key;
     }),
   });
 

@@ -22,6 +22,8 @@ export interface Handlers {
   config(c: M.ConfigView): void;
   login(l: M.LoginState): void;
   localLogins(l: M.LocalLogins): void;
+  /** The spot (`Spot.key`) under the mouse pointer, or "". */
+  hover(key: string): void;
 }
 
 export interface Backend {
@@ -44,6 +46,12 @@ export interface Backend {
   cancelLogin(): Promise<void>;
   logout(): Promise<void>;
   previewToast(): Promise<void>;
+  /** Overlay only: the clickable pictures and names on screen (CSS px of the 640×360 area). */
+  setSpots(spots: M.Spot[]): Promise<void>;
+  /** Acts on a click on a spot (by `Spot.key`): opens the picture, or whispers to the person. */
+  clickSpot(key: string): Promise<void>;
+  /** Closes the picture open at full size. */
+  closePicture(): Promise<void>;
   hideSettings(): Promise<void>;
   minimiseSettings(): Promise<void>;
   quit(): Promise<void>;
@@ -73,6 +81,9 @@ export const wailsBackend: Backend = {
   cancelLogin: () => ChatService.CancelLogin(),
   logout: () => ChatService.Logout(),
   previewToast: () => ChatService.PreviewToast(),
+  setSpots: (spots) => ChatService.SetSpots(spots),
+  clickSpot: (key) => ChatService.ClickSpot(key),
+  closePicture: () => ChatService.ClosePicture(),
   hideSettings: () => ChatService.HideSettings(),
   minimiseSettings: () => ChatService.MinimiseSettings(),
   quit: () => ChatService.Quit(),
@@ -89,6 +100,7 @@ export const wailsBackend: Backend = {
       Events.On(Ev.MychatConfig, (ev) => h.config(ev.data)),
       Events.On(Ev.MychatLogin, (ev) => h.login(ev.data)),
       Events.On(Ev.MychatLocalLogins, (ev) => h.localLogins(ev.data)),
+      Events.On(Ev.MychatHover, (ev) => h.hover(ev.data)),
     ];
     return () => off.forEach((f) => f());
   },

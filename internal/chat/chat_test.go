@@ -111,6 +111,30 @@ func TestAmbiguousPrefixWaits(t *testing.T) {
 	}
 }
 
+func TestWhisperToKeepsText(t *testing.T) {
+	e, b := newTest()
+	typeText(e, "gg")
+	e.WhisperTo(13)
+	c := e.Composer()
+	if c.Channel.Kind != ChannelWhisper || c.Channel.TargetID != "13" || c.Text != "gg" {
+		t.Fatalf("got %+v", c)
+	}
+	e.HandleKey("", "Enter", false)
+	if got := b.waitSent(t, 1); got[0] != "13:gg" {
+		t.Fatalf("sent %v", got)
+	}
+}
+
+func TestWhisperToAnswersSuggestions(t *testing.T) {
+	e, _ := newTest()
+	typeText(e, "/w leo ")
+	e.WhisperTo(12)
+	c := e.Composer()
+	if c.Channel.TargetID != "12" || c.Text != "" || len(c.Suggestions) != 0 {
+		t.Fatalf("got %+v", c)
+	}
+}
+
 func TestWhisperMatchesSteamNameBehindNickname(t *testing.T) {
 	e, b := newTest()
 	typeText(e, "/w sniper ")

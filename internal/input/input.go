@@ -4,6 +4,8 @@
 // a low-level keyboard hook. The hook catches typed keys so the game never
 // receives them, while keys that were already held when the box opened (for
 // example W) keep going to the game. The game keeps focus the whole time.
+// A low-level mouse hook (mouse.go) makes the overlay's pictures and names
+// clickable.
 package input
 
 import (
@@ -64,6 +66,8 @@ const (
 	msgCaptureOn  = win.WM_APP + 1
 	msgCaptureOff = win.WM_APP + 2
 	msgSetHotkey  = win.WM_APP + 3
+	msgMouseOn    = win.WM_APP + 4
+	msgMouseOff   = win.WM_APP + 5
 	hotkeyID      = 0x4d43
 )
 
@@ -71,15 +75,21 @@ const (
 type Manager struct {
 	Hotkeys <-chan struct{}
 	Events  <-chan Event
+	// Mouse are clicks on the overlay's spots and changes of the spot
+	// under the pointer (see SetMouse).
+	Mouse <-chan Mouse
 
-	hotkeys  chan struct{}
-	events   chan Event
-	threadID uint32
+	hotkeys     chan struct{}
+	events      chan Event
+	mouseEvents chan Mouse
+	threadID    uint32
 
 	mu        sync.Mutex
 	pending   Hotkey
 	reply     chan error
 	capturing bool
+	mouseOn   bool
+	mouse     atomic.Pointer[mouseState]
 }
 
 var errNoThread = errors.New("input: thread not running")
@@ -90,8 +100,10 @@ func Start(hk Hotkey) (*Manager, error) {
 		hotkeys: make(chan struct{}, 4),
 		events:  make(chan Event, 256),
 		reply:   make(chan error, 1),
+
+		mouseEvents: make(chan Mouse, 32),
 	}
-	m.Hotkeys, m.Events = m.hotkeys, m.events
+	m.Hotkeys, m.Events, m.Mouse = m.hotkeys, m.events, m.mouseEvents
 	ready := make(chan error, 1)
 	go m.loop(hk, ready)
 	if err := <-ready; err != nil {
@@ -164,6 +176,7 @@ func (m *Manager) loop(hk Hotkey, ready chan<- error) {
 	current := hk
 
 	defer stopHook()
+	defer stopMouse()
 	defer win.UnregisterHotKey(hotkeyID)
 	for win.GetMessage(&msg) > 0 {
 		switch msg.Message {
@@ -176,6 +189,10 @@ func (m *Manager) loop(hk Hotkey, ready chan<- error) {
 			startHook(m.events)
 		case msgCaptureOff:
 			stopHook()
+		case msgMouseOn:
+			startMouse(m)
+		case msgMouseOff:
+			stopMouse()
 		case msgSetHotkey:
 			m.mu.Lock()
 			next := m.pending

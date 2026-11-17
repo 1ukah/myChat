@@ -1,14 +1,22 @@
 <script lang="ts">
   // The in-game overlay window. It is never focused and never sees the mouse:
   // everything here is drawn from state that Go pushes. See docs/UI_CONTRACT.md.
-  import { onMount, tick } from "svelte";
+  //
+  // Clicks on pictures are caught by Go, which needs to know where they are
+  // (spots.ts). A clicked picture opens at full size (Viewer): the window
+  // then covers the whole monitor, and the 640×360 area keeps its place on
+  // screen, at the bottom middle, `bottomOffset` px up.
+  import { onMount, tick, untrack } from "svelte";
   import type * as C from "../../../bindings/mychat/internal/chat/models";
   import { app, overlayReady } from "../store.svelte";
   import Composer from "./Composer.svelte";
+  import { pictureOf } from "./media";
   import { asLook, motionOf } from "./motion";
   import Panel from "./Panel.svelte";
+  import { scheduleSpots, spotSource } from "./spots";
   import Stage from "./Stage.svelte";
   import Toasts from "./Toasts.svelte";
+  import Viewer from "./Viewer.svelte";
 
   /** More than fits in 360 px even when every line is short. */
   const MAX_LINES = 48;
@@ -57,6 +65,38 @@
   let heldTotal = 0;
   const total = $derived.by(() => (open ? (heldTotal = app.log.length) : heldTotal));
 
+  // ---- pictures that open when clicked ----
+
+  const viewer = $derived(live ? app.mode.viewer : null);
+  /** How far the 640×360 area sits above the bottom of the monitor, in CSS px. */
+  const lift = $derived(Math.max(0, app.config.bottomOffset) / (app.config.scale || 1));
+
+  let area = $state<HTMLElement>();
+
+  spotSource(() => {
+    if (!area || !live) return null;
+    const media = new Map<string, C.Media>();
+    for (const e of open ? lines : toasts) {
+      const m = pictureOf(e);
+      if (m) media.set(m.id, m);
+    }
+    return { area, media, key: `${app.mode.mode}:${viewer?.id ?? ""}`, settle: motion.enterMs };
+  });
+
+  $effect(() => {
+    // Everything that adds, removes or moves a picture.
+    void app.mode.mode;
+    void viewer;
+    void lines;
+    void toasts;
+    void composer.scroll;
+    void app.config.showImages;
+    void app.config.toastLayout;
+    void app.mode.showAvatars;
+    void minimal;
+    untrack(scheduleSpots);
+  });
+
   function fontsReady(): Promise<unknown> {
     // Legacy is set in Saira and Noto Sans, Minimal in Inter (one variable
     // file covers every weight). Both are loaded: the look can change later.
@@ -82,35 +122,66 @@
   });
 </script>
 
-<Stage {motion}>
-  {#if shown}
-    {#key shown}
-      <Panel leave={!live} solid={!app.mode.blur}>
-        {#if shown === "composer"}
-          <Composer
-            {composer}
-            {lines}
-            {total}
-            {status}
-            live={open}
-            avatars={app.mode.showAvatars}
-            images={app.config.showImages}
-            {minimal}
-            typewriter={motion.typewriter}
-          />
-        {:else}
-          <Toasts
-            entries={toasts}
-            layout={app.config.toastLayout}
-            hotkey={app.config.hotkeyLabel}
-            {live}
-            avatars={app.mode.showAvatars}
-            images={app.config.showImages}
-            {minimal}
-            {motion}
-          />
-        {/if}
-      </Panel>
-    {/key}
-  {/if}
-</Stage>
+<div class="window">
+  <Stage {motion}>
+    <div class="area" style:--lift="{lift}px" bind:this={area}>
+      {#if shown}
+        {#key shown}
+          <Panel leave={!live} solid={!app.mode.blur}>
+            {#if shown === "composer"}
+              <Composer
+                {composer}
+                {lines}
+                {total}
+                {status}
+                live={open}
+                avatars={app.mode.showAvatars}
+                images={app.config.showImages}
+                {minimal}
+                typewriter={motion.typewriter}
+              />
+            {:else}
+              <Toasts
+                entries={toasts}
+                layout={app.config.toastLayout}
+                hotkey={app.config.hotkeyLabel}
+                {live}
+                avatars={app.mode.showAvatars}
+                images={app.config.showImages}
+                {minimal}
+                zoom
+                {motion}
+              />
+            {/if}
+          </Panel>
+        {/key}
+      {/if}
+    </div>
+    {#if viewer}
+      <Viewer media={viewer} {minimal} composer={open} />
+    {/if}
+  </Stage>
+</div>
+
+<style>
+  /* The whole window, as a size container for the area below. */
+  .window {
+    position: fixed;
+    inset: 0;
+    container-type: size;
+  }
+
+  /* The 640×360 area. It fills the window as usual; when the window covers
+     the whole monitor (a picture is open) it stays at the bottom middle,
+     `--lift` up, exactly where the window was, so nothing moves. The
+     clamp() is 0 for a 360 px high window and --lift for anything taller.
+     The transform also makes it the box for the panel's position: fixed. */
+  .area {
+    position: absolute;
+    left: 50%;
+    bottom: clamp(0px, (100cqh - 361px) * 1000, var(--lift));
+    width: 640px;
+    height: 360px;
+    transform: translateX(-50%);
+  }
+</style>

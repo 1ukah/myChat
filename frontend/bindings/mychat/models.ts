@@ -44,6 +44,11 @@ export class ConfigView {
     "toastMax": number;
 
     /**
+     * MessageSound plays myChat's own soft sound when a message arrives.
+     */
+    "messageSound": boolean;
+
+    /**
      * ShowImages shows pictures sent through Steam chat and /giphy GIFs in
      * pop-ups and the chat box. ImageLinks also loads pictures from links
      * to other sites, which lets those sites see the user's IP address.
@@ -113,6 +118,9 @@ export class ConfigView {
         }
         if (!("toastMax" in $$source)) {
             this["toastMax"] = 0;
+        }
+        if (!("messageSound" in $$source)) {
+            this["messageSound"] = false;
         }
         if (!("showImages" in $$source)) {
             this["showImages"] = false;
@@ -353,6 +361,12 @@ export class ModeInfo {
      */
     "overlayStyle": string;
 
+    /**
+     * Viewer is the picture open at full size, or null. While it is open
+     * the window covers the whole monitor.
+     */
+    "viewer": chat$0.Media | null;
+
     /** Creates a new ModeInfo instance. */
     constructor($$source: Partial<ModeInfo> = {}) {
         if (!("mode" in $$source)) {
@@ -379,6 +393,9 @@ export class ModeInfo {
         if (!("overlayStyle" in $$source)) {
             this["overlayStyle"] = "";
         }
+        if (!("viewer" in $$source)) {
+            this["viewer"] = null;
+        }
 
         Object.assign(this, $$source);
     }
@@ -387,7 +404,11 @@ export class ModeInfo {
      * Creates a new ModeInfo instance from a string or object.
      */
     static createFrom($$source: any = {}): ModeInfo {
+        const $$createField8_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("viewer" in $$parsedSource) {
+            $$parsedSource["viewer"] = $$createField8_0($$parsedSource["viewer"]);
+        }
         return new ModeInfo($$parsedSource as Partial<ModeInfo>);
     }
 }
@@ -443,15 +464,15 @@ export class Snapshot {
      * Creates a new Snapshot instance from a string or object.
      */
     static createFrom($$source: any = {}): Snapshot {
-        const $$createField0_0 = $$createType4;
-        const $$createField1_0 = $$createType5;
-        const $$createField2_0 = $$createType7;
-        const $$createField3_0 = $$createType8;
-        const $$createField4_0 = $$createType9;
-        const $$createField5_0 = $$createType10;
-        const $$createField6_0 = $$createType11;
-        const $$createField7_0 = $$createType12;
-        const $$createField8_0 = $$createType13;
+        const $$createField0_0 = $$createType6;
+        const $$createField1_0 = $$createType7;
+        const $$createField2_0 = $$createType9;
+        const $$createField3_0 = $$createType10;
+        const $$createField4_0 = $$createType11;
+        const $$createField5_0 = $$createType12;
+        const $$createField6_0 = $$createType13;
+        const $$createField7_0 = $$createType14;
+        const $$createField8_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("mode" in $$parsedSource) {
             $$parsedSource["mode"] = $$createField0_0($$parsedSource["mode"]);
@@ -481,6 +502,74 @@ export class Snapshot {
             $$parsedSource["layout"] = $$createField8_0($$parsedSource["layout"]);
         }
         return new Snapshot($$parsedSource as Partial<Snapshot>);
+    }
+}
+
+/**
+ * Spot is something clickable the overlay draws, in CSS pixels of the
+ * 640×360 area: a picture, or a person's name.
+ */
+export class Spot {
+    /**
+     * Key names the spot in hover events: "<kind>:<media id or peer id>".
+     */
+    "key": string;
+    "kind": string;
+    "x": number;
+    "y": number;
+    "w": number;
+    "h": number;
+
+    /**
+     * SpotPicture
+     */
+    "media": chat$0.Media;
+
+    /**
+     * SpotName
+     */
+    "peerId": string;
+
+    /** Creates a new Spot instance. */
+    constructor($$source: Partial<Spot> = {}) {
+        if (!("key" in $$source)) {
+            this["key"] = "";
+        }
+        if (!("kind" in $$source)) {
+            this["kind"] = "";
+        }
+        if (!("x" in $$source)) {
+            this["x"] = 0;
+        }
+        if (!("y" in $$source)) {
+            this["y"] = 0;
+        }
+        if (!("w" in $$source)) {
+            this["w"] = 0;
+        }
+        if (!("h" in $$source)) {
+            this["h"] = 0;
+        }
+        if (!("media" in $$source)) {
+            this["media"] = (new chat$0.Media());
+        }
+        if (!("peerId" in $$source)) {
+            this["peerId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Spot instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Spot {
+        const $$createField6_0 = $$createType4;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("media" in $$parsedSource) {
+            $$parsedSource["media"] = $$createField6_0($$parsedSource["media"]);
+        }
+        return new Spot($$parsedSource as Partial<Spot>);
     }
 }
 
@@ -559,7 +648,7 @@ export class Toasts {
      * Creates a new Toasts instance from a string or object.
      */
     static createFrom($$source: any = {}): Toasts {
-        const $$createField0_0 = $$createType7;
+        const $$createField0_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("entries" in $$parsedSource) {
             $$parsedSource["entries"] = $$createField0_0($$parsedSource["entries"]);
@@ -573,13 +662,15 @@ const $$createType0 = config$0.Hotkey.createFrom;
 const $$createType1 = steamlocal$0.Account.createFrom;
 const $$createType2 = $Create.Array($$createType1);
 const $$createType3 = $Create.Array($Create.Any);
-const $$createType4 = ModeInfo.createFrom;
-const $$createType5 = Toasts.createFrom;
-const $$createType6 = chat$0.Entry.createFrom;
-const $$createType7 = $Create.Array($$createType6);
-const $$createType8 = chat$0.ComposerState.createFrom;
-const $$createType9 = Status.createFrom;
-const $$createType10 = ConfigView.createFrom;
-const $$createType11 = LoginState.createFrom;
-const $$createType12 = LocalLogins.createFrom;
-const $$createType13 = Layout.createFrom;
+const $$createType4 = chat$0.Media.createFrom;
+const $$createType5 = $Create.Nullable($$createType4);
+const $$createType6 = ModeInfo.createFrom;
+const $$createType7 = Toasts.createFrom;
+const $$createType8 = chat$0.Entry.createFrom;
+const $$createType9 = $Create.Array($$createType8);
+const $$createType10 = chat$0.ComposerState.createFrom;
+const $$createType11 = Status.createFrom;
+const $$createType12 = ConfigView.createFrom;
+const $$createType13 = LoginState.createFrom;
+const $$createType14 = LocalLogins.createFrom;
+const $$createType15 = Layout.createFrom;

@@ -14,6 +14,11 @@
 
   let visible = $state(false);
   let height = $state(app.layout.composerHeight);
+  let pageW = $state(0);
+  let pageH = $state(0);
+  /** Like Go: with a picture open the window covers the whole screen (page). */
+  const viewing = $derived(visible && app.mode.mode !== "hidden" && app.mode.viewer != null);
+  const zoom = $derived(app.config.scale || 1);
 
   $effect(() => {
     const m = app.mode;
@@ -160,13 +165,15 @@
   <div class="cross"></div>
 </div>
 
-<div class="dock" style:bottom="{app.config.bottomOffset}px">
+<svelte:window bind:innerWidth={pageW} bind:innerHeight={pageH} />
+
+<div class="dock" class:viewing style:bottom="{viewing ? 0 : app.config.bottomOffset}px">
   <div
     class="window"
     class:blur={app.mode.blur}
     class:shown={visible}
-    style:width="{app.layout.width}px"
-    style:height="{height}px"
+    style:width="{viewing ? pageW / zoom : app.layout.width}px"
+    style:height="{viewing ? pageH / zoom : height}px"
     style:zoom={app.config.scale}
   >
     {@render children()}
@@ -314,6 +321,17 @@
     display: flex;
     justify-content: center;
     pointer-events: none;
+  }
+
+  /* Clicks still pass through the pretend window, except on pictures,
+     names and the open picture (Go catches those clicks in the real app). */
+  .window :global([data-spot]),
+  .window :global(.viewer) {
+    pointer-events: auto;
+  }
+
+  .dock.viewing {
+    z-index: 1;
   }
 
   /* `contain` makes this box the containing block of the overlay's

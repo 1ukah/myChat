@@ -9,9 +9,15 @@
   //
   // The only address ever put into `src` is `media.url`, and only when it
   // points at myChat itself.
+  //
+  // With `zoom` a click opens the picture at full size. In game the window
+  // never sees the mouse: Go catches the click (see spots.ts); `onclick` is
+  // for the browser mock.
   import { tick } from "svelte";
   import type * as C from "../../../bindings/mychat/internal/chat/models";
+  import { clickSpot } from "../store.svelte";
   import { fitSize, isLocal } from "./media";
+  import { pictureSpot, scheduleSpots } from "./spots";
 
   let {
     media,
@@ -19,6 +25,7 @@
     maxW,
     maxH,
     minimal = false,
+    zoom = false,
     onsize,
   }: {
     media: C.Media;
@@ -28,6 +35,8 @@
     maxH: number;
     /** The Minimal look: no frame, feathered edges. */
     minimal?: boolean;
+    /** A click opens the picture at full size (the overlay only). */
+    zoom?: boolean;
     /** The box changed size after it was drawn (the real size was unknown). */
     onsize?: () => void;
   } = $props();
@@ -51,6 +60,7 @@
     if (!known) {
       natural = { url: media.url, w: img.naturalWidth, h: img.naturalHeight };
       if (onsize) void tick().then(onsize);
+      if (zoom) void tick().then(scheduleSpots);
     }
     loaded = media.url;
   }
@@ -58,16 +68,22 @@
   function onerror(): void {
     failed = media.url;
     if (onsize) void tick().then(onsize);
+    if (zoom) void tick().then(scheduleSpots);
   }
 </script>
 
 {#if usable}
+  <!-- The overlay never has keyboard focus, and Go handles the real clicks. -->
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <span
     class="pic"
     class:minimal
+    class:zoom
     class:ready={loaded === media.url}
+    data-spot={zoom ? pictureSpot(media) : undefined}
     style:width="{size.w}px"
     style:aspect-ratio="{size.w} / {size.h}"
+    onclick={zoom ? () => clickSpot(pictureSpot(media)) : undefined}
   >
     <img
       src={media.url}
@@ -121,6 +137,10 @@
 
   .pic.ready::before {
     display: none;
+  }
+
+  .pic.zoom {
+    cursor: zoom-in;
   }
 
   img {

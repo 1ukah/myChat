@@ -35,6 +35,8 @@ Do **not** edit Go files or anything in `frontend/bindings/` (generated).
 None of the three logins changes the Steam app's status: myChat never sets
 or asks for its own status.
 | `PreviewToast(): void` | Shows a sample toast in game position. |
+| `SetSpots(spots: Spot[]): void` | **Overlay view only.** The clickable things on screen, `{key, kind: "picture"\|"name", x, y, w, h, media, peerId}` in CSS px of the 640×360 area. Send again whenever they move (see `overlay/spots.ts`). |
+| `ClickSpot(key): void` / `ClosePicture(): void` | Act as if a spot was clicked (open the picture / whisper to the person, opening the chat box if needed) / close the open picture. In game Go does this itself from clicks. |
 | `HideSettings(): void` | Close button of the settings window (it hides; the app keeps running in the tray). |
 | `MinimiseSettings(): void` | |
 | `Quit(): void` | Exit the app. |
@@ -55,6 +57,7 @@ Listen with `Events.On(name, (ev) => ev.data)`. `ev.data` is the typed object.
 | `mychat:config` | `ConfigView` | Settings changed. |
 | `mychat:login` | `LoginState` | Login progress. |
 | `mychat:local-logins` | `LocalLogins` | Steam's saved accounts changed (or the watch started/ended). |
+| `mychat:hover` | `string` | The `Spot.key` under the mouse pointer, or `""`. Draw that name as a hovered link (CSS `:hover` never fires in the overlay). |
 
 ## Types (summary)
 
@@ -62,7 +65,7 @@ Listen with `Events.On(name, (ev) => ev.data)`. `ev.data` is the typed object.
 ModeInfo   { mode: string; animations: boolean; blur: boolean; showAvatars: boolean;
              animationStyle: "fade"|"slide-up"|"slide-down"|"slide-left"|"slide-right"|"typewriter";
              animationSpeed: "fast"|"normal"|"slow"; hideDelayMs: number /*0 when animations off*/;
-             overlayStyle: "legacy"|"minimal" }
+             overlayStyle: "legacy"|"minimal"; viewer: Media | null /*picture open at full size*/ }
 Layout     { width: 640; composerHeight: 360; toastHeight: 360 }   // CSS px
 Entry      { id: number; time: number /*unix ms*/; kind: "in"|"out"|"system"|"error";
              peerId: string; peerName: string; peerAvatar: string /*image URL or ""*/; text: string;
@@ -86,6 +89,7 @@ Config     { hotkey: {code: string /*KeyboardEvent.code*/; ctrl; shift; alt}; cl
              animations: boolean; animationStyle: string; animationSpeed: string; showAvatars: boolean;
              blur: boolean; showToasts: boolean; toastSeconds: number /*2..30*/;
              toastLayout: "stack"|"group"; toastMax: number /*1..5*/;
+             messageSound: boolean /*default true: myChat's own soft sound on a new message*/;
              bottomOffset: number /*0..1000 px*/; scale: number /*0.75..1.5*/; machineSeed: string }
 ConfigView = Config & { hotkeyLabel: string /*e.g. "I", "Ctrl + F6"*/ }
 LoginState { phase: "idle"|"waiting" /*QR shown*/|"submitting" /*password sent*/|"guard"|"done"|"error";
@@ -107,6 +111,15 @@ Snapshot   { mode; log; composer; status; config; login: LoginState; local: Loca
   Windows keyboard hook in Go. So: **no `<input>`, no focus, no hover states, no
   clicks.** Draw the text and the caret from `ComposerState` (`caret` counts code
   points: use `Array.from(text)`).
+- Pictures (`Entry.media`) and people's names are the one exception to "no
+  clicks": Go watches the mouse with a low-level hook, only while spots are
+  on screen and the mouse pointer is visible (never while the game aims with
+  a hidden pointer). A click on a name whispers to that person (from a
+  pop-up it opens the chat box first). A click on a picture opens it:
+  `mode.viewer` is set and the window grows to cover the whole monitor. The
+  640×360 area must keep its place on screen then (bottom middle,
+  `bottomOffset / scale` CSS px up). Any click, or Esc in the chat box,
+  closes it. While a picture is open the pop-ups ignore `toastSeconds`.
 - The window is exactly the layout size in CSS px: **640×360** in `composer`
   mode and also **640×360** in `toast` mode (pop-ups are drawn from the bottom up; the rest stays transparent). Go resizes the window when the mode
   changes. Draw everything inside that viewport; it is the maximum area.

@@ -7,10 +7,11 @@
   import { untrack } from "svelte";
   import type * as C from "../../../bindings/mychat/internal/chat/models";
   import { clock, playerColor } from "../format";
-  import { isFresh } from "../store.svelte";
+  import { app, clickSpot, isFresh } from "../store.svelte";
   import Avatar from "../ui/Avatar.svelte";
   import { CHAT_THUMB, pictureOf } from "./media";
   import Picture from "./Picture.svelte";
+  import { nameSpot } from "./spots";
   import Typed from "./Typed.svelte";
 
   let {
@@ -44,16 +45,22 @@
   const tint = $derived(playerColor(entry.peerId || entry.peerName));
   /** Arrives later for a linked picture: the entry is replaced as a whole. */
   const pic = $derived(pictureOf(entry));
+  /** The name is a link: a click whispers to this person (Go catches it in game). */
+  const spot = $derived(nameSpot(entry.peerId, entry.id));
+  const hover = $derived(spot !== "" && app.hover === spot);
 </script>
 
 {#snippet face()}{#if avatars}<Avatar inline size={16} {tint} src={entry.peerAvatar} name={entry.peerName} />{:else}<span class="dot" style:color={tint}>{minimal ? "■" : "●"}</span>{" "}{/if}{/snippet}
+
+<!-- The overlay never has keyboard focus, and Go handles the real clicks. -->
+{#snippet name()}<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions --><bdi class="name" class:link={spot !== ""} class:hover data-spot={spot || undefined} onclick={spot ? () => clickSpot(spot) : undefined}>{entry.peerName}</bdi>{/snippet}
 
 <!-- String literals carry the spaces and nothing inside .msg is split over
      lines, so the layout never depends on how template whitespace collapses.
      <bdi> keeps right-to-left names and messages from reordering the brackets. -->
 <div class="line {kind}" class:minimal class:pending class:fresh>
   <span class="time">{clock(entry.time)}</span>
-  <span class="msg">{#if kind === "in"}<span class="who">{minimal ? "" : "[FROM] "}{@render face()}<bdi>{entry.peerName}</bdi></span>{": "}{:else if kind === "out"}<span class="who">{minimal ? "To " : "[TO] "}{@render face()}<bdi>{entry.peerName}</bdi></span>{": "}{/if}<bdi class="text">{#if typed}<Typed text={entry.text} />{:else}{entry.text}{/if}</bdi></span>
+  <span class="msg">{#if kind === "in"}<span class="who">{minimal ? "" : "[FROM] "}{@render face()}{@render name()}</span>{": "}{:else if kind === "out"}<span class="who">{minimal ? "To " : "[TO] "}{@render face()}{@render name()}</span>{": "}{/if}<bdi class="text">{#if typed}<Typed text={entry.text} />{:else}{entry.text}{/if}</bdi></span>
   {#if pending}
     <span class="dots" role="img" aria-label="sending"><i></i><i></i><i></i></span>
   {:else if failed}
@@ -67,7 +74,7 @@
   {#if pic}
     <!-- A thumbnail under the line. The unseen copy of the time puts it
          exactly where the message starts. -->
-    <div class="media" class:plain={!images}><span class="time ghost" aria-hidden="true">{clock(entry.time)}</span>{" "}<Picture media={pic} show={images} maxW={CHAT_THUMB.w} maxH={thumbH} {minimal} /></div>
+    <div class="media" class:plain={!images}><span class="time ghost" aria-hidden="true">{clock(entry.time)}</span>{" "}<Picture media={pic} show={images} maxW={CHAT_THUMB.w} maxH={thumbH} {minimal} zoom /></div>
   {/if}
 </div>
 
@@ -118,6 +125,21 @@
 
   .who {
     color: var(--c);
+  }
+
+  /* A name under the mouse pointer looks like a hovered link: underlined
+     and a little brighter. `.hover` comes from Go (the window never sees
+     the mouse); `:hover` is for the browser mock. */
+  .link {
+    cursor: pointer;
+  }
+
+  .link.hover,
+  .link:hover {
+    color: color-mix(in srgb, var(--c) 65%, #fff);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
   }
 
   /* No line height of its own: exactly as tall as the picture. */

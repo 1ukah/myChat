@@ -15,6 +15,7 @@ import (
 	"mychat/internal/config"
 	"mychat/internal/input"
 	"mychat/internal/media"
+	"mychat/internal/sound"
 	"mychat/internal/steam"
 	"mychat/internal/win"
 )
@@ -37,6 +38,7 @@ const (
 	EvStatus       = "mychat:status"
 	EvConfig       = "mychat:config"
 	EvLogin        = "mychat:login"
+	EvHover        = "mychat:hover"
 )
 
 // ModeInfo tells the overlay what to draw.
@@ -49,6 +51,29 @@ type ModeInfo struct {
 	Blur           bool   `json:"blur"`
 	ShowAvatars    bool   `json:"showAvatars"`
 	OverlayStyle   string `json:"overlayStyle"` // "legacy" | "minimal"
+	// Viewer is the picture open at full size, or null. While it is open
+	// the window covers the whole monitor.
+	Viewer *chat.Media `json:"viewer"`
+}
+
+// Spot kinds.
+const (
+	SpotPicture = "picture" // opens at full size
+	SpotName    = "name"    // whisper to this person
+)
+
+// Spot is something clickable the overlay draws, in CSS pixels of the
+// 640×360 area: a picture, or a person's name.
+type Spot struct {
+	// Key names the spot in hover events: "<kind>:<media id or peer id>".
+	Key   string     `json:"key"`
+	Kind  string     `json:"kind"`
+	X     float64    `json:"x"`
+	Y     float64    `json:"y"`
+	W     float64    `json:"w"`
+	H     float64    `json:"h"`
+	Media chat.Media `json:"media"`  // SpotPicture
+	Peer  string     `json:"peerId"` // SpotName
 }
 
 // Status is the Steam connection summary.
@@ -103,6 +128,7 @@ func init() {
 	application.RegisterEvent[Status](EvStatus)
 	application.RegisterEvent[ConfigView](EvConfig)
 	application.RegisterEvent[LoginState](EvLogin)
+	application.RegisterEvent[string](EvHover)
 }
 
 // App wires input, Steam, chat logic and windows together.
@@ -133,6 +159,9 @@ type App struct {
 	steamToken  string                 // token in use with the Steam source
 	status      Status
 	ready       bool
+	viewer      *chat.Media     // the picture open at full size
+	spots       []input.Spot    // pictures and names on screen that react to clicks
+	spotInfo    map[string]Spot // by Spot.Key
 
 	settingsReady   bool
 	settingsPending bool
@@ -196,9 +225,13 @@ func (a *App) pump() {
 			a.openComposer()
 		case ev := <-a.inp.Events:
 			a.onKey(ev)
+		case m := <-a.inp.Mouse:
+			a.onMouse(m)
 		case ev := <-a.steam.Events():
 			a.onSteam(ev)
 		case <-fg.C:
+			// Pictures are clickable only while the mouse pointer shows.
+			a.inp.RefreshMouse()
 			a.mu.Lock()
 			open, want := a.mode == ModeComposer, a.openFG
 			a.mu.Unlock()
@@ -218,6 +251,7 @@ func (a *App) onKey(ev input.Event) {
 	now := time.Now()
 	a.mu.Lock()
 	open := a.mode == ModeComposer
+	viewing := a.viewer != nil
 	doubleTap := !a.cfg.CloseAfterSend && a.cfg.DoubleEnterClose
 	quick := now.Sub(a.lastEnter) <= doubleEnterWindow
 	if ev.Key == input.KeyEnter {
@@ -231,6 +265,12 @@ func (a *App) onKey(ev input.Event) {
 	case input.KeyFocusLost:
 		a.closeComposer("alt+tab or windows key")
 		return
+	case input.KeyEscape:
+		// Esc closes an open picture first, then the chat box.
+		if viewing {
+			a.closeViewer()
+			return
+		}
 	case input.KeyPaste:
 		if text, ok := a.app.Clipboard.Text(); ok {
 			a.engine.Insert(text)
@@ -285,7 +325,7 @@ const linkWait = 10 * time.Second
 // picture is checked first and added to the message once it has loaded.
 func (a *App) incoming(e steam.MessageEvent) {
 	a.mu.Lock()
-	show, links := a.cfg.ShowImages, a.cfg.ImageLinks
+	show, links, ding := a.cfg.ShowImages, a.cfg.ImageLinks, a.cfg.MessageSound
 	a.mu.Unlock()
 
 	text := e.Text
@@ -303,6 +343,9 @@ func (a *App) incoming(e steam.MessageEvent) {
 
 	ent, isNew := a.engine.Incoming(e.Partner, text, pics, e.Time, e.Echo)
 	if isNew {
+		if ding {
+			sound.Play()
+		}
 		a.toast(ent)
 	}
 	if later != nil && ent.ID != 0 {
@@ -366,7 +409,8 @@ func (a *App) setStatus(f func(*Status)) {
 func (a *App) modeInfoLocked() ModeInfo {
 	return ModeInfo{Mode: a.mode, Animations: a.cfg.Animations, AnimationStyle: a.cfg.AnimationStyle,
 		AnimationSpeed: a.cfg.AnimationSpeed, HideDelayMs: int(a.animDelay() / time.Millisecond),
-		Blur: a.cfg.Blur, ShowAvatars: a.cfg.ShowAvatars, OverlayStyle: a.cfg.OverlayStyle}
+		Blur: a.cfg.Blur, ShowAvatars: a.cfg.ShowAvatars, OverlayStyle: a.cfg.OverlayStyle,
+		Viewer: a.viewer}
 }
 
 func (a *App) animDelay() time.Duration {
@@ -397,6 +441,8 @@ func (a *App) openComposer() {
 	a.stopTimersLocked()
 	a.toasts = nil
 	a.mode = ModeComposer
+	a.viewer = nil
+	a.spots = nil
 	a.openFG = win.ForegroundWindow()
 	cfg := a.cfg
 	info := a.modeInfoLocked()
@@ -409,6 +455,7 @@ func (a *App) openComposer() {
 	log.Printf("chat box opened over %q", win.WindowTitle(win.ForegroundWindow()))
 	a.engine.Reset()
 	a.inp.Capture(true)
+	a.syncMouse()
 	application.InvokeSync(func() {
 		a.ov.show(overlayWidth, composerHeight, cfg.BottomOffset, cfg.Scale)
 	})
@@ -430,10 +477,13 @@ func (a *App) closeComposer(reason string) {
 	log.Printf("chat box closed (%s): hook active=%v, keys caught=%d, keys passed to game=%d", reason, hooked, caught, passed)
 	a.mode = ModeHidden
 	a.openFG = 0
+	a.viewer = nil
+	a.spots = nil
 	info := a.modeInfoLocked()
 	a.scheduleHideLocked(a.animDelay())
 	a.mu.Unlock()
 	a.inp.Capture(false)
+	a.syncMouse()
 	a.emit(EvMode, info)
 	a.engine.Reset()
 }
@@ -472,7 +522,10 @@ func (a *App) toast(ent chat.Entry) {
 	}
 	list := Toasts{Entries: append([]chat.Entry(nil), a.toasts...)}
 	info := a.modeInfoLocked()
-	a.toastTimer = time.AfterFunc(time.Duration(cfg.ToastSeconds)*time.Second, a.endToast)
+	// With a picture open the pop-ups stay until it is closed.
+	if a.viewer == nil {
+		a.toastTimer = time.AfterFunc(time.Duration(cfg.ToastSeconds)*time.Second, a.endToast)
+	}
 	a.mu.Unlock()
 
 	if wasHidden {
@@ -491,10 +544,113 @@ func (a *App) endToast() {
 		return
 	}
 	a.mode = ModeHidden
+	a.spots = nil
 	info := a.modeInfoLocked()
 	a.scheduleHideLocked(a.animDelay())
 	a.mu.Unlock()
+	a.syncMouse()
 	a.emit(EvMode, info)
+}
+
+// ---- pictures opened at full size ----
+
+// syncMouse tells the mouse hook what can be clicked right now.
+func (a *App) syncMouse() {
+	if a.inp == nil {
+		return
+	}
+	a.mu.Lock()
+	spots, viewer := a.spots, a.viewer != nil
+	if a.mode == ModeHidden {
+		spots, viewer = nil, false
+	}
+	a.mu.Unlock()
+	a.inp.SetMouse(spots, viewer)
+}
+
+func (a *App) onMouse(m input.Mouse) {
+	if m.Hover {
+		a.emit(EvHover, m.ID)
+		return
+	}
+	if m.ID == "" {
+		a.closeViewer()
+		return
+	}
+	a.mu.Lock()
+	sp, ok := a.spotInfo[m.ID]
+	a.mu.Unlock()
+	if !ok {
+		return
+	}
+	switch sp.Kind {
+	case SpotPicture:
+		a.openViewer(sp.Media)
+	case SpotName:
+		a.replyTo(chat.ParseID(sp.Peer))
+	}
+}
+
+// replyTo makes the chat box whisper to a person whose name was clicked,
+// opening it first when it is closed (a name in a pop-up).
+func (a *App) replyTo(id uint64) {
+	if id == 0 {
+		return
+	}
+	a.mu.Lock()
+	open := a.mode == ModeComposer
+	a.mu.Unlock()
+	if !open {
+		a.openComposer()
+	}
+	a.engine.WhisperTo(id)
+}
+
+// openViewer shows a picture at full size over the whole monitor. Pop-ups
+// on screen stay there, ignoring their duration, until it is closed.
+func (a *App) openViewer(m chat.Media) {
+	a.mu.Lock()
+	if a.mode == ModeHidden || a.viewer != nil {
+		a.mu.Unlock()
+		return
+	}
+	a.viewer = &m
+	if a.toastTimer != nil {
+		a.toastTimer.Stop()
+		a.toastTimer = nil
+	}
+	info := a.modeInfoLocked()
+	a.mu.Unlock()
+	log.Printf("picture opened (%s)", m.Kind)
+	a.syncMouse()
+	// The window grows first: the UI keeps the chat box or pop-ups where
+	// they were, so nothing on screen moves.
+	application.InvokeSync(a.ov.showViewer)
+	a.emit(EvMode, info)
+}
+
+// closeViewer closes the open picture. Pop-ups then get their full
+// duration again.
+func (a *App) closeViewer() {
+	a.mu.Lock()
+	if a.viewer == nil {
+		a.mu.Unlock()
+		return
+	}
+	a.viewer = nil
+	cfg, mode := a.cfg, a.mode
+	if mode == ModeToast && a.toastTimer == nil {
+		a.toastTimer = time.AfterFunc(time.Duration(cfg.ToastSeconds)*time.Second, a.endToast)
+	}
+	info := a.modeInfoLocked()
+	a.mu.Unlock()
+	a.syncMouse()
+	a.emit(EvMode, info)
+	if mode != ModeHidden {
+		application.InvokeSync(func() {
+			a.ov.show(overlayWidth, composerHeight, cfg.BottomOffset, cfg.Scale)
+		})
+	}
 }
 
 func (a *App) showSettings() {
@@ -652,9 +808,46 @@ func (s *ChatService) SaveConfig(c config.Config) (ConfigView, error) {
 	if c.Scale != old.Scale {
 		application.InvokeSync(func() { a.ov.w.SetZoom(c.Scale) })
 	}
+	// Turning the sound on plays it once, so the user knows what it is.
+	if c.MessageSound && !old.MessageSound {
+		sound.Play()
+	}
 	a.emit(EvConfig, view)
 	return view, nil
 }
+
+// SetSpots is called by the overlay with the pictures and names it draws,
+// each time they move. A click on a picture opens it at full size; a click
+// on a name whispers to that person. The spot under the mouse pointer comes
+// back as the mychat:hover event.
+func (s *ChatService) SetSpots(spots []Spot) {
+	a := s.a
+	list := make([]input.Spot, 0, len(spots))
+	byKey := make(map[string]Spot, len(spots))
+	for _, sp := range spots {
+		ok := (sp.Kind == SpotPicture && sp.Media.ID != "") || (sp.Kind == SpotName && chat.ParseID(sp.Peer) != 0)
+		if !ok || sp.Key == "" || sp.W < 1 || sp.H < 1 {
+			continue
+		}
+		list = append(list, input.Spot{Rect: a.ov.screenRect(sp.X, sp.Y, sp.W, sp.H), ID: sp.Key})
+		byKey[sp.Key] = sp
+	}
+	a.mu.Lock()
+	a.spots, a.spotInfo = list, byKey
+	a.mu.Unlock()
+	a.syncMouse()
+}
+
+// ClickSpot acts as if a spot reported by SetSpots was clicked (the mouse
+// hook does this for clicks in game).
+func (s *ChatService) ClickSpot(key string) {
+	if key != "" {
+		s.a.onMouse(input.Mouse{ID: key})
+	}
+}
+
+// ClosePicture closes the picture open at full size.
+func (s *ChatService) ClosePicture() { s.a.closeViewer() }
 
 // PreviewToast shows a sample toast so the user can check position and look.
 func (s *ChatService) PreviewToast() {

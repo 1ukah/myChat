@@ -29,6 +29,11 @@ export const MychatEntry = "mychat:entry";
 export const MychatEntryUpdated = "mychat:entry-updated";
 
 /**
+ * Name of the custom event "mychat:hover".
+ */
+export const MychatHover = "mychat:hover";
+
+/**
  * Name of the custom event "mychat:local-logins".
  */
 export const MychatLocalLogins = "mychat:local-logins";

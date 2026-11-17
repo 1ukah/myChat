@@ -15,13 +15,17 @@
   // 360 px high, so: the newest picture is shown at full size (300 × 150 at
   // most), pictures in older messages shrink to thumbnails (40 px high), and
   // if the list still does not fit, the oldest messages are left out (`fit`).
+  // A click on a picture opens it at full size (`zoom`); the pop-ups then
+  // stay until it is closed.
   import { untrack } from "svelte";
   import type * as C from "../../../bindings/mychat/internal/chat/models";
   import { clock, playerColor } from "../format";
+  import { app, clickSpot } from "../store.svelte";
   import Avatar from "../ui/Avatar.svelte";
   import { pictureOf, TOAST_FULL, TOAST_THUMB } from "./media";
   import type { Motion } from "./motion";
   import Picture from "./Picture.svelte";
+  import { nameSpot } from "./spots";
   import Typed from "./Typed.svelte";
 
   let {
@@ -32,6 +36,7 @@
     avatars = false,
     images = true,
     minimal = false,
+    zoom = false,
     motion,
   }: {
     /** Oldest first; the whole list is replaced on every change. */
@@ -48,6 +53,8 @@
     images?: boolean;
     /** The Minimal look (`overlayStyle`): dark blue-grey glass, light text, fading at the edges. */
     minimal?: boolean;
+    /** Pictures open at full size and names start a whisper when clicked (the in-game overlay, not previews). */
+    zoom?: boolean;
     motion: Motion;
   } = $props();
 
@@ -257,6 +264,9 @@
 
 <div class="toasts" class:minimal bind:this={list}>
   {#each boxes as box (box.key)}
+    <!-- With `zoom` the name is a link: a click opens the chat box
+         whispering to this person. -->
+    {@const spot = zoom ? nameSpot(box.who, box.key) : ""}
     <div class="box" class:fresh={box.fresh} style:--who={box.tint}>
       {#if avatars}
         <span class="face">
@@ -265,7 +275,14 @@
       {/if}
       <div class="body">
         <div class="title">
-          <bdi class="name">{box.name}</bdi>
+          <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+          <bdi
+            class="name"
+            class:link={spot !== ""}
+            class:hover={spot !== "" && app.hover === spot}
+            data-spot={spot || undefined}
+            onclick={spot ? () => clickSpot(spot) : undefined}>{box.name}</bdi
+          >
           <span class="time">{clock(box.time)}</span>
         </div>
         {#each box.lines as line (line.entry.id)}
@@ -291,6 +308,7 @@
                   maxW={full ? TOAST_FULL.w : TOAST_THUMB.w}
                   maxH={full ? TOAST_FULL.h : TOAST_THUMB.h}
                   {minimal}
+                  {zoom}
                   onsize={refit}
                 />
               </div>
@@ -374,6 +392,21 @@
     text-overflow: ellipsis;
     color: var(--who);
     text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.9);
+  }
+
+  /* A name under the mouse pointer looks like a hovered link. `.hover`
+     comes from Go (the window never sees the mouse); `:hover` is for the
+     browser mock. */
+  .name.link {
+    cursor: pointer;
+  }
+
+  .name.link.hover,
+  .name.link:hover {
+    color: color-mix(in srgb, var(--who) 65%, #fff);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
   }
 
   .time {
@@ -524,6 +557,11 @@
     letter-spacing: 0;
     color: color-mix(in srgb, var(--who) 58%, #fff);
     text-shadow: var(--halo);
+  }
+
+  .minimal .name.link.hover,
+  .minimal .name.link:hover {
+    color: color-mix(in srgb, var(--who) 34%, #fff);
   }
 
   .minimal .time {

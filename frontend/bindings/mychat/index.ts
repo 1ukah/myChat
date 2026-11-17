@@ -13,6 +13,7 @@ export {
     LoginState,
     ModeInfo,
     Snapshot,
+    Spot,
     Status,
     Toasts
 } from "./models.js";

@@ -159,7 +159,8 @@
 <div class="composer" class:live class:minimal>
   <div class="frame">
     <div class="log">
-      <div class="lines" class:pics={pics && images}>
+      <!-- data-clip: a picture is clickable only where the log shows it. -->
+      <div class="lines" class:pics={pics && images} data-clip>
         {#each lines as entry (entry.id)}
           <ChatLine {entry} {avatars} {images} {thumbH} {minimal} {typewriter} />
         {:else}

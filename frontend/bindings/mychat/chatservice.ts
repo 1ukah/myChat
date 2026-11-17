@@ -26,6 +26,21 @@ export function CancelLogin(): $CancellablePromise<void> {
 }
 
 /**
+ * ClickSpot acts as if a spot reported by SetSpots was clicked (the mouse
+ * hook does this for clicks in game).
+ */
+export function ClickSpot(key: string): $CancellablePromise<void> {
+    return $Call.ByID(1051075021, key);
+}
+
+/**
+ * ClosePicture closes the picture open at full size.
+ */
+export function ClosePicture(): $CancellablePromise<void> {
+    return $Call.ByID(1714292877);
+}
+
+/**
  * HideSettings hides the settings window.
  */
 export function HideSettings(): $CancellablePromise<void> {
@@ -102,6 +117,16 @@ export function SaveConfig(c: config$0.Config): $CancellablePromise<$models.Conf
     return $Call.ByID(727821320, c).then(($result: any) => {
         return $$createType1($result);
     });
+}
+
+/**
+ * SetSpots is called by the overlay with the pictures and names it draws,
+ * each time they move. A click on a picture opens it at full size; a click
+ * on a name whispers to that person. The spot under the mouse pointer comes
+ * back as the mychat:hover event.
+ */
+export function SetSpots(spots: $models.Spot[]): $CancellablePromise<void> {
+    return $Call.ByID(3316672622, spots);
 }
 
 /**

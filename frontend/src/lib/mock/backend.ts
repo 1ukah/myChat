@@ -236,6 +236,7 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     toastLayout: params.get("layout") === "stack" ? "stack" : "group",
     // The real default is 3; the overlay mocks show more unless told otherwise.
     toastMax: max >= 1 && max <= 5 ? max : view === "overlay" ? 5 : 3,
+    messageSound: true,
     showImages: flag("images", true),
     imageLinks: flag("links", false),
     bottomOffset: 150,
@@ -367,6 +368,8 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
   let scroll = 0;
   let toastTimer = 0;
   let toasts: C.Entry[] = [];
+  /** The picture open at full size; the pop-ups stay while it is open. */
+  let viewer: C.Media | null = null;
   /** When Enter was last pressed on an empty line (for the double tap). */
   let lastEmptyEnter = 0;
   /** `mock=toast`: the pop-ups stay up, for screenshots. */
@@ -419,9 +422,54 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
       blur: cfg.blur,
       showAvatars: cfg.showAvatars,
       overlayStyle: cfg.overlayStyle,
+      viewer,
     });
   const setMode = (m: string): void => {
     mode = m;
+    if (m !== "toast") viewer = null;
+    emit("mode", modeInfo());
+  };
+
+  const startToastTimer = (): void => {
+    clearTimeout(toastTimer);
+    if (still || viewer) return;
+    toastTimer = window.setTimeout(() => {
+      if (mode === "toast") setMode("hidden");
+    }, cfg.toastSeconds * 1000);
+  };
+
+  /** Like Go: the pictures and names on screen, by key, as the overlay last reported them. */
+  let spots = new Map<string, M.Spot>();
+  const openPicture = (m: C.Media): void => {
+    if (mode === "hidden" || viewer) return;
+    viewer = m;
+    clearTimeout(toastTimer);
+    emit("mode", modeInfo());
+  };
+  /** Like Go: a click on a name whispers to that person, opening the chat box if needed. */
+  const replyTo = (id: string): void => {
+    const f = friend(id);
+    if (!f) return;
+    if (mode !== "composer") openComposer();
+    if (sugg.length > 0) {
+      chars = [];
+      caret = 0;
+      sugg = [];
+      selected = 0;
+    }
+    error = "";
+    setWhisper(f);
+    changed();
+  };
+  const clickSpot = (key: string): void => {
+    const s = spots.get(key);
+    if (s?.kind === "picture") openPicture(s.media);
+    else if (s?.kind === "name") replyTo(s.peerId);
+  };
+  const closePicture = (): void => {
+    if (!viewer) return;
+    viewer = null;
+    if (mode === "toast") startToastTimer();
     emit("mode", modeInfo());
   };
 
@@ -457,11 +505,7 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     if (mode === "hidden") toasts = [];
     mode = "toast";
     toasts = [...toasts, entry].slice(-cfg.toastMax);
-    if (!still) {
-      toastTimer = window.setTimeout(() => {
-        if (mode === "toast") setMode("hidden");
-      }, cfg.toastSeconds * 1000);
-    }
+    startToastTimer();
     emit("toasts", new M.Toasts({ entries: [...toasts] }));
     emit("mode", modeInfo());
   };
@@ -676,6 +720,11 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
   };
 
   const onKey = (e: KeyboardEvent): void => {
+    if (viewer && e.key === "Escape") {
+      e.preventDefault();
+      closePicture();
+      return;
+    }
     if (mode !== "composer") {
       const h = cfg.hotkey;
       if (e.code === h.code && e.ctrlKey === h.ctrl && e.shiftKey === h.shift && e.altKey === h.alt) {
@@ -1013,6 +1062,13 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
       toast(new C.Entry({ id: -Date.now(), time: Date.now(), kind: "in", peerName: "Preview", text: "This is how new messages look in game." }));
       return done();
     },
+
+    setSpots(list) {
+      spots = new Map(list.map((s) => [s.key, s]));
+      return done();
+    },
+    clickSpot: (key) => (clickSpot(key), done()),
+    closePicture: () => (closePicture(), done()),
 
     hideSettings: () => (console.info("mock: HideSettings"), done()),
     minimiseSettings: () => (console.info("mock: MinimiseSettings"), done()),

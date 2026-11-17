@@ -45,6 +45,8 @@ type Config struct {
 	// box). ToastMax is how many messages show at once (1..5).
 	ToastLayout string `json:"toastLayout"`
 	ToastMax    int    `json:"toastMax"`
+	// MessageSound plays myChat's own soft sound when a message arrives.
+	MessageSound bool `json:"messageSound"`
 	// ShowImages shows pictures sent through Steam chat and /giphy GIFs in
 	// pop-ups and the chat box. ImageLinks also loads pictures from links
 	// to other sites, which lets those sites see the user's IP address.
@@ -82,6 +84,7 @@ func Default() Config {
 		ToastSeconds:     6,
 		ToastLayout:      "group",
 		ToastMax:         3,
+		MessageSound:     true,
 		ShowImages:       true,
 		ImageLinks:       false,
 		BottomOffset:     150,

@@ -44,15 +44,22 @@ var (
 	pGetModuleHandleW         = kernel3.NewProc("GetModuleHandleW")
 	pKeybdEvent               = user32.NewProc("keybd_event")
 	pGetWindowTextW           = user32.NewProc("GetWindowTextW")
+	pGetCursorInfo            = user32.NewProc("GetCursorInfo")
 )
 
 const (
 	WH_KEYBOARD_LL = 13
+	WH_MOUSE_LL    = 14
 	WM_KEYDOWN     = 0x0100
 	WM_KEYUP       = 0x0101
 	WM_SYSKEYDOWN  = 0x0104
 	WM_SYSKEYUP    = 0x0105
 	WM_HOTKEY      = 0x0312
+	WM_MOUSEMOVE   = 0x0200
+	WM_LBUTTONDOWN = 0x0201
+	WM_LBUTTONUP   = 0x0202
+	WM_RBUTTONDOWN = 0x0204
+	WM_RBUTTONUP   = 0x0205
 	WM_APP         = 0x8000
 	WM_QUIT        = 0x0012
 
@@ -125,7 +132,37 @@ type KBDLLHOOKSTRUCT struct {
 	DwExtraInfo uintptr
 }
 
+type MSLLHOOKSTRUCT struct {
+	Pt          POINT
+	MouseData   uint32
+	Flags       uint32
+	Time        uint32
+	DwExtraInfo uintptr
+}
+
 type RECT struct{ Left, Top, Right, Bottom int32 }
+
+// Contains reports whether p lies inside r.
+func (r RECT) Contains(p POINT) bool {
+	return p.X >= r.Left && p.X < r.Right && p.Y >= r.Top && p.Y < r.Bottom
+}
+
+type cursorInfo struct {
+	CbSize  uint32
+	Flags   uint32
+	HCursor uintptr
+	Pt      POINT
+}
+
+// CursorVisible reports whether the mouse pointer is on screen. Games hide
+// it while the mouse aims, and show it in menus.
+func CursorVisible() bool {
+	ci := cursorInfo{CbSize: uint32(unsafe.Sizeof(cursorInfo{}))}
+	if r, _, _ := pGetCursorInfo.Call(uintptr(unsafe.Pointer(&ci))); r == 0 {
+		return false
+	}
+	return ci.Flags&1 != 0 && ci.HCursor != 0 // CURSOR_SHOWING
+}
 
 type MONITORINFO struct {
 	CbSize    uint32
