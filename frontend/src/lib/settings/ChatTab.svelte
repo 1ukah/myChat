@@ -93,10 +93,10 @@
     <div class="tip">
       <Icon name="alert" size={14} />
       <p>
-        Turn off Steam's own sound so you only hear this one. In the Steam app, open
-        <b>Settings › Notifications</b> and switch off
-        <b>“When I receive a direct chat message”</b>. This also turns off Steam's message
-        pop-up, so it no longer shows over your game.
+        Turn off Steam's own sound and pop-up so you only get myChat's. In the Steam app, open
+        <b>Settings › Notifications</b>, find <b>“When I receive a direct chat message”</b>
+        under Friend Notifications, and switch off both <b>Show toast</b> and
+        <b>Play sound</b>.
       </p>
     </div>
   {/if}
