@@ -24,10 +24,11 @@ const (
 	// Prefix is the path the overlay loads pictures from: Prefix + id.
 	Prefix = "/media/"
 
-	maxBytes     = 8 << 20  // one picture
-	maxTotal     = 96 << 20 // all kept pictures
+	maxBytes     = 8 << 20   // one picture
+	maxFullBytes = 32 << 20  // one original picture (Later)
+	maxTotal     = 160 << 20 // all kept pictures
 	maxItems     = 64
-	fetchTimeout = 15 * time.Second
+	fetchTimeout = 30 * time.Second // originals can be several MB
 )
 
 // Picture is a fetched image.
@@ -47,9 +48,12 @@ var (
 )
 
 type item struct {
-	done chan struct{}
-	pic  Picture
-	err  error
+	url     string
+	limit   int64
+	started bool
+	done    chan struct{}
+	pic     Picture
+	err     error
 }
 
 // Store fetches pictures once, keeps the recent ones in memory and serves
@@ -121,19 +125,41 @@ func ID(rawURL string) string {
 // Start fetches the picture at an address in the background, once, and
 // returns its id.
 func (s *Store) Start(rawURL string) string {
-	id := ID(rawURL)
 	s.mu.Lock()
-	if _, ok := s.items[id]; ok {
-		s.mu.Unlock()
-		return id
+	defer s.mu.Unlock()
+	id, it := s.addLocked(rawURL, maxBytes)
+	s.startLocked(it)
+	return id
+}
+
+// Later is Start for a picture that may never be looked at (the original of
+// a thumbnail): it is fetched only when first asked for, and may be bigger.
+func (s *Store) Later(rawURL string) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	id, _ := s.addLocked(rawURL, maxFullBytes)
+	return id
+}
+
+func (s *Store) addLocked(rawURL string, limit int64) (string, *item) {
+	id := ID(rawURL)
+	if it, ok := s.items[id]; ok {
+		return id, it
 	}
-	it := &item{done: make(chan struct{})}
+	it := &item{url: rawURL, limit: limit, done: make(chan struct{})}
 	s.items[id] = it
 	s.order = append(s.order, id)
-	s.mu.Unlock()
+	s.evictLocked()
+	return id, it
+}
 
+func (s *Store) startLocked(it *item) {
+	if it.started {
+		return
+	}
+	it.started = true
 	go func() {
-		pic, err := s.fetch(rawURL)
+		pic, err := s.fetch(it.url, it.limit)
 		s.mu.Lock()
 		it.pic, it.err = pic, err
 		s.total += len(pic.Data)
@@ -141,13 +167,16 @@ func (s *Store) Start(rawURL string) string {
 		s.mu.Unlock()
 		close(it.done)
 	}()
-	return id
 }
 
-// Wait returns the picture with an id once it has been fetched.
+// Wait returns the picture with an id once it has been fetched, fetching it
+// now if it was added with Later.
 func (s *Store) Wait(ctx context.Context, id string) (Picture, error) {
 	s.mu.Lock()
 	it, ok := s.items[id]
+	if ok {
+		s.startLocked(it)
+	}
 	s.mu.Unlock()
 	if !ok {
 		return Picture{}, ErrUnknown
@@ -160,16 +189,19 @@ func (s *Store) Wait(ctx context.Context, id string) (Picture, error) {
 	}
 }
 
-// evictLocked drops the oldest fetched pictures while there are too many.
+// evictLocked drops the oldest pictures while there are too many. The
+// newest one stays, and so do those still loading.
 func (s *Store) evictLocked() {
-	for i := 0; i < len(s.order) && (s.total > maxTotal || len(s.order) > maxItems); {
+	for i := 0; i < len(s.order)-1 && (s.total > maxTotal || len(s.order) > maxItems); {
 		id := s.order[i]
 		it := s.items[id]
-		select {
-		case <-it.done:
-		default:
-			i++ // still loading
-			continue
+		if it.started {
+			select {
+			case <-it.done:
+			default:
+				i++ // still loading
+				continue
+			}
 		}
 		s.total -= len(it.pic.Data)
 		delete(s.items, id)
@@ -177,7 +209,7 @@ func (s *Store) evictLocked() {
 	}
 }
 
-func (s *Store) fetch(rawURL string) (Picture, error) {
+func (s *Store) fetch(rawURL string, limit int64) (Picture, error) {
 	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
 	if err != nil {
 		return Picture{}, err
@@ -192,14 +224,14 @@ func (s *Store) fetch(rawURL string) (Picture, error) {
 	if resp.StatusCode != http.StatusOK {
 		return Picture{}, fmt.Errorf("media: HTTP %d", resp.StatusCode)
 	}
-	if resp.ContentLength > maxBytes {
+	if resp.ContentLength > limit {
 		return Picture{}, errTooBig
 	}
-	data, err := io.ReadAll(io.LimitReader(resp.Body, maxBytes+1))
+	data, err := io.ReadAll(io.LimitReader(resp.Body, limit+1))
 	if err != nil {
 		return Picture{}, err
 	}
-	if len(data) > maxBytes {
+	if int64(len(data)) > limit {
 		return Picture{}, errTooBig
 	}
 	// Judge by the bytes, not the address or the server's word.

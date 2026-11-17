@@ -29,8 +29,15 @@
   let vh = $state(0);
   let natural = $state<{ url: string; w: number; h: number } | null>(null);
   let failed = $state("");
+  /** The original (`media.full`) once it has loaded, or failed to. */
+  let fullLoaded = $state("");
+  let fullFailed = $state("");
 
   const usable = $derived(isLocal(media.url) && failed !== media.url);
+  /** The thumbnail shows at once; the original, fetched only now, covers
+      it once loaded. Without one, the thumbnail is all there is. */
+  const hasFull = $derived(!!media.full && isLocal(media.full) && fullFailed !== media.full);
+  const fullReady = $derived(hasFull && fullLoaded === media.full);
   const src = $derived.by(() => {
     if (media.width > 0 && media.height > 0) return { w: media.width, h: media.height };
     return natural?.url === media.url ? natural : null;
@@ -70,6 +77,19 @@
           {onload}
           onerror={() => (failed = media.url)}
         />
+        {#if hasFull}
+          <img
+            class="full"
+            class:shown={fullReady}
+            src={media.full}
+            alt=""
+            width={size?.w}
+            height={size?.h}
+            draggable="false"
+            onload={() => (fullLoaded = media.full)}
+            onerror={() => (fullFailed = media.full)}
+          />
+        {/if}
       </div>
     {:else}
       <div class="missing">{label} could not be loaded</div>
@@ -110,6 +130,7 @@
 
   /* Legacy: a thin dark frame and a deep shadow, like the thumbnails. */
   .frame {
+    position: relative;
     display: flex;
     background: rgba(255, 255, 255, 0.05);
     box-shadow:
@@ -125,6 +146,16 @@
   img {
     display: block;
     user-select: none;
+  }
+
+  img.full {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+  }
+
+  img.full.shown {
+    opacity: 1;
   }
 
   /* Until its size is known the picture is not drawn (it is never shown

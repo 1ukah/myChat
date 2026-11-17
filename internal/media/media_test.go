@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -33,6 +34,9 @@ func TestFindGiphy(t *testing.T) {
 	if f.URL != giphyPlain {
 		t.Fatalf("loads %q, want the GIF itself", f.URL)
 	}
+	if f.Full != "" {
+		t.Fatalf("original %q, want none (src is a Giphy page)", f.Full)
+	}
 	if got := StripText(giphyPlain, f); got != "" {
 		t.Fatalf("text left: %q", got)
 	}
@@ -48,6 +52,9 @@ func TestFindUpload(t *testing.T) {
 	}
 	if !strings.Contains(f.URL, "imw=512") {
 		t.Fatalf("loads %q, want the 512 px thumbnail", f.URL)
+	}
+	if f.Full != uploadPlain {
+		t.Fatalf("original %q, want %q", f.Full, uploadPlain)
 	}
 	if got := StripText(uploadPlain, f); got != "" {
 		t.Fatalf("text left: %q", got)
@@ -155,6 +162,30 @@ func TestStoreFetchesAndServes(t *testing.T) {
 	h.ServeHTTP(rec, httptest.NewRequest("GET", "/index.html", nil))
 	if rec.Code != 299 {
 		t.Fatal("other paths are not passed on")
+	}
+}
+
+func TestStoreLaterFetchesWhenAsked(t *testing.T) {
+	var hits atomic.Int32
+	pic := pngBytes(t, 4, 4)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		_, _ = w.Write(pic)
+	}))
+	defer srv.Close()
+
+	s := NewStore()
+	s.client = srv.Client()
+	id := s.Later(srv.URL + "/full.png")
+	time.Sleep(50 * time.Millisecond)
+	if hits.Load() != 0 {
+		t.Fatal("fetched before anyone asked")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	got, err := s.Wait(ctx, id)
+	if err != nil || got.Width != 4 || hits.Load() != 1 {
+		t.Fatalf("got %dx%d, %v, %d fetches", got.Width, got.Height, err, hits.Load())
 	}
 }
 

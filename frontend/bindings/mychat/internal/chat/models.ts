@@ -198,6 +198,11 @@ export class Media {
     "url": string;
 
     /**
+     * local address of the original when URL is a smaller copy; "" otherwise
+     */
+    "full": string;
+
+    /**
      * as the sender says or as decoded; 0 when unknown
      */
     "width": number;
@@ -220,6 +225,9 @@ export class Media {
         }
         if (!("url" in $$source)) {
             this["url"] = "";
+        }
+        if (!("full" in $$source)) {
+            this["full"] = "";
         }
         if (!("width" in $$source)) {
             this["width"] = 0;

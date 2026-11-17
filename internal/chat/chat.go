@@ -73,6 +73,7 @@ type Entry struct {
 type Media struct {
 	ID     string `json:"id"`
 	URL    string `json:"url"`   // local address to load it from
+	Full   string `json:"full"`  // local address of the original when URL is a smaller copy; "" otherwise
 	Width  int    `json:"width"` // as the sender says or as decoded; 0 when unknown
 	Height int    `json:"height"`
 	Kind   string `json:"kind"`  // "upload" | "gif" | "link"

@@ -20,6 +20,7 @@ const (
 // Found is the picture a message refers to.
 type Found struct {
 	URL    string // the picture to load
+	Full   string // the original when URL is a smaller copy (Steam uploads); "" otherwise
 	Width  int    // as the message says; 0 when unknown
 	Height int
 	Kind   string
@@ -94,6 +95,12 @@ func findImg(s string) (Found, bool) {
 		}
 		if _, gif := attrs["giphy_search"]; gif || strings.HasSuffix(u.Hostname(), "giphy.com") {
 			f.Kind = KindGIF
+		}
+		// A GIF's src is its Giphy page; an upload's is the original picture.
+		if full := attrs["src"]; f.Kind == KindUpload && full != "" && full != src {
+			if fu, ok := imageURL(full); ok && (trusted(fu) || !f.Trusted) {
+				f.Full = full
+			}
 		}
 		// Steam's plain text for an image is the text inside the tag (the
 		// address in its [url]).

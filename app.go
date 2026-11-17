@@ -334,7 +334,7 @@ func (a *App) incoming(e steam.MessageEvent) {
 	if f, ok := media.Find(e.BBCode, e.Text); ok && show && (f.Trusted || links) {
 		id := a.media.Start(f.URL)
 		if f.Width > 0 {
-			pics = []chat.Media{toMedia(id, f, f.Width, f.Height)}
+			pics = []chat.Media{a.toMedia(id, f, f.Width, f.Height)}
 			text = media.StripText(text, f)
 		} else {
 			later = &f
@@ -353,8 +353,13 @@ func (a *App) incoming(e steam.MessageEvent) {
 	}
 }
 
-func toMedia(id string, f media.Found, w, h int) chat.Media {
-	return chat.Media{ID: id, URL: media.Prefix + id, Width: w, Height: h, Kind: f.Kind, Title: f.Title}
+func (a *App) toMedia(id string, f media.Found, w, h int) chat.Media {
+	m := chat.Media{ID: id, URL: media.Prefix + id, Width: w, Height: h, Kind: f.Kind, Title: f.Title}
+	if f.Full != "" {
+		// Fetched only when the picture is opened in the viewer.
+		m.Full = media.Prefix + a.media.Later(f.Full)
+	}
+	return m
 }
 
 // attachLater adds a linked picture to its message once it has loaded and
@@ -367,7 +372,7 @@ func (a *App) attachLater(entryID int64, plain string, f media.Found) {
 	if err != nil {
 		return
 	}
-	ent, ok := a.engine.SetMedia(entryID, media.StripText(plain, f), []chat.Media{toMedia(id, f, pic.Width, pic.Height)})
+	ent, ok := a.engine.SetMedia(entryID, media.StripText(plain, f), []chat.Media{a.toMedia(id, f, pic.Width, pic.Height)})
 	if !ok {
 		return
 	}
