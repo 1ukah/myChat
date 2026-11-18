@@ -1,9 +1,5 @@
 //go:build windows
 
-// Package sound plays myChat's new message sound: a soft, short falling
-// two-note chime (D5 to G4), quiet and round, built in memory as a WAV and
-// played through the Windows sound API, so it follows myChat's volume in
-// the Windows volume mixer.
 package sound
 
 import (
@@ -24,20 +20,18 @@ const (
 	sndNoDefault = 0x0002
 	sndMemory    = 0x0004
 
-	rate = 44100
-	// Messages that arrive closer together than this play one sound.
+	rate   = 44100
 	minGap = 250 * time.Millisecond
 )
 
 var (
 	once sync.Once
-	wav  []byte // kept for the life of the app: Windows reads it while playing
+	wav  []byte
 
 	mu   sync.Mutex
 	last time.Time
 )
 
-// Play plays the message sound and returns at once.
 func Play() {
 	mu.Lock()
 	if time.Since(last) < minGap {
@@ -53,12 +47,10 @@ func Play() {
 	pPlaySoundW.Call(uintptr(unsafe.Pointer(&wav[0])), 0, sndMemory|sndAsync|sndNoDefault)
 }
 
-// note is one soft mallet-like tone: a sine with a little of its octave,
-// a short rounded attack and a smooth exponential decay.
 type note struct {
-	freq  float64 // Hz
-	start float64 // s
-	tau   float64 // decay time constant, s
+	freq  float64
+	start float64
+	tau   float64
 	gain  float64
 }
 
@@ -87,7 +79,6 @@ func build() []byte {
 			w := 2 * math.Pi * nt.freq * dt
 			v += nt.gain * env * (math.Sin(w) + 0.12*math.Exp(-dt/nt.tau)*math.Sin(2*w))
 		}
-		// The end fades to silence, so nothing clicks.
 		if rest := length - t; rest < tail {
 			v *= rest / tail
 		}
@@ -104,7 +95,7 @@ func build() []byte {
 		Format, Channels uint16
 		Rate, ByteRate   uint32
 		Align, Bits      uint16
-	}{16, 1, 1, rate, rate * 2, 2, 16}) // PCM, mono, 16 bit
+	}{16, 1, 1, rate, rate * 2, 2, 16})
 	b.WriteString("data")
 	binary.Write(&b, binary.LittleEndian, data)
 	binary.Write(&b, binary.LittleEndian, pcm)

@@ -7,8 +7,6 @@ import (
 	"google.golang.org/protobuf/encoding/protowire"
 )
 
-// enc is a tiny protobuf encoder. Steam messages are encoded by hand so that
-// only the handful of fields this app needs are compiled in.
 type enc struct{ b []byte }
 
 func (e *enc) varint(f int, v uint64) {
@@ -43,8 +41,6 @@ func (e *enc) bytes(f int, v []byte) {
 
 func (e *enc) string(f int, v string) { e.bytes(f, []byte(v)) }
 
-// field is one decoded protobuf field. For length-delimited fields Bytes is set;
-// for varint/fixed fields Num is set.
 type field struct {
 	Num   protowire.Number
 	Type  protowire.Type
@@ -60,7 +56,6 @@ func (f field) f32() float32  { return math.Float32frombits(uint32(f.Value)) }
 
 var errBadProto = errors.New("steam: malformed protobuf")
 
-// walk calls fn for every field in b, in order.
 func walk(b []byte, fn func(f field)) error {
 	for len(b) > 0 {
 		num, typ, n := protowire.ConsumeTag(b)

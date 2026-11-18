@@ -11,25 +11,12 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-// The overlay is click-through: the game gets every click. Pictures and
-// names in it can still be clicked, through a low-level mouse hook that
-// takes a click for itself only when it lands on one of them (or anywhere
-// while a picture is open in the viewer) and the mouse pointer is visible.
-// While the game aims with a hidden pointer, clicks are never taken. The
-// hook also reports which spot the pointer is over, so the overlay can
-// show it as a link. It is only installed while it has something to do.
-
-// Spot is something on screen that reacts to the mouse.
 type Spot struct {
-	Rect win.RECT // screen pixels
+	Rect win.RECT
 	ID   string
 }
 
-// Mouse is a click the overlay took for itself, or a change of the spot
-// under the pointer.
 type Mouse struct {
-	// ID is the spot clicked or now under the pointer. A click with ""
-	// is a click while the viewer is open; a hover with "" means none.
 	ID    string
 	Hover bool
 }
@@ -39,15 +26,11 @@ type mouseState struct {
 	viewer bool
 }
 
-// SetMouse sets the spots and whether the viewer is open.
 func (m *Manager) SetMouse(spots []Spot, viewer bool) {
 	m.mouse.Store(&mouseState{spots: spots, viewer: viewer})
 	m.RefreshMouse()
 }
 
-// RefreshMouse installs or removes the hook as needed. Spots only react
-// while the pointer is visible, so it is checked again from time to time;
-// the open viewer needs the hook either way (a click closes it).
 func (m *Manager) RefreshMouse() {
 	s := m.mouse.Load()
 	want := s != nil && (s.viewer || (len(s.spots) > 0 && win.CursorVisible()))
@@ -65,13 +48,12 @@ func (m *Manager) RefreshMouse() {
 	win.PostThreadMessage(m.threadID, msg, 0, 0)
 }
 
-// Mouse hook state. It is only touched on the input thread.
 var (
 	mouseHandle uintptr
 	mouseCB     = windows.NewCallback(mouseProc)
 	ms          struct {
 		m      *Manager
-		upL    bool // the press was taken: take its release too
+		upL    bool
 		upR    bool
 		hover  string
 		events chan Mouse
@@ -127,7 +109,6 @@ func spotAt(s *mouseState, pt win.POINT) string {
 	return ""
 }
 
-// mouseProc must return fast: it sees every mouse move while installed.
 func mouseProc(nCode, wParam, lParam uintptr) uintptr {
 	if int32(nCode) < 0 || mouseHandle == 0 {
 		return win.CallNextHookEx(int(int32(nCode)), wParam, lParam)
@@ -143,8 +124,6 @@ func mouseProc(nCode, wParam, lParam uintptr) uintptr {
 		}
 		left := wParam == win.WM_LBUTTONDOWN
 		if s.viewer {
-			// Any click closes the viewer. With the pointer hidden the
-			// player is aiming: the click still goes to the game.
 			sendMouse(Mouse{})
 			if !win.CursorVisible() {
 				break

@@ -1,7 +1,5 @@
 //go:build windows
 
-// Package config stores settings and the encrypted Steam session token in
-// %APPDATA%\myChat.
 package config
 
 import (
@@ -18,7 +16,6 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-// Hotkey is stored as a KeyboardEvent.code (physical key) plus modifiers.
 type Hotkey struct {
 	Code  string `json:"code"`
 	Ctrl  bool   `json:"ctrl"`
@@ -26,57 +23,39 @@ type Hotkey struct {
 	Alt   bool   `json:"alt"`
 }
 
-// Config is the user's settings.
 type Config struct {
-	Hotkey         Hotkey `json:"hotkey"`
-	CloseAfterSend bool   `json:"closeAfterSend"`
-	// DoubleEnterClose applies when CloseAfterSend is off: Enter on an empty
-	// line closes the box only when it follows another Enter quickly.
-	DoubleEnterClose bool   `json:"doubleEnterClose"`
-	Animations       bool   `json:"animations"`
-	Blur             bool   `json:"blur"`
-	AnimationStyle   string `json:"animationStyle"`
-	AnimationSpeed   string `json:"animationSpeed"`
-	ShowAvatars      bool   `json:"showAvatars"`
-	ShowToasts       bool   `json:"showToasts"`
-	ToastSeconds     int    `json:"toastSeconds"`
-	// ToastLayout is how several new messages show: "stack" (one box per
-	// message) or "group" (consecutive messages from one person share a
-	// box). ToastMax is how many messages show at once (1..5).
-	ToastLayout string `json:"toastLayout"`
-	ToastMax    int    `json:"toastMax"`
-	// MessageSound plays myChat's own soft sound when a message arrives.
-	MessageSound bool `json:"messageSound"`
-	// ShowImages shows pictures sent through Steam chat and /giphy GIFs in
-	// pop-ups and the chat box. ImageLinks also loads pictures from links
-	// to other sites, which lets those sites see the user's IP address.
-	ShowImages   bool    `json:"showImages"`
-	ImageLinks   bool    `json:"imageLinks"`
-	BottomOffset int     `json:"bottomOffset"`
-	Scale        float64 `json:"scale"`
-	// OverlayStyle is the look of the chat box and pop-ups: "legacy" (CS2
-	// chat) or "minimal" (light, compact).
-	OverlayStyle string `json:"overlayStyle"`
-	// ShowAccountName shows the Steam account (login) name in the app; the
-	// persona name is always shown.
-	ShowAccountName bool   `json:"showAccountName"`
-	MachineSeed     string `json:"machineSeed"`
-	// LoginSource is how myChat logs in: "steam" (the login saved by the
-	// Steam app on this PC), "qr" or "password" (myChat's own login, kept in
-	// session.dat) or "" (not chosen yet). SteamAccount is the Steam account
-	// name for "steam".
-	LoginSource  string `json:"loginSource"`
-	SteamAccount string `json:"steamAccount"`
+	Hotkey           Hotkey  `json:"hotkey"`
+	CloseAfterSend   bool    `json:"closeAfterSend"`
+	DoubleEnterClose bool    `json:"doubleEnterClose"`
+	Animations       bool    `json:"animations"`
+	Blur             bool    `json:"blur"`
+	AnimationStyle   string  `json:"animationStyle"`
+	AnimationSpeed   string  `json:"animationSpeed"`
+	ShowAvatars      bool    `json:"showAvatars"`
+	ShowToasts       bool    `json:"showToasts"`
+	ToastSeconds     int     `json:"toastSeconds"`
+	ToastLayout      string  `json:"toastLayout"`
+	ToastMax         int     `json:"toastMax"`
+	MessageSound     bool    `json:"messageSound"`
+	ShowImages       bool    `json:"showImages"`
+	ImageLinks       bool    `json:"imageLinks"`
+	LinkPreviews     bool    `json:"linkPreviews"`
+	BottomOffset     int     `json:"bottomOffset"`
+	Scale            float64 `json:"scale"`
+	OverlayStyle     string  `json:"overlayStyle"`
+	ShowAccountName  bool    `json:"showAccountName"`
+	MachineSeed      string  `json:"machineSeed"`
+	LoginSource      string  `json:"loginSource"`
+	SteamAccount     string  `json:"steamAccount"`
 }
 
-// Default returns the default settings.
 func Default() Config {
 	return Config{
 		Hotkey:           Hotkey{Code: "KeyI"},
 		CloseAfterSend:   true,
 		DoubleEnterClose: true,
 		Animations:       true,
-		Blur:             false, // unused: DWM blur-behind turns the overlay opaque
+		Blur:             false,
 		AnimationStyle:   "slide-up",
 		AnimationSpeed:   "normal",
 		ShowAvatars:      true,
@@ -87,27 +66,22 @@ func Default() Config {
 		MessageSound:     true,
 		ShowImages:       true,
 		ImageLinks:       false,
+		LinkPreviews:     true,
 		BottomOffset:     150,
 		Scale:            1,
 		OverlayStyle:     "legacy",
 	}
 }
 
-// AnimationStyles are the overlay animation styles.
 var AnimationStyles = map[string]bool{
 	"fade": true, "slide-up": true, "slide-down": true,
 	"slide-left": true, "slide-right": true, "typewriter": true,
 }
 
-// AnimationSpeeds maps a speed to the time Go waits before hiding the window
-// (the UI's exit animation must end before it).
 var AnimationSpeeds = map[string]int{"fast": 120, "normal": 200, "slow": 320}
 
-// Sanitize clamps values to safe ranges.
 func (c *Config) Sanitize() {
 	d := Default()
-	// Windows blur-behind made the overlay opaque and was removed; clear it
-	// from configs saved before that.
 	c.Blur = false
 	if c.Hotkey.Code == "" {
 		c.Hotkey = d.Hotkey
@@ -138,13 +112,11 @@ func (c *Config) Sanitize() {
 	}
 }
 
-// Store reads and writes the files.
 type Store struct {
 	mu  sync.Mutex
 	dir string
 }
 
-// Open prepares %APPDATA%\myChat.
 func Open() (*Store, error) {
 	base, err := os.UserConfigDir()
 	if err != nil {
@@ -157,10 +129,8 @@ func Open() (*Store, error) {
 	return &Store{dir: dir}, nil
 }
 
-// Dir returns the data folder.
 func (s *Store) Dir() string { return s.dir }
 
-// Load returns the saved settings, or defaults.
 func (s *Store) Load() Config {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -178,7 +148,6 @@ func (s *Store) Load() Config {
 	return c
 }
 
-// Save writes the settings.
 func (s *Store) Save(c Config) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -197,14 +166,12 @@ func (s *Store) saveLocked(c Config) error {
 	return os.Rename(tmp, filepath.Join(s.dir, "config.json"))
 }
 
-// Session is myChat's own saved Steam login.
 type Session struct {
 	RefreshToken string `json:"refreshToken"`
 	AccountName  string `json:"accountName"`
-	Method       string `json:"method"` // "qr" | "password"
+	Method       string `json:"method"`
 }
 
-// LoadSession decrypts the saved login. Only this Windows user can decrypt it.
 func (s *Store) LoadSession() (Session, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -226,7 +193,6 @@ func (s *Store) LoadSession() (Session, error) {
 	return sess, nil
 }
 
-// SaveSession encrypts and saves the login.
 func (s *Store) SaveSession(sess Session) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -238,22 +204,18 @@ func (s *Store) SaveSession(sess Session) error {
 	return os.WriteFile(filepath.Join(s.dir, "session.dat"), enc, 0o600)
 }
 
-// ClearSession deletes the saved login.
 func (s *Store) ClearSession() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	_ = os.Remove(filepath.Join(s.dir, "session.dat"))
 }
 
-// LoadGuardData returns Steam's machine token for an account (email Steam
-// Guard remembers this PC with it). It survives logout.
 func (s *Store) LoadGuardData(account string) string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.readGuardLocked()[strings.ToLower(account)]
 }
 
-// SaveGuardData stores Steam's machine token for an account.
 func (s *Store) SaveGuardData(account, data string) {
 	if data == "" || account == "" {
 		return

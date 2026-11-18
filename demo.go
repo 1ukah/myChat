@@ -11,9 +11,6 @@ import (
 	"mychat/internal/win"
 )
 
-// demo shows the overlay with sample content for visual checks, without a
-// Steam login and without catching keys. Enabled with MYCHAT_DEMO=toast or
-// MYCHAT_DEMO=composer; it stays on screen until the app quits.
 func (a *App) demo() {
 	kind := os.Getenv("MYCHAT_DEMO")
 	if kind == "" {
@@ -44,7 +41,6 @@ func (a *App) demo() {
 			time.Sleep(700 * time.Millisecond)
 		}
 	case "typing":
-		// Real key capture: open, inject H and I, report what arrived.
 		a.openComposer()
 		time.Sleep(400 * time.Millisecond)
 		for _, vk := range []byte{'H', 'I'} {

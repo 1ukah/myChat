@@ -1,7 +1,3 @@
-// The single reactive store. It wraps Snapshot() and every Go → UI event, and
-// exposes the few actions the UI can take. Components read `app` and never
-// talk to the backend directly.
-
 import { hasRuntime, wailsBackend, type Backend } from "./backend";
 import * as M from "../../bindings/mychat/models";
 import * as C from "../../bindings/mychat/internal/chat/models";
@@ -9,13 +5,10 @@ import * as Cfg from "../../bindings/mychat/internal/config/models";
 
 export type View = "overlay" | "settings";
 
-/** Same cap as the Go engine keeps. */
 const MAX_LOG = 300;
 
 interface AppState {
-  /** The snapshot has been applied; views may render. */
   ready: boolean;
-  /** Running without the Wails runtime, on sample data. */
   mock: boolean;
   mode: M.ModeInfo;
   log: C.Entry[];
@@ -23,12 +16,9 @@ interface AppState {
   status: M.Status;
   config: M.ConfigView;
   login: M.LoginState;
-  /** Accounts the Steam app saved on this PC, and the sign-in watch. */
   local: M.LocalLogins;
   layout: M.Layout;
-  /** The pop-up messages shown in toast mode, oldest first. */
   toasts: C.Entry[];
-  /** The clickable spot under the mouse pointer (`Spot.key`), or "". */
   hover: string;
 }
 
@@ -57,11 +47,8 @@ export const app: AppState = $state({
 
 let backend: Backend = wailsBackend;
 
-// ---- log ----
-
 let lastAdded = { id: 0, at: 0 };
 
-/** True for a line that arrived live a moment ago (it gets the slide-in). */
 export function isFresh(id: number): boolean {
   return id === lastAdded.id && performance.now() - lastAdded.at < 400;
 }
@@ -78,20 +65,15 @@ function replaceEntry(e: C.Entry): boolean {
 
 function addEntry(e: C.Entry): void {
   const last = app.log[app.log.length - 1];
-  // An event that raced with the snapshot may already be in the log.
   if (last && e.id <= last.id && replaceEntry(e)) return;
   app.log.push(e);
   if (app.log.length > MAX_LOG) app.log.splice(0, app.log.length - MAX_LOG);
   lastAdded = { id: e.id, at: performance.now() };
 }
 
-// ---- config ----
-
-/** Last config confirmed by Go; `app.config` may be ahead of it (optimistic). */
 let confirmed: M.ConfigView = app.config;
 let savesInFlight = 0;
 
-/** The config Go expects: every field of the view except the derived label. */
 function toConfig(v: M.ConfigView): Cfg.Config {
   const { hotkeyLabel: _derived, ...config } = v;
   return new Cfg.Config({ ...config, hotkey: new Cfg.Hotkey({ ...v.hotkey }) });
@@ -102,14 +84,8 @@ export function errorText(e: unknown): string {
   return s ? s[0].toUpperCase() + s.slice(1) : "Something went wrong";
 }
 
-/**
- * Saves a settings change at once. The UI updates optimistically and falls
- * back to the last confirmed values if Go rejects the change.
- * Returns "" on success, or the message to show next to the control.
- */
 export async function saveConfig(patch: Partial<Cfg.Config>): Promise<string> {
   const next = new M.ConfigView({ ...app.config, ...patch });
-  // The hotkey label is derived by Go, so a new hotkey shows only once saved.
   if (!patch.hotkey) app.config = next;
   savesInFlight++;
   try {
@@ -122,8 +98,6 @@ export async function saveConfig(patch: Partial<Cfg.Config>): Promise<string> {
   }
 }
 
-// ---- actions ----
-
 function fire(f: () => Promise<void>): void {
   f().catch((e: unknown) => console.error("myChat:", e));
 }
@@ -131,21 +105,15 @@ function fire(f: () => Promise<void>): void {
 export const overlayReady = (): void => fire(() => backend.overlayReady());
 export const startLogin = (): void => fire(() => backend.startLogin());
 export const cancelLogin = (): void => fire(() => backend.cancelLogin());
-/** The password is handed to Go and not kept here. */
 export const loginWithPassword = (account: string, password: string): void =>
   fire(() => backend.loginWithPassword(account, password));
 export const submitGuardCode = (code: string): void => fire(() => backend.submitGuardCode(code));
 
-/** Re-reads Steam's saved accounts (they change when the user signs in to Steam). */
 export const refreshLocalLogins = (): void =>
   fire(async () => {
     app.local = await backend.localLogins();
   });
 
-/**
- * Logs in with the login the Steam app saved for this account.
- * Returns "" on success, or the message to show on the account card.
- */
 export async function useSteamAccount(account: string): Promise<string> {
   try {
     await backend.useSteamAccount(account);
@@ -155,10 +123,6 @@ export async function useSteamAccount(account: string): Promise<string> {
   }
 }
 
-/**
- * Opens the Steam app so the user can sign in there; Go then watches for
- * the new login and uses it. Returns "" or the message to show.
- */
 export async function openSteamLogin(): Promise<string> {
   try {
     await backend.openSteamLogin();
@@ -177,23 +141,18 @@ export const hideSettings = (): void => fire(() => backend.hideSettings());
 export const minimiseSettings = (): void => fire(() => backend.minimiseSettings());
 export const quit = (): void => fire(() => backend.quit());
 
-// ---- start ----
-
 let started = false;
 
-/** Connects to the backend (or the mock), loads the snapshot, starts events. */
 export async function start(view: View): Promise<void> {
   if (started) return;
   started = true;
 
   if (!hasRuntime()) {
-    // Plain browser: sample data instead of Go. Kept out of the real bundle path.
     const mock = await import("./mock/backend");
     backend = mock.createMockBackend(view, new URLSearchParams(location.search));
     app.mock = true;
   }
 
-  // Events can arrive before the snapshot does; hold them and replay after.
   let held: (() => void)[] | null = [];
   const on =
     <A extends unknown[]>(fn: (...a: A) => void) =>

@@ -1,6 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
   <title>myChat (24 px)</title>
-  <!-- mychat-icon-small.svg on a 24 px grid: one unit is one pixel. -->
   <defs>
     <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#1c1c1c"/>
@@ -17,7 +16,6 @@
 
   <rect width="24" height="24" rx="5" fill="url(#tile)"/>
 
-  <!-- Head 7..17 x 3..13, gap 13..14, body 4..20 x 14..21. -->
   <circle cx="12" cy="8" r="5" fill="url(#skin)"/>
   <path d="M4 21V19A8 5 0 0 1 20 19V21Z" fill="url(#skin)"/>
 

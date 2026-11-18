@@ -34,7 +34,6 @@ func TestTrayIconHasEverySmallSize(t *testing.T) {
 		}
 		sizes[w] = true
 	}
-	// The small icon at 100, 125, 150 and 200 % display scale.
 	for _, want := range []int{16, 20, 24, 32} {
 		if !sizes[want] {
 			t.Errorf("tray icon has no %d px image", want)

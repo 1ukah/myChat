@@ -1,18 +1,14 @@
 <script lang="ts">
-  // One chat log entry, written like CS2's own chat ("[CT] ● name: text"):
-  //   12:41 [FROM] (o) sant1: text
-  //   12:41 [TO] (o) sant1: text
-  // (o) is the friend's square avatar with a player-colour border, or a
-  // player-colour dot when avatars are off.
   import { untrack } from "svelte";
   import type * as C from "../../../bindings/mychat/internal/chat/models";
   import { clock, playerColor } from "../format";
   import { app, clickSpot, isFresh } from "../store.svelte";
   import Avatar from "../ui/Avatar.svelte";
+  import Embed from "./Embed.svelte";
   import { CHAT_THUMB, pictureOf } from "./media";
   import Picture from "./Picture.svelte";
+  import RichText from "./RichText.svelte";
   import { nameSpot } from "./spots";
-  import Typed from "./Typed.svelte";
 
   let {
     entry,
@@ -24,18 +20,12 @@
   }: {
     entry: C.Entry;
     avatars?: boolean;
-    /** Draw the message's picture (setting `showImages`); off shows a label instead. */
     images?: boolean;
-    /** Height limit for the thumbnail; the chat box lowers it when pictures crowd. */
     thumbH?: number;
-    /** The Minimal look: "name: text" and "To name: text", near-white on dark blue-grey glass. */
     minimal?: boolean;
-    /** Animation style is "typewriter": a new incoming message types itself out. */
     typewriter?: boolean;
   } = $props();
 
-  // Decided once, when the line is created: only a message that just arrived
-  // animates. Lines that come back into view by scrolling do not.
   const fresh = untrack(() => isFresh(entry.id));
   const typed = untrack(() => fresh && typewriter && entry.kind === "in");
 
@@ -43,24 +33,18 @@
   const pending = $derived(entry.status === "pending");
   const failed = $derived(entry.status === "failed");
   const tint = $derived(playerColor(entry.peerId || entry.peerName));
-  /** Arrives later for a linked picture: the entry is replaced as a whole. */
   const pic = $derived(pictureOf(entry));
-  /** The name is a link: a click whispers to this person (Go catches it in game). */
   const spot = $derived(nameSpot(entry.peerId, entry.id));
   const hover = $derived(spot !== "" && app.hover === spot);
 </script>
 
 {#snippet face()}{#if avatars}<Avatar inline size={16} {tint} src={entry.peerAvatar} name={entry.peerName} />{:else}<span class="dot" style:color={tint}>{minimal ? "■" : "●"}</span>{" "}{/if}{/snippet}
 
-<!-- The overlay never has keyboard focus, and Go handles the real clicks. -->
 {#snippet name()}<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions --><bdi class="name" class:link={spot !== ""} class:hover data-spot={spot || undefined} onclick={spot ? () => clickSpot(spot) : undefined}>{entry.peerName}</bdi>{/snippet}
 
-<!-- String literals carry the spaces and nothing inside .msg is split over
-     lines, so the layout never depends on how template whitespace collapses.
-     <bdi> keeps right-to-left names and messages from reordering the brackets. -->
 <div class="line {kind}" class:minimal class:pending class:fresh>
   <span class="time">{clock(entry.time)}</span>
-  <span class="msg">{#if kind === "in"}<span class="who">{minimal ? "" : "[FROM] "}{@render face()}{@render name()}</span>{": "}{:else if kind === "out"}<span class="who">{minimal ? "To " : "[TO] "}{@render face()}{@render name()}</span>{": "}{/if}<bdi class="text">{#if typed}<Typed text={entry.text} />{:else}{entry.text}{/if}</bdi></span>
+  <span class="msg">{#if kind === "in"}<span class="who">{minimal ? "" : "[FROM] "}{@render face()}{@render name()}</span>{": "}{:else if kind === "out"}<span class="who">{minimal ? "To " : "[TO] "}{@render face()}{@render name()}</span>{": "}{/if}<bdi class="text"><RichText text={entry.text} at={entry.id} {typed} /></bdi></span>
   {#if pending}
     <span class="dots" role="img" aria-label="sending"><i></i><i></i><i></i></span>
   {:else if failed}
@@ -72,9 +56,10 @@
     </span>
   {/if}
   {#if pic}
-    <!-- A thumbnail under the line. The unseen copy of the time puts it
-         exactly where the message starts. -->
     <div class="media" class:plain={!images}><span class="time ghost" aria-hidden="true">{clock(entry.time)}</span>{" "}<Picture media={pic} show={images} maxW={CHAT_THUMB.w} maxH={thumbH} {minimal} zoom /></div>
+  {/if}
+  {#if entry.embed}
+    <div class="embed"><span class="time ghost" aria-hidden="true">{clock(entry.time)}</span><Embed embed={entry.embed} at={entry.id} {images} {minimal} /></div>
   {/if}
 </div>
 
@@ -88,7 +73,6 @@
     line-height: 21px;
     overflow-wrap: anywhere;
     color: #fff;
-    /* CS2 chat: a hard 1 px shadow under bold text. */
     text-shadow:
       1px 1px 0 rgba(0, 0, 0, 0.9),
       0 0 2px rgba(0, 0, 0, 0.7);
@@ -127,9 +111,6 @@
     color: var(--c);
   }
 
-  /* A name under the mouse pointer looks like a hovered link: underlined
-     and a little brighter. `.hover` comes from Go (the window never sees
-     the mouse); `:hover` is for the browser mock. */
   .link {
     cursor: pointer;
   }
@@ -142,7 +123,6 @@
     text-underline-offset: 2px;
   }
 
-  /* No line height of its own: exactly as tall as the picture. */
   .media {
     margin: 2px 0 4px;
     line-height: 0;
@@ -151,6 +131,16 @@
 
   .media.plain {
     margin: 0 0 2px;
+  }
+
+  .embed {
+    display: flex;
+    gap: 0.25em;
+    margin: 2px 0 4px;
+  }
+
+  .embed .ghost {
+    flex: none;
   }
 
   .ghost {
@@ -162,7 +152,6 @@
     vertical-align: 1px;
   }
 
-  /* Dim only the message, so the "sending" dots stay clear. */
   .pending .msg {
     opacity: 0.6;
   }
@@ -194,11 +183,9 @@
     flex: none;
   }
 
-  /* ---------- Minimal look: near-white text on the dark blue-grey band,
-     with a small pale glow over a 1 px dark edge instead of the hard
-     shadow (the same value as --halo in the chat box and pop-ups) ---------- */
-
   .minimal {
+    --link: #c4e6ff;
+    --link-hover: #eef8ff;
     font-family: var(--font-ui);
     font-size: 14px;
     font-weight: 400;
@@ -245,13 +232,10 @@
     color: #ff9d94;
   }
 
-  /* A new line uses a shorter, smaller version of the panel's motion
-     (--dx/--dy come from the animation style). Motion only when enabled. */
   :global(.anim) .fresh {
     animation: line-in calc(var(--dur) * 0.75) var(--ease-out) both;
   }
 
-  /* The dots pulse only while the composer is open. */
   :global(.anim .live) .dots i {
     animation: dot 1.2s ease-in-out infinite;
   }

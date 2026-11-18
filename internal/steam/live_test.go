@@ -7,8 +7,6 @@ import (
 	"time"
 )
 
-// TestLiveQRChallenge talks to the real Steam network. Run with
-// MYCHAT_LIVE=1 go test ./internal/steam -run Live -v
 func TestLiveQRChallenge(t *testing.T) {
 	if os.Getenv("MYCHAT_LIVE") == "" {
 		t.Skip("set MYCHAT_LIVE=1 to run")

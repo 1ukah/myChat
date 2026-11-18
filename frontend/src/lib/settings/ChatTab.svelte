@@ -9,8 +9,6 @@
   import Row from "./Row.svelte";
   import Section from "./Section.svelte";
 
-  // Settings save the moment they change; a rejected change shows its reason
-  // in the row it belongs to.
   let errors = $state<Record<string, string>>({});
 
   async function set(field: keyof Cfg.Config, patch: Partial<Cfg.Config>): Promise<void> {
@@ -49,7 +47,6 @@
       onchange={(closeAfterSend) => set("closeAfterSend", { closeAfterSend })}
     />
   </Row>
-  <!-- Has no effect while the chat box closes after every message. -->
   {#if !app.config.closeAfterSend}
     <Row
       label="Double-tap Enter to close"
@@ -89,7 +86,6 @@
     />
   </Row>
   {#if app.config.messageSound}
-    <!-- Steam plays its own (loud) sound for the same message. -->
     <div class="tip">
       <Icon name="alert" size={14} />
       <p>
@@ -149,7 +145,7 @@
   </Row>
   <Row
     label="Also load image links"
-    hint="Pictures from links to other sites. Those sites can see your IP address."
+    hint="Pictures from links to other sites."
     error={errors.imageLinks}
     dim={!app.config.showImages}
   >
@@ -160,11 +156,20 @@
       onchange={(imageLinks) => set("imageLinks", { imageLinks })}
     />
   </Row>
+  <Row
+    label="Link previews"
+    hint="A preview card under links to YouTube, X, Reddit and other sites."
+    error={errors.linkPreviews}
+  >
+    <Toggle
+      label="Link previews"
+      checked={app.config.linkPreviews}
+      onchange={(linkPreviews) => set("linkPreviews", { linkPreviews })}
+    />
+  </Row>
 </Section>
 
 <style>
-  /* A suggestion under the row it belongs to: muted text with a thin
-     accent rule on the left. */
   .tip {
     display: flex;
     gap: 10px;

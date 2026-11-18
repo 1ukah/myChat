@@ -46,7 +46,6 @@
   const look = $derived(asLook(app.config.overlayStyle) === "minimal" ? LOOKS[1] : LOOKS[0]);
 
   const percent = $derived(Math.round(app.config.scale * 100));
-  // The slider covers 0–600 px; a larger value set by hand still fits.
   const offsetMax = $derived(Math.max(600, app.config.bottomOffset));
   const still = $derived(!app.config.animations);
 </script>

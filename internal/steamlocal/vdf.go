@@ -5,7 +5,6 @@ import (
 	"strings"
 )
 
-// node is a parsed text KeyValues (VDF) object.
 type node struct {
 	key  string
 	vals [][2]string
@@ -52,7 +51,6 @@ type vdfParser struct {
 	i int
 }
 
-// token returns the next string or brace. ok is false at end of input.
 func (p *vdfParser) token() (tok string, quoted, ok bool) {
 	for p.i < len(p.s) {
 		c := p.s[p.i]

@@ -1,8 +1,4 @@
 <script lang="ts">
-  // Live preview tile: the real pop-ups, at reduced size, replaying the chosen
-  // animation style and speed. It uses the overlay's own Stage, Panel and
-  // Toasts components, so what plays here is what plays in game. Three sample
-  // messages from two people show the "multiple messages" layout as well.
   import { onDestroy, untrack } from "svelte";
   import * as C from "../../../bindings/mychat/internal/chat/models";
   import { asLook, motionOf } from "../overlay/motion";
@@ -21,14 +17,11 @@
     sample(3, "preview-4", "Mira", "count me in"),
   ];
 
-  /** As in game: only the newest `toastMax` messages show. */
   const samples = $derived(SAMPLES.slice(-Math.min(5, Math.max(1, app.config.toastMax || 3))));
 
   const motion = $derived(motionOf(app.config));
 
-  /** The sample toast is playing its exit before coming back in. */
   let leaving = $state(false);
-  /** Bumped to rebuild the toast, which restarts the entry (and the typing). */
   let run = $state(0);
   let timer: ReturnType<typeof setTimeout> | undefined;
 
@@ -42,7 +35,6 @@
     }, motion.exitMs + 160);
   }
 
-  // Replay whenever the style or the speed changes (not on first render).
   let first = true;
   $effect(() => {
     void motion.style;
@@ -91,8 +83,6 @@
     border-bottom: 1px solid var(--line);
   }
 
-  /* A stand-in game picture behind the pop-ups: the "Bliss" hill, placed so
-     the line where the hill meets the sky runs behind them. */
   .scene {
     display: flex;
     align-items: center;
@@ -103,7 +93,6 @@
     background: #5b8fd6 url("../../assets/preview-bg.jpg") center 62% / cover no-repeat;
   }
 
-  /* The bottom of the overlay window in miniature, at 75 %. */
   .window {
     position: relative;
     flex: none;
@@ -113,7 +102,6 @@
     contain: layout paint;
   }
 
-  /* In game Windows blurs what is behind the window; here CSS can. */
   .window.blur {
     -webkit-backdrop-filter: blur(14px);
     backdrop-filter: blur(14px);
@@ -132,7 +120,6 @@
     font-size: var(--fs-xs);
     font-weight: 600;
     color: #fff;
-    /* Dark enough to read on the bright sky. */
     background: rgba(16, 22, 30, 0.82);
     border: 0;
     border-radius: 2px;

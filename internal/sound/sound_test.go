@@ -27,7 +27,6 @@ func TestBuild(t *testing.T) {
 		}
 		peak = max(peak, v)
 	}
-	// Soft: well under full scale, but clearly audible.
 	if peak > 32767/2 || peak < 32767/10 {
 		t.Fatalf("peak %d out of range", peak)
 	}

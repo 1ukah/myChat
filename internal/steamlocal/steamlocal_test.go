@@ -23,8 +23,6 @@ func TestParseVDF(t *testing.T) {
 	}
 }
 
-// TestLocalAccounts reads this PC's Steam logins and prints only metadata.
-// MYCHAT_LOCAL=1 go test ./internal/steamlocal -run Local -v
 func TestLocalAccounts(t *testing.T) {
 	if os.Getenv("MYCHAT_LOCAL") == "" {
 		t.Skip("set MYCHAT_LOCAL=1")

@@ -1,8 +1,4 @@
 <script lang="ts">
-  // Stand-in for a hidden Steam login name: a small frosted pill with a
-  // blurred run of marks inside. It is drawn, not text: the real name is
-  // never in the DOM (blurred text can be read back), and the size is fixed
-  // so it does not give the length of the name away either.
   let { width = 84 }: { width?: number } = $props();
 </script>
 
@@ -23,7 +19,6 @@
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
   }
 
-  /* Bars the size of letters, blurred until they are only a haze. */
   .marks {
     position: absolute;
     inset: 3px 6px;

@@ -1,14 +1,4 @@
 <script lang="ts">
-  // The login screen. Three ways in; none of them changes the Steam app's
-  // status:
-  //   1. Use Steam on this PC: the login the Steam app already saved.
-  //   2. Account name + password, then Steam Guard if Steam asks for it.
-  //   3. QR code scanned with the Steam mobile app. Collapsed until asked for.
-  // If Steam is not installed, 1 is replaced by a short note.
-  //
-  // The password lives only in the field's own state until it is handed to
-  // Go, and is cleared the moment it is submitted. It is never stored,
-  // logged or shown.
   import { onMount } from "svelte";
   import {
     app,
@@ -31,15 +21,11 @@
   const local = $derived(app.local);
   const accounts = $derived(local.accounts ?? []);
 
-  // ---- banner: why the login screen is showing (for example an expired login) ----
-
-  // Remembered here, because starting a login replaces LoginState.
   let reason = $state("");
   $effect(() => {
     if (login.phase === "idle" && login.error) reason = login.error;
   });
 
-  // A failed Steam login for an account that has no card to show it on.
   const stray = $derived(
     login.phase === "error" &&
       login.method === "steam" &&
@@ -48,8 +34,6 @@
       : "",
   );
   const banner = $derived(stray || reason);
-
-  // ---- 1. Steam on this PC ----
 
   let opening = $state(false);
   let openError = $state("");
@@ -61,8 +45,6 @@
     opening = false;
   }
 
-  // The list masks every login name unless the user asks to see them; the
-  // eye in the heading is the same one as on the Account tab.
   const showNames = $derived(app.config.showAccountName);
   let eyeError = $state("");
 
@@ -70,10 +52,7 @@
     eyeError = await saveConfig({ showAccountName: !showNames });
   }
 
-  // Steam's saved accounts may have changed since the app started.
   onMount(refreshLocalLogins);
-
-  // ---- 2. account name + password ----
 
   let account = $state(app.login.account ?? "");
   let password = $state("");
@@ -98,10 +77,6 @@
     }
   }
 
-  // ---- 3. QR ----
-
-  // The panel follows the state: it is open exactly while a QR login is
-  // running or has failed, so it can never disagree with Go.
   const qrOpen = $derived(
     login.method === "qr" && (login.phase === "waiting" || login.phase === "error"),
   );
@@ -220,8 +195,6 @@
 
       {#if qrOpen}
         <div class="qr">
-          <!-- Always white and the same size, so nothing moves when the code
-               arrives or Steam refreshes it. -->
           <div class="code">
             {#if qrError}
               <span class="wait bad">{qrError}</span>
@@ -248,8 +221,6 @@
 </div>
 
 <style>
-  /* ---------- banner ---------- */
-
   .banner {
     display: flex;
     align-items: center;
@@ -262,8 +233,6 @@
     background: rgba(240, 164, 40, 0.16);
     box-shadow: inset 3px 0 0 var(--gold);
   }
-
-  /* ---------- the three ways ---------- */
 
   .way {
     border-bottom: 1px solid var(--line);
@@ -319,15 +288,11 @@
     gap: 12px;
   }
 
-  /* The eye for the list below: level with the heading text, and over the
-     column of radio boxes at the right end of the rows. */
   .eye {
     flex: none;
     display: flex;
     margin: 6px 12px 0 0;
   }
-
-  /* ---------- account name + password ---------- */
 
   .form {
     display: grid;
@@ -386,7 +351,6 @@
     gap: 14px;
   }
 
-  /* Room for one line, so progress and errors never move the form. */
   .status {
     display: flex;
     align-items: center;
@@ -411,8 +375,6 @@
     line-height: 18px;
     color: var(--muted);
   }
-
-  /* ---------- QR ---------- */
 
   .fold {
     display: flex;

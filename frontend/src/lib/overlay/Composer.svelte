@@ -1,8 +1,4 @@
 <script lang="ts">
-  // The chat box (640×360), built like CS2's own: a translucent black frame
-  // holding the log box and a separate input row with a grey SEND, and key
-  // hints under it. There is no <input>: the window never has focus, so the
-  // text and the caret are drawn from ComposerState.
   import { untrack } from "svelte";
   import type * as C from "../../../bindings/mychat/internal/chat/models";
   import type * as M from "../../../bindings/mychat/models";
@@ -23,25 +19,18 @@
   }: {
     composer: C.ComposerState;
     lines: C.Entry[];
-    /** Entries in the whole log (for the scrollbar). */
     total?: number;
     status: M.Status;
-    /** The composer is the current mode (not fading out). */
     live: boolean;
-    /** Show friends' avatars (setting `showAvatars`). */
     avatars?: boolean;
-    /** Draw the pictures in messages (setting `showImages`); off shows a label instead. */
     images?: boolean;
-    /** The Minimal look (`overlayStyle`): dark blue-grey glass, light text, fading at the edges. */
     minimal?: boolean;
-    /** Animation style is "typewriter". Never applies to the input line. */
     typewriter?: boolean;
   } = $props();
 
   const channel = $derived(composer.channel);
   const kind = $derived(channel.kind === "whisper" ? "whisper" : "none");
 
-  // `caret` counts code points, not UTF-16 units.
   const chars = $derived(Array.from(composer.text));
   const caret = $derived(Math.min(Math.max(composer.caret, 0), chars.length));
   const before = $derived(chars.slice(0, caret).join(""));
@@ -49,7 +38,6 @@
 
   const suggestions = $derived((composer.suggestions ?? []).slice(0, 6));
 
-  // CS2 writes "Say to all" in the empty input.
   const placeholder = $derived(
     composer.hint ||
       (kind === "whisper" ? `Say to ${channel.targetName}` : "Type /w name to whisper"),
@@ -68,27 +56,12 @@
     }
   });
 
-  // ---- thin scrollbar, drawn from the scroll position Go reports ----
-
-  // ---- pictures in the log ----
-  //
-  // A message with a picture is a line plus a thumbnail, so fewer of them
-  // fit. PgUp/PgDn move the log by PAGE messages (Go decides that), so the
-  // newest PAGE messages in view must fit in the box together, or a press
-  // would skip some. One thumbnail gets the full 90 px; when several
-  // pictures are among those messages, all thumbnails get lower.
-
-  /** Messages per PgUp/PgDn press (internal/chat). */
   const PAGE = 5;
-  /** What a thumbnail adds besides its own height (margins, frame). */
   const PIC_PAD = 8;
-  /** A message whose picture is only the "Image" label (pictures off). */
   const LABEL_H = 18;
-  /** A line of text. */
   const lineH = $derived(minimal ? 20 : 21);
 
   const pics = $derived(lines.some((e) => pictureOf(e) !== null));
-  /** Height of the log box for lines. Minimal grows when there are pictures. */
   const room = $derived(minimal ? (pics && images ? 263 : 200) : 270);
 
   const thumbH = $derived.by(() => {
@@ -98,7 +71,6 @@
     return Math.min(CHAT_THUMB.h, Math.max(16, each));
   });
 
-  /** About how many of the lines in view fit in the log box (for the scrollbar). */
   const fit = $derived.by(() => {
     if (!pics) return minimal ? 10 : 12;
     let left = room;
@@ -114,7 +86,6 @@
       left -= lineH + extra;
       n++;
     }
-    // Every line in view fits: the box could hold more (as without pictures).
     if (n === lines.length) n += Math.floor(left / lineH);
     return Math.max(1, n);
   });
@@ -125,18 +96,14 @@
     return { size, bottom: Math.min(100 - size, (scroll / total) * 100) };
   });
 
-  // ---- keep the caret in view when the text is longer than the field ----
-
   const EDGE = 24;
   let fieldEl = $state<HTMLElement>();
   let textEl = $state<HTMLElement>();
   let caretEl = $state<HTMLElement>();
   let shift = $state(0);
-  /** Flips on every edit to restart the blink, so the caret is solid while typing. */
   let beat = $state(false);
 
   $effect(() => {
-    // Re-measure after anything that moves the caret or resizes the field.
     void composer.text;
     void composer.caret;
     void channel.kind;
@@ -159,7 +126,6 @@
 <div class="composer" class:live class:minimal>
   <div class="frame">
     <div class="log">
-      <!-- data-clip: a picture is clickable only where the log shows it. -->
       <div class="lines" class:pics={pics && images} data-clip>
         {#each lines as entry (entry.id)}
           <ChatLine {entry} {avatars} {images} {thumbH} {minimal} {typewriter} />
@@ -192,7 +158,6 @@
                     <span class="dot" class:on={s.online}></span>
                   {/if}
                   <bdi class="sname">{s.name}</bdi>
-                  <!-- A friend with a nickname: the Steam name, small, next to it. -->
                   {#if s.altName}<bdi class="salt">{s.altName}</bdi>{/if}
                   <span class="sgame">{s.inGame || (s.online ? "Online" : "Offline")}</span>
                 </div>
@@ -217,8 +182,6 @@
         <div class="label">
           <span>{minimal ? "To" : "[TO]"}</span>
           {#if avatars}
-            <!-- Square, like the avatars in the chat lines; the border tells
-                 whether the person is online. -->
             <Avatar
               size={22}
               ring={channel.online ? "whisper" : "offline"}
@@ -255,7 +218,6 @@
         <span>{steam.text}</span>
       </div>
     {/if}
-    <!-- Key hints as CS2 writes them: "[CTRL] Close". Minimal: "Enter send". -->
     <div class="keys">
       {#if minimal}
         <span><b>Enter</b> send</span>
@@ -281,7 +243,6 @@
     font-family: var(--font-head);
   }
 
-  /* The outer frame: a lighter black that holds the two darker boxes. */
   .frame {
     flex: 1;
     min-height: 0;
@@ -291,8 +252,6 @@
     padding: 6px;
     background: var(--frame-fill);
   }
-
-  /* ---------- log ---------- */
 
   .log {
     position: relative;
@@ -319,7 +278,6 @@
     text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.9);
   }
 
-  /* CS2's thin light scrollbar at the right edge. */
   .bar {
     position: absolute;
     right: 5px;
@@ -343,8 +301,6 @@
     background: var(--tab-fill);
   }
 
-  /* ---------- suggestions and error, stacked just above the input ---------- */
-
   .pop {
     position: absolute;
     left: 0;
@@ -354,7 +310,6 @@
 
   .suggest {
     padding-bottom: 2px;
-    /* Opaque: the log lines behind must not show through the names. */
     background: #121417;
   }
 
@@ -384,7 +339,6 @@
     line-height: 26px;
     color: var(--text);
     white-space: nowrap;
-    /* Row bands, as in the scoreboard. */
     background: rgba(255, 255, 255, 0.07);
   }
 
@@ -392,7 +346,6 @@
     color: var(--muted);
   }
 
-  /* The selected row is the scoreboard's highlighted player. */
   .srow.sel {
     color: #fff;
     background: var(--row-pick);
@@ -406,7 +359,6 @@
     font-weight: 700;
   }
 
-  /* The Steam name behind a nickname. */
   .salt {
     flex: 0 1 auto;
     min-width: 0;
@@ -455,8 +407,6 @@
     text-overflow: ellipsis;
   }
 
-  /* ---------- online dots ---------- */
-
   .dot {
     flex: none;
     width: 8px;
@@ -479,8 +429,6 @@
     background: var(--red-text);
     box-shadow: none;
   }
-
-  /* ---------- input row ---------- */
 
   .input {
     --chan: var(--muted);
@@ -544,7 +492,6 @@
     text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.9);
   }
 
-  /* "Say to all": regular-weight grey. */
   .hint {
     font-family: var(--font-body);
     font-size: 15px;
@@ -553,7 +500,6 @@
     text-shadow: none;
   }
 
-  /* A drawn caret: a thin bar that takes no room in the line. */
   .caret {
     display: inline-block;
     width: 2px;
@@ -577,8 +523,6 @@
     color: #fff;
   }
 
-  /* Blink is CSS only, and only while the composer is open with animations
-     on. Two identical keyframe sets let each edit restart it. */
   :global(.anim) .live .caret {
     animation: blink-a 1.1s step-end infinite;
   }
@@ -607,8 +551,6 @@
     }
   }
 
-  /* ---------- key hints under the box, straight over the game ---------- */
-
   .foot {
     flex: none;
     display: flex;
@@ -622,7 +564,6 @@
     line-height: 22px;
     white-space: nowrap;
     color: #e6e9ec;
-    /* An outline, so the hints read over bright and dark scenes alike. */
     text-shadow:
       1px 1px 0 #000,
       -1px 1px 0 #000,
@@ -648,26 +589,6 @@
     gap: 14px;
     margin-left: auto;
   }
-
-  /* ---------- Minimal look ----------
-     Lit glass, after the CS2 Panorama panels: dim, see-through blue-grey
-     bands with near-white text, square corners and no frame. Nothing blurs
-     the game here, so the softness is drawn:
-
-       - each band (log, input) is a translucent dark tint on a
-         pseudo-element whose left and right ends are masked away to nothing
-         over a short distance (--ends, --fade), so there is no edge to see
-         and no long trail either;
-       - each band has a bright cyan-white hairline on its top edge, with a
-         few px of light under it, both fading out with the band;
-       - the oldest lines fade out under the top of the log;
-       - a tight, faint cyan bloom sits just behind the box, and the text
-         carries a small pale glow over a 1 px dark edge (--halo), so it
-         reads on a bright scene as well as a dark one.
-
-     The tint is about 0.7 to 0.77 where the text is: dark enough for white
-     text over a bright scene, and still clearly see-through. The log is
-     only as tall as its lines, up to ten of them. */
 
   .minimal {
     --avatar-radius: 0px;
@@ -708,8 +629,6 @@
     background: none;
   }
 
-  /* The bloom: a faint cyan glow that hugs the box and is gone a few px
-     past the ends of the bands. */
   .minimal .frame::before {
     content: "";
     position: absolute;
@@ -730,8 +649,6 @@
     background: none;
   }
 
-  /* The tinted bands. They reach a little past the text on both sides and
-     thin out there; the text itself stays on the dense middle. */
   .minimal .log::before,
   .minimal .input::before {
     content: "";
@@ -746,8 +663,6 @@
     flex: none;
   }
 
-  /* Hairline and a little light on top, then the dark tint, a touch
-     thinner at the top; a short feather at the bottom. */
   .minimal .log::before {
     background:
       linear-gradient(
@@ -767,7 +682,6 @@
       );
   }
 
-  /* Old lines fade out under the top edge. */
   .minimal .lines {
     position: relative;
     inset: auto;
@@ -777,7 +691,6 @@
     mask-image: linear-gradient(to bottom, transparent 0, #000 16px);
   }
 
-  /* With pictures in view the log may grow to the height of the window. */
   .minimal .lines.pics {
     max-height: 286px;
   }
@@ -796,7 +709,6 @@
     background: rgba(196, 230, 255, 0.45);
   }
 
-  /* A small dark pill with the same lit top edge. */
   .minimal .newer {
     right: 12px;
     height: 18px;
@@ -820,8 +732,6 @@
     bottom: 6px;
   }
 
-  /* Opaque, so the log lines behind do not show through; a tight glow
-     instead of a border, and a hairline on top that fades out at both ends. */
   .minimal .suggest {
     padding: 4px;
     background:
@@ -866,7 +776,6 @@
     color: var(--muted);
   }
 
-  /* The pick: soft cyan light that runs out towards the right. */
   .minimal .srow.sel {
     color: #fff;
     background: linear-gradient(
@@ -906,7 +815,6 @@
     padding: 0 13px 0 12px;
   }
 
-  /* A little denser than the log, with the same lit top edge. */
   .minimal .input::before {
     background:
       linear-gradient(
@@ -961,8 +869,6 @@
     border-radius: 1px;
   }
 
-  /* The hints sit on short strips of the same dark tint, faded at both
-     ends, so they read over any scene. */
   .minimal .foot {
     width: 500px;
     height: 24px;
@@ -1000,8 +906,6 @@
   .minimal .steam .dot {
     box-shadow: none;
   }
-
-  /* ---------- motion ---------- */
 
   :global(.anim) .pop {
     animation: pop-in calc(var(--dur) * 0.6) var(--ease-out) both;

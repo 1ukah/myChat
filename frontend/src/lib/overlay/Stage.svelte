@@ -1,9 +1,4 @@
 <script lang="ts">
-  // Sets up motion for everything inside it. Descendants animate only under
-  // `.anim`, and read the style as CSS variables:
-  //   --dx / --dy   where an entering element comes from (and exits to)
-  //   --dur / --out entry and exit time
-  // so one set of keyframes serves every animation style.
   import type { Snippet } from "svelte";
   import type { Motion } from "./motion";
 
@@ -21,13 +16,11 @@
 </div>
 
 <style>
-  /* fade and typewriter: no travel, opacity only. */
   .stage {
     --dx: 0px;
     --dy: 0px;
   }
 
-  /* Enters moving up, from below. */
   .stage[data-style="slide-up"] {
     --dy: 14px;
   }
@@ -36,7 +29,6 @@
     --dy: -14px;
   }
 
-  /* Enters moving left, from the right. */
   .stage[data-style="slide-left"] {
     --dx: 24px;
   }

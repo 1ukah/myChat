@@ -1,10 +1,5 @@
 //go:build windows
 
-// Package steamlocal reads the logins that the Steam client on this PC has
-// saved ("Remember me"). Steam keeps a refresh token per account in
-// %LOCALAPPDATA%\Steam\local.vdf, encrypted with Windows DPAPI for the
-// current Windows user. Nothing is written to Steam's files and nothing
-// leaves this PC; the token is only used to log on to Steam.
 package steamlocal
 
 import (
@@ -25,16 +20,14 @@ import (
 	"golang.org/x/sys/windows/registry"
 )
 
-// Account is one account listed by the Steam client.
 type Account struct {
 	AccountName string `json:"accountName"`
 	PersonaName string `json:"personaName"`
 	SteamID     string `json:"steamId"`
 	MostRecent  bool   `json:"mostRecent"`
-	HasLogin    bool   `json:"hasLogin"` // a saved login token exists
+	HasLogin    bool   `json:"hasLogin"`
 }
 
-// SteamDir returns the Steam install folder.
 func SteamDir() (string, error) {
 	k, err := registry.OpenKey(registry.CURRENT_USER, `Software\Valve\Steam`, registry.QUERY_VALUE)
 	if err == nil {
@@ -55,7 +48,6 @@ func localVDF() string {
 	return filepath.Join(os.Getenv("LOCALAPPDATA"), "Steam", "local.vdf")
 }
 
-// Accounts lists the accounts known to the Steam client, most recent first.
 func Accounts() ([]Account, error) {
 	dir, err := SteamDir()
 	if err != nil {
@@ -92,7 +84,6 @@ func Accounts() ([]Account, error) {
 		ts[name], _ = strconv.ParseInt(u.str("Timestamp"), 10, 64)
 		out = append(out, a)
 	}
-	// Steam's auto-login account first, then the newest sign-in.
 	sort.SliceStable(out, func(i, j int) bool { return ts[out[i].AccountName] > ts[out[j].AccountName] })
 	pick := auto
 	for _, a := range out {
@@ -126,8 +117,6 @@ func autoLoginUser() string {
 	return v
 }
 
-// Token returns the saved refresh token for an account, or an error if Steam
-// has no saved login for it (for example "Remember me" was off).
 func Token(account string) (string, error) {
 	blob, ok := connectCache().blob(account)
 	if !ok {
@@ -148,7 +137,6 @@ func Token(account string) (string, error) {
 	return "", fmt.Errorf("could not read the Steam login: %w", lastErr)
 }
 
-// Signature returns a value that changes when Steam's saved logins change.
 func Signature() string {
 	st, err := os.Stat(localVDF())
 	if err != nil {
@@ -157,7 +145,7 @@ func Signature() string {
 	return strconv.FormatInt(st.ModTime().UnixNano(), 10) + ":" + strconv.FormatInt(st.Size(), 10)
 }
 
-type cacheMap map[string]string // lower-case key -> hex blob
+type cacheMap map[string]string
 
 func connectCache() cacheMap {
 	b, err := os.ReadFile(localVDF())
@@ -181,8 +169,6 @@ func connectCache() cacheMap {
 	return m
 }
 
-// blob finds an account's entry. Keys are the CRC32 of the account name in
-// hex, followed by a digit.
 func (m cacheMap) blob(account string) ([]byte, bool) {
 	for _, name := range []string{strings.ToLower(account), account} {
 		prefix := fmt.Sprintf("%08x", crc32.ChecksumIEEE([]byte(name)))
@@ -227,8 +213,6 @@ func unprotect(enc, entropy []byte) ([]byte, error) {
 	return append([]byte(nil), unsafe.Slice(out.Data, out.Size)...), nil
 }
 
-// OpenSteam shows the Steam client. If no account is signed in, Steam shows
-// its own login window.
 func OpenSteam() error {
 	verb, _ := windows.UTF16PtrFromString("open")
 	url, _ := windows.UTF16PtrFromString("steam://open/main")

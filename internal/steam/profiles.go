@@ -14,17 +14,10 @@ import (
 	"time"
 )
 
-// Names, avatars and online state come from the web API
-// (IPlayerService/GetPlayerLinkDetails, the call Steam's own web pages use),
-// not from persona requests on the CM connection. A web request is answered
-// only to myChat, so the user's Steam app never sees it.
-
 const profileBatch = 100
 
 var httpClient = &http.Client{Timeout: 15 * time.Second}
 
-// RefreshProfiles asks the profile loop to fetch now. Results arrive as
-// FriendsEvent.
 func (c *Client) RefreshProfiles() {
 	select {
 	case c.refresh <- struct{}{}:
@@ -48,8 +41,6 @@ func (c *Client) profileLoop(ctx context.Context, cn *conn) {
 	}
 }
 
-// accessToken returns a web API access token, asking Steam for a new one
-// when the old one is about to expire. The refresh token is never renewed.
 func (c *Client) accessToken(ctx context.Context, cn *conn) (string, error) {
 	c.mu.RLock()
 	tok, exp, refresh, self := c.access, c.accessExpires, c.token, c.self
@@ -60,7 +51,7 @@ func (c *Client) accessToken(ctx context.Context, cn *conn) (string, error) {
 	var req enc
 	req.string(1, refresh)
 	req.fixed64(2, self)
-	req.varint(3, 0) // ETokenRenewalType None
+	req.varint(3, 0)
 	p, err := cn.call(ctx, emsgServiceMethodCallFromClient, "Authentication.GenerateAccessTokenForApp#1", req.b)
 	if err != nil {
 		return "", err
@@ -90,7 +81,7 @@ type linkDetails struct {
 			Public struct {
 				SteamID string `json:"steamid"`
 				Name    string `json:"persona_name"`
-				Avatar  string `json:"sha_digest_avatar"` // base64 SHA-1
+				Avatar  string `json:"sha_digest_avatar"`
 			} `json:"public_data"`
 			Private struct {
 				State  uint32 `json:"persona_state"`
@@ -104,7 +95,7 @@ func (c *Client) fetchProfiles(ctx context.Context, cn *conn) error {
 	c.mu.RLock()
 	ids := []uint64{c.self}
 	for id, r := range c.relation {
-		if r == 3 { // EFriendRelationship Friend
+		if r == 3 {
 			ids = append(ids, id)
 		}
 	}
@@ -132,7 +123,7 @@ func (c *Client) fetchProfiles(ctx context.Context, cn *conn) error {
 		resp.Body.Close()
 		if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
 			c.mu.Lock()
-			c.access = "" // get a new token next time
+			c.access = ""
 			c.mu.Unlock()
 		}
 		if resp.StatusCode != http.StatusOK {
@@ -182,8 +173,6 @@ func (c *Client) fetchProfiles(ctx context.Context, cn *conn) error {
 
 const steamID64Base = 76561197960265728
 
-// fetchNicknames returns the nicknames the user gave friends, by SteamID.
-// A nil map means the list could not be read (keep the old nicknames).
 func fetchNicknames(ctx context.Context, tok string) (map[uint64]string, error) {
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet,
 		"https://api.steampowered.com/IPlayerService/GetNicknameList/v1/?access_token="+url.QueryEscape(tok), nil)

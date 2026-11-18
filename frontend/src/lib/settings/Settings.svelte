@@ -1,8 +1,4 @@
 <script lang="ts">
-  // The settings window (frameless, 980×680, resizable): a top bar with the
-  // name, the nav and the account, a tab row with the search button, a second
-  // row of sub-tabs, a centred column of rows on a smoky blue-grey
-  // background, and Reset at the bottom right. Set in Inter throughout.
   import { onDestroy, setContext, tick } from "svelte";
   import * as Cfg from "../../../bindings/mychat/internal/config/models";
   import { app, hideSettings, minimiseSettings, saveConfig } from "../store.svelte";
@@ -15,7 +11,6 @@
   import { SECTIONS, type SectionsContext } from "./Section.svelte";
   import { topoTile } from "./topo";
 
-  // Section ids match the <Section id> used inside each tab.
   const TABS = [
     { id: "account", label: "Account", sections: [{ id: "steam", label: "Steam" }] },
     {
@@ -49,10 +44,8 @@
   type Tab = (typeof TABS)[number];
   type TabId = Tab["id"];
 
-  /** The tabs under Settings in the top nav; Help is the other nav entry. */
   const SETTINGS_TABS = TABS.filter((t) => t.id !== "help");
 
-  // `?tab=chat` opens a given tab (handy for previews).
   const asked = new URLSearchParams(location.search).get("tab");
   const first: Tab = TABS.find((t) => t.id === asked) ?? TABS[0];
 
@@ -60,7 +53,6 @@
   let section = $state<string>(first.sections[0].id);
   const current = $derived<Tab>(TABS.find((t) => t.id === tab) ?? TABS[0]);
   const inHelp = $derived(tab === "help");
-  /** The settings tab to come back to from HELP. */
   let lastSettingsTab: TabId = first.id === "help" ? "account" : first.id;
 
   setContext<SectionsContext>(SECTIONS, {
@@ -69,10 +61,7 @@
     },
   });
 
-  // ---- sub-tabs: jump to a section, and follow the scroll position ----
-
   let scroller = $state<HTMLElement>();
-  /** While a jump is scrolling, the scroll position must not pick the section. */
   let spyAfter = 0;
 
   function pickTab(id: TabId): void {
@@ -107,9 +96,6 @@
     section = found;
   }
 
-  // ---- search (the magnifying glass left of the tabs) ----
-
-  // Extra words a setting can be found by, besides its label.
   const INDEX: readonly { tab: TabId; section: string; label: string; words?: string }[] = [
     { tab: "account", section: "steam", label: "Steam account", words: "sign in login log out switch saved account password steam guard qr code" },
     { tab: "chat", section: "chat-box", label: "Open chat", words: "hotkey key bind shortcut" },
@@ -122,6 +108,7 @@
     { tab: "chat", section: "pop-ups", label: "Messages shown", words: "toast pop-up max count number how many recent" },
     { tab: "chat", section: "pop-ups", label: "Show images", words: "picture photo gif giphy embed media thumbnail chat box pop-up" },
     { tab: "chat", section: "pop-ups", label: "Also load image links", words: "picture photo gif giphy embed link url address site ip privacy" },
+    { tab: "chat", section: "pop-ups", label: "Link previews", words: "embed card youtube video twitter x tweet post page link url site ip privacy" },
     { tab: "overlay", section: "appearance", label: "Chat theme", words: "style theme look legacy minimal light cs2" },
     { tab: "overlay", section: "appearance", label: "Show avatars", words: "pictures" },
     { tab: "overlay", section: "appearance", label: "Size", words: "scale zoom" },
@@ -181,8 +168,6 @@
     }
   }
 
-  // ---- bottom bar ----
-
   let notice = $state<{ text: string; bad: boolean } | null>(null);
 
   const canReset = $derived(!searching && (tab === "chat" || tab === "overlay"));
@@ -199,6 +184,7 @@
         toastMax: 3,
         showImages: true,
         imageLinks: false,
+        linkPreviews: true,
       };
       const h = app.config.hotkey;
       if (h.code !== "KeyI" || h.ctrl || h.shift || h.alt) {
@@ -208,7 +194,6 @@
       patch = {
         overlayStyle: "legacy",
         showAvatars: true,
-        // Always off: Windows blur-behind turns the overlay solid.
         blur: false,
         scale: 1,
         animations: true,
@@ -224,19 +209,14 @@
       : { text: `${label} settings are back to their defaults.`, bad: false };
   }
 
-  // ---- Steam summary (top right) ----
-
   const steam = $derived.by(() => {
     const s = app.status;
-    // Same rule as the Account tab: a finished login counts before Steam connects.
     if (!s.accountName || (s.state === "needs_login" && app.login.phase !== "done")) {
       return { tone: "off", ring: "none", name: "Not signed in", text: "Steam" } as const;
     }
-    // The login name stays out of sight unless the user asked to see it.
     const name = s.personaName || (app.config.showAccountName ? s.accountName : "") || "Steam";
     switch (s.state) {
       case "online":
-        // Logged in to Steam; it says nothing about the user's Steam status.
         return { tone: "in", ring: "accent", name, text: "Logged in" } as const;
       case "connecting":
       case "needs_login":
@@ -245,8 +225,6 @@
         return { tone: "bad", ring: "offline", name, text: "Offline" } as const;
     }
   });
-
-  // ---- background texture ----
 
   const topo = URL.createObjectURL(new Blob([topoTile()], { type: "image/svg+xml" }));
   onDestroy(() => URL.revokeObjectURL(topo));
@@ -433,7 +411,6 @@
     font-size: var(--fs-md);
     line-height: 20px;
     color: var(--text);
-    /* Cool blue-grey smoke: soft dark and light clouds over a slate base. */
     background:
       radial-gradient(44% 50% at 14% 36%, rgba(15, 19, 24, 0.7), transparent 72%),
       radial-gradient(38% 44% at 84% 66%, rgba(15, 19, 24, 0.62), transparent 72%),
@@ -443,8 +420,6 @@
       radial-gradient(32% 36% at 40% 58%, rgba(128, 144, 160, 0.24), transparent 72%),
       #3c4651;
   }
-
-  /* ---------- top bar: brand, big nav, account, window buttons ---------- */
 
   .top {
     --wails-draggable: drag;
@@ -470,7 +445,6 @@
     color: #fff;
   }
 
-  /* Centred in the window, whatever sits left and right of it. */
   .nav {
     position: absolute;
     top: 0;
@@ -497,7 +471,6 @@
     cursor: pointer;
   }
 
-  /* Thin vertical separators between the nav entries. */
   .navitem + .navitem::before {
     content: "";
     position: absolute;
@@ -516,7 +489,6 @@
     color: var(--accent);
   }
 
-  /* Steam summary: name, small status line, square avatar. */
   .steam {
     --wails-draggable: no-drag;
     display: flex;
@@ -578,7 +550,6 @@
     background: var(--dim);
   }
 
-  /* Logged in: the app's blue, not Steam's green "online". */
   .state.in {
     color: var(--accent);
   }
@@ -627,8 +598,6 @@
     background: var(--red);
   }
 
-  /* ---------- tab rows ---------- */
-
   .tabs {
     grid-area: tabs;
   }
@@ -640,11 +609,9 @@
     gap: 6px;
     height: 44px;
     padding: 0 16px;
-    /* The darker band under the top bar. */
     background: rgba(9, 12, 15, 0.42);
   }
 
-  /* The second row sits straight on the smoke. */
   .tabrow.second {
     height: 40px;
     background: none;
@@ -670,7 +637,6 @@
     cursor: pointer;
   }
 
-  /* The main tabs are a step heavier than the sub-tabs under them. */
   .tablist .tab {
     font-size: var(--fs-md);
     font-weight: 600;
@@ -681,7 +647,6 @@
     background: rgba(255, 255, 255, 0.12);
   }
 
-  /* The selected tab: a filled steel-blue box with light-blue text. */
   .tab.active {
     font-weight: 600;
     color: var(--accent);
@@ -729,8 +694,6 @@
     border-color: var(--accent);
   }
 
-  /* ---------- content ---------- */
-
   .content {
     grid-area: content;
     overflow-x: hidden;
@@ -752,15 +715,12 @@
     background-color: rgba(255, 255, 255, 0.4);
   }
 
-  /* A centred column of rows straight on the background, as in CS2. */
   .column {
     width: min(732px, 100% - 48px);
     min-height: 100%;
     margin: 0 auto;
     padding: 0 0 40px;
   }
-
-  /* ---------- search results ---------- */
 
   .found {
     margin: 0;
@@ -820,8 +780,6 @@
     border-bottom: 1px solid var(--line);
   }
 
-  /* ---------- bottom bar ---------- */
-
   .bottom {
     grid-area: bottom;
     display: flex;
@@ -845,7 +803,6 @@
     color: var(--red-text);
   }
 
-  /* Reset with the history icon, bottom right. */
   .reset {
     flex: none;
     display: flex;
@@ -866,8 +823,6 @@
   .reset:hover {
     color: var(--accent);
   }
-
-  /* ---------- focus and motion ---------- */
 
   button:focus-visible {
     outline: 2px solid var(--accent);

@@ -8,7 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"image"
-	_ "image/gif" // DecodeConfig for the sizes of linked pictures
+	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
 	"io"
@@ -21,21 +21,19 @@ import (
 )
 
 const (
-	// Prefix is the path the overlay loads pictures from: Prefix + id.
 	Prefix = "/media/"
 
-	maxBytes     = 8 << 20   // one picture
-	maxFullBytes = 32 << 20  // one original picture (Later)
-	maxTotal     = 160 << 20 // all kept pictures
+	maxBytes     = 8 << 20
+	maxFullBytes = 32 << 20
+	maxTotal     = 160 << 20
 	maxItems     = 64
-	fetchTimeout = 30 * time.Second // originals can be several MB
+	fetchTimeout = 30 * time.Second
 )
 
-// Picture is a fetched image.
 type Picture struct {
 	Data   []byte
-	Type   string // image/png, image/jpeg, image/gif or image/webp
-	Width  int    // 0 when unknown (WebP)
+	Type   string
+	Width  int
 	Height int
 }
 
@@ -56,18 +54,15 @@ type item struct {
 	err     error
 }
 
-// Store fetches pictures once, keeps the recent ones in memory and serves
-// them to the overlay.
 type Store struct {
 	client *http.Client
 
 	mu    sync.Mutex
 	items map[string]*item
-	order []string // oldest first
+	order []string
 	total int
 }
 
-// NewStore creates an empty store.
 func NewStore() *Store {
 	dialer := &net.Dialer{Timeout: 10 * time.Second, Control: publicOnly}
 	return &Store{
@@ -75,8 +70,6 @@ func NewStore() *Store {
 		client: &http.Client{
 			Timeout: fetchTimeout,
 			Transport: &http.Transport{
-				// No proxy: the dialer must see the real address to refuse
-				// this PC and the local network.
 				Proxy:                 nil,
 				DialContext:           dialer.DialContext,
 				TLSHandshakeTimeout:   10 * time.Second,
@@ -91,7 +84,6 @@ func NewStore() *Store {
 				if req.URL.Scheme != "https" && req.URL.Scheme != "http" {
 					return errBlocked
 				}
-				// A Steam or Giphy picture must not lead elsewhere.
 				if trusted(via[0].URL) && !trusted(req.URL) {
 					return errBlocked
 				}
@@ -101,8 +93,6 @@ func NewStore() *Store {
 	}
 }
 
-// publicOnly refuses connections to this PC and private networks, so a link
-// in a message cannot reach a router page or a local service.
 func publicOnly(_, address string, _ syscall.RawConn) error {
 	host, _, err := net.SplitHostPort(address)
 	if err != nil {
@@ -116,14 +106,11 @@ func publicOnly(_, address string, _ syscall.RawConn) error {
 	return nil
 }
 
-// ID is the id of the picture at an address.
 func ID(rawURL string) string {
 	h := sha256.Sum256([]byte(rawURL))
 	return hex.EncodeToString(h[:12])
 }
 
-// Start fetches the picture at an address in the background, once, and
-// returns its id.
 func (s *Store) Start(rawURL string) string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -132,8 +119,6 @@ func (s *Store) Start(rawURL string) string {
 	return id
 }
 
-// Later is Start for a picture that may never be looked at (the original of
-// a thumbnail): it is fetched only when first asked for, and may be bigger.
 func (s *Store) Later(rawURL string) string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -169,8 +154,6 @@ func (s *Store) startLocked(it *item) {
 	}()
 }
 
-// Wait returns the picture with an id once it has been fetched, fetching it
-// now if it was added with Later.
 func (s *Store) Wait(ctx context.Context, id string) (Picture, error) {
 	s.mu.Lock()
 	it, ok := s.items[id]
@@ -189,8 +172,6 @@ func (s *Store) Wait(ctx context.Context, id string) (Picture, error) {
 	}
 }
 
-// evictLocked drops the oldest pictures while there are too many. The
-// newest one stays, and so do those still loading.
 func (s *Store) evictLocked() {
 	for i := 0; i < len(s.order)-1 && (s.total > maxTotal || len(s.order) > maxItems); {
 		id := s.order[i]
@@ -199,7 +180,7 @@ func (s *Store) evictLocked() {
 			select {
 			case <-it.done:
 			default:
-				i++ // still loading
+				i++
 				continue
 			}
 		}
@@ -234,7 +215,6 @@ func (s *Store) fetch(rawURL string, limit int64) (Picture, error) {
 	if int64(len(data)) > limit {
 		return Picture{}, errTooBig
 	}
-	// Judge by the bytes, not the address or the server's word.
 	typ := http.DetectContentType(data)
 	if !allowedImages[typ] {
 		return Picture{}, errNotImage
@@ -246,8 +226,6 @@ func (s *Store) fetch(rawURL string, limit int64) (Picture, error) {
 	return pic, nil
 }
 
-// Middleware serves Prefix + id from the store and passes everything else on.
-// A request for a picture still loading waits for it.
 func (s *Store) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasPrefix(r.URL.Path, Prefix) {

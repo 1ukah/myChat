@@ -1,7 +1,5 @@
 //go:build windows
 
-// Package win holds the small set of Win32 calls the app needs. Nothing here
-// opens, reads or writes another process: only window handles and input.
 package win
 
 import (
@@ -79,7 +77,6 @@ const (
 	WS_CLIPSIBLINGS = 0x04000000
 	WS_CLIPCHILDREN = 0x02000000
 
-	// OverlayStyle is a bare popup: no caption, frame or system menu.
 	OverlayStyle = WS_POPUP | WS_CLIPSIBLINGS | WS_CLIPCHILDREN
 
 	WS_EX_NOREDIRECTIONBITMAP = 0x00200000
@@ -92,10 +89,6 @@ const (
 	WS_EX_APPWINDOW     = 0x00040000
 	WS_EX_CONTROLPARENT = 0x00010000
 
-	// OverlayExStyle never activates, stays on top, has no taskbar button
-	// and lets mouse clicks through (layered + transparent). NOREDIRECTIONBITMAP
-	// makes DWM compose WebView2 through DirectComposition, which keeps
-	// per-pixel transparency; a plain layered window paints it opaque.
 	OverlayExStyle = WS_EX_CONTROLPARENT | WS_EX_NOREDIRECTIONBITMAP | WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE
 
 	SW_HIDE           = 0
@@ -111,7 +104,7 @@ const (
 	MONITOR_DEFAULTTOPRIMARY = 1
 )
 
-var HWND_TOPMOST = ^uintptr(0) // (HWND)-1
+var HWND_TOPMOST = ^uintptr(0)
 
 type POINT struct{ X, Y int32 }
 
@@ -142,7 +135,6 @@ type MSLLHOOKSTRUCT struct {
 
 type RECT struct{ Left, Top, Right, Bottom int32 }
 
-// Contains reports whether p lies inside r.
 func (r RECT) Contains(p POINT) bool {
 	return p.X >= r.Left && p.X < r.Right && p.Y >= r.Top && p.Y < r.Bottom
 }
@@ -154,14 +146,12 @@ type cursorInfo struct {
 	Pt      POINT
 }
 
-// CursorVisible reports whether the mouse pointer is on screen. Games hide
-// it while the mouse aims, and show it in menus.
 func CursorVisible() bool {
 	ci := cursorInfo{CbSize: uint32(unsafe.Sizeof(cursorInfo{}))}
 	if r, _, _ := pGetCursorInfo.Call(uintptr(unsafe.Pointer(&ci))); r == 0 {
 		return false
 	}
-	return ci.Flags&1 != 0 && ci.HCursor != 0 // CURSOR_SHOWING
+	return ci.Flags&1 != 0 && ci.HCursor != 0
 }
 
 type MONITORINFO struct {
@@ -184,24 +174,21 @@ func SetWindowsHookEx(idHook int, fn uintptr, mod uintptr, threadID uint32) (uin
 	return r, nil
 }
 
-// WindowTitle returns a window's title.
 func WindowTitle(hwnd uintptr) string {
 	var buf [256]uint16
 	n, _, _ := pGetWindowTextW.Call(hwnd, uintptr(unsafe.Pointer(&buf[0])), uintptr(len(buf)))
 	return windows.UTF16ToString(buf[:n])
 }
 
-// ModuleHandle returns the handle of the running executable.
 func ModuleHandle() uintptr {
 	r, _, _ := pGetModuleHandleW.Call(0)
 	return r
 }
 
-// KeyEvent injects one key press or release (tests only).
 func KeyEvent(vk byte, up bool) {
 	var flags uintptr
 	if up {
-		flags = 2 // KEYEVENTF_KEYUP
+		flags = 2
 	}
 	pKeybdEvent.Call(uintptr(vk), 0, flags, 0)
 }
@@ -248,7 +235,6 @@ func KeyToggled(vk int) bool {
 	return r&1 != 0
 }
 
-// ToUnicodeEx translates a key with the given keyboard state and layout.
 func ToUnicodeEx(vk, scan uint32, state *[256]byte, buf []uint16, hkl uintptr) int32 {
 	r, _, _ := pToUnicodeEx.Call(uintptr(vk), uintptr(scan), uintptr(unsafe.Pointer(state)),
 		uintptr(unsafe.Pointer(&buf[0])), uintptr(len(buf)), 0, hkl)
@@ -265,20 +251,16 @@ func MapVirtualKeyEx(code, mapType uint32, hkl uintptr) uint32 {
 	return uint32(r)
 }
 
-// ForegroundWindow returns the active window handle. This is only a window
-// handle, not a process handle.
 func ForegroundWindow() uintptr {
 	r, _, _ := pGetForegroundWindow.Call()
 	return r
 }
 
-// WindowThreadID returns the GUI thread ID that owns hwnd.
 func WindowThreadID(hwnd uintptr) uint32 {
 	r, _, _ := pGetWindowThreadProcessId.Call(hwnd, 0)
 	return uint32(r)
 }
 
-// ForegroundLayout returns the keyboard layout of the active window.
 func ForegroundLayout() uintptr {
 	return KeyboardLayout(WindowThreadID(ForegroundWindow()))
 }
@@ -292,15 +274,12 @@ func ShowWindow(hwnd uintptr, cmd int) {
 	pShowWindow.Call(hwnd, uintptr(cmd))
 }
 
-// LayeredOpaque makes a WS_EX_LAYERED window draw normally (alpha 255).
 func LayeredOpaque(hwnd uintptr) {
-	pSetLayeredWindowAttrs.Call(hwnd, 0, 255, 2) // LWA_ALPHA
+	pSetLayeredWindowAttrs.Call(hwnd, 0, 255, 2)
 }
 
-// LayeredInvisible makes a WS_EX_LAYERED window draw nothing (alpha 0)
-// while it stays shown; LayeredOpaque brings it back.
 func LayeredInvisible(hwnd uintptr) {
-	pSetLayeredWindowAttrs.Call(hwnd, 0, 0, 2) // LWA_ALPHA
+	pSetLayeredWindowAttrs.Call(hwnd, 0, 0, 2)
 }
 
 func IsWindowVisible(hwnd uintptr) bool {
@@ -324,8 +303,6 @@ func SetExStyle(hwnd, style uintptr) {
 	pSetWindowLongPtrW.Call(hwnd, uintptr(idx), style)
 }
 
-// MonitorOf returns the monitor rectangle (physical pixels) and DPI scale of
-// the monitor that holds hwnd.
 func MonitorOf(hwnd uintptr) (RECT, float64) {
 	hm, _, _ := pMonitorFromWindow.Call(hwnd, MONITOR_DEFAULTTOPRIMARY)
 	mi := MONITORINFO{CbSize: uint32(unsafe.Sizeof(MONITORINFO{}))}
@@ -340,7 +317,6 @@ func MonitorOf(hwnd uintptr) (RECT, float64) {
 	return mi.RcMonitor, scale
 }
 
-// DWM attributes.
 const (
 	dwmwaWindowCornerPreference = 33
 	dwmwaSystemBackdropType     = 38
@@ -352,14 +328,10 @@ func dwmSet(hwnd uintptr, attr uint32, val uint32) {
 	pDwmSetWindowAttribute.Call(hwnd, uintptr(attr), uintptr(unsafe.Pointer(&val)), 4)
 }
 
-// SquareCorners turns off Windows 11 rounded corners.
 func SquareCorners(hwnd uintptr) { dwmSet(hwnd, dwmwaWindowCornerPreference, 1) }
 
-// NoBorder removes the Windows 11 1 px window border.
 func NoBorder(hwnd uintptr) { dwmSet(hwnd, dwmwaBorderColor, 0xFFFFFFFE) }
 
-// DarkFrame asks DWM for dark window chrome.
 func DarkFrame(hwnd uintptr) { dwmSet(hwnd, dwmwaUseImmersiveDarkMode, 1) }
 
-// SystemBackdrop sets the Windows 11 system backdrop (1 none, 3 acrylic).
 func SystemBackdrop(hwnd uintptr, kind uint32) { dwmSet(hwnd, dwmwaSystemBackdropType, kind) }

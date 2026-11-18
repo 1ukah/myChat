@@ -15,44 +15,32 @@ import (
 	"mychat/internal/steamlocal"
 )
 
-// Login methods. None of them changes the Steam app's status: myChat never
-// sets or asks for its own status (see steam.Client).
 const (
-	SourceSteam    = "steam"    // the login saved by the Steam app on this PC
-	SourceQR       = "qr"       // QR code scanned with the Steam mobile app
-	SourcePassword = "password" // account name + password + Steam Guard
+	SourceSteam    = "steam"
+	SourceQR       = "qr"
+	SourcePassword = "password"
 )
 
-// EvLocalLogins reports the accounts saved by the Steam app.
 const EvLocalLogins = "mychat:local-logins"
 
-// LoginState drives the login screen.
 type LoginState struct {
-	// idle | waiting (QR shown) | submitting (password sent) | guard (Steam
-	// Guard needed) | done | error
-	Phase   string   `json:"phase"`
-	Method  string   `json:"method"` // "steam" | "qr" | "password" | ""
-	URL     string   `json:"url"`
-	QR      []string `json:"qr"` // rows of '1' (dark) and '0' (light)
-	Error   string   `json:"error"`
-	Account string   `json:"account"`
-	// Guard step: which confirmations Steam accepts. Values: "device_code"
-	// (authenticator app code), "email_code", "device_confirmation" (approve
-	// in the Steam mobile app), "email_confirmation".
+	Phase     string   `json:"phase"`
+	Method    string   `json:"method"`
+	URL       string   `json:"url"`
+	QR        []string `json:"qr"`
+	Error     string   `json:"error"`
+	Account   string   `json:"account"`
 	Guards    []string `json:"guards"`
-	EmailHint string   `json:"emailHint"` // e.g. "gmail.com"
-	CodeError string   `json:"codeError"` // last wrong-code message
-	Checking  bool     `json:"checking"`  // a code is being checked
+	EmailHint string   `json:"emailHint"`
+	CodeError string   `json:"codeError"`
+	Checking  bool     `json:"checking"`
 }
 
-// LocalLogins lists the accounts the Steam app on this PC knows.
 type LocalLogins struct {
 	SteamInstalled bool                 `json:"steamInstalled"`
 	Accounts       []steamlocal.Account `json:"accounts"`
-	// Watching is true after OpenSteamLogin while myChat waits for you to
-	// sign in to Steam. The new login is used automatically.
-	Watching bool   `json:"watching"`
-	Error    string `json:"error"`
+	Watching       bool                 `json:"watching"`
+	Error          string               `json:"error"`
 }
 
 func init() {
@@ -81,7 +69,6 @@ func (a *App) localLogins() LocalLogins {
 
 func (a *App) emitLocalLogins() { a.emit(EvLocalLogins, a.localLogins()) }
 
-// autoLogin runs at startup with the login chosen earlier, if any.
 func (a *App) autoLogin() {
 	a.mu.Lock()
 	src, acct := a.cfg.LoginSource, a.cfg.SteamAccount
@@ -98,7 +85,7 @@ func (a *App) autoLogin() {
 		return
 	}
 	if sess.Method == "" {
-		sess.Method = SourceQR // saved before the method was recorded
+		sess.Method = SourceQR
 	}
 	a.mu.Lock()
 	a.session = sess
@@ -112,7 +99,6 @@ func (a *App) autoLogin() {
 	a.setLogin(LoginState{Phase: "done", Method: sess.Method, Account: sess.AccountName})
 }
 
-// needsLogin shows the login screen with an optional reason.
 func (a *App) needsLogin(reason string) {
 	a.setStatus(func(st *Status) {
 		*st = Status{State: string(steam.StateNeedsLogin), Detail: reason}
@@ -124,8 +110,6 @@ func (a *App) needsLogin(reason string) {
 	}
 }
 
-// useSteam logs on with the login the Steam app saved for account. An empty
-// account picks Steam's most recent account that has a saved login.
 func (a *App) useSteam(account string) error {
 	if account == "" {
 		accs, err := steamlocal.Accounts()
@@ -150,7 +134,7 @@ func (a *App) useSteam(account string) error {
 	if err := a.steam.Start(tok); err != nil {
 		return err
 	}
-	a.store.ClearSession() // myChat's own login is no longer needed
+	a.store.ClearSession()
 	a.mu.Lock()
 	a.session = config.Session{}
 	a.steamToken = tok
@@ -161,7 +145,6 @@ func (a *App) useSteam(account string) error {
 	return nil
 }
 
-// setSource remembers the login choice for the next start.
 func (a *App) setSource(src, account string) {
 	a.mu.Lock()
 	a.cfg.LoginSource, a.cfg.SteamAccount = src, account
@@ -174,16 +157,12 @@ func (a *App) setSource(src, account string) {
 	a.emit(EvConfig, view)
 }
 
-// onLoginExpired runs when Steam rejects the token. It is called from the
-// event pump, so the work happens on another goroutine (Stop waits for the
-// client loop, which may be sending to the pump).
 func (a *App) onLoginExpired() {
 	go func() {
 		a.mu.Lock()
 		src, acct, old := a.cfg.LoginSource, a.cfg.SteamAccount, a.steamToken
 		a.mu.Unlock()
 		if src == SourceSteam {
-			// The Steam app may have renewed its saved login; use the new one.
 			if tok, err := steamlocal.Token(acct); err == nil && tok != old {
 				if a.useSteam(acct) == nil {
 					return
@@ -204,7 +183,6 @@ func (a *App) onLoginExpired() {
 	}()
 }
 
-// finishLogin starts myChat's own login from a QR or password sign-in.
 func (a *App) finishLogin(method, token, account, guardData string) {
 	a.store.SaveGuardData(account, guardData)
 	sess := config.Session{RefreshToken: token, AccountName: account, Method: method}
@@ -226,7 +204,6 @@ func (a *App) finishLogin(method, token, account, guardData string) {
 	a.setLogin(LoginState{Phase: "done", Method: method, Account: account})
 }
 
-// cancelLogins stops a QR or password login and the Steam sign-in watch.
 func (a *App) cancelLogins() {
 	a.mu.Lock()
 	if a.loginCancel != nil {
@@ -238,7 +215,6 @@ func (a *App) cancelLogins() {
 	a.mu.Unlock()
 }
 
-// beginLogin cancels any login in progress and returns a context for a new one.
 func (a *App) beginLogin() (context.Context, context.CancelFunc) {
 	a.cancelLogins()
 	a.emitLocalLogins()
@@ -285,13 +261,8 @@ func guardNames(gs []steam.Guard) (names []string, emailHint string) {
 	return names, emailHint
 }
 
-// ---- Service methods ----
-
-// LocalLogins lists the accounts saved by the Steam app on this PC.
 func (s *ChatService) LocalLogins() LocalLogins { return s.a.localLogins() }
 
-// UseSteamAccount logs on with the login the Steam app saved for this
-// account ("" = Steam's most recent account). The choice is remembered.
 func (s *ChatService) UseSteamAccount(account string) error {
 	a := s.a
 	err := a.useSteam(strings.TrimSpace(account))
@@ -302,15 +273,11 @@ func (s *ChatService) UseSteamAccount(account string) error {
 	return err
 }
 
-// OpenSteamLogin opens the Steam app. If no account is signed in there,
-// Steam shows its own sign-in window (password, Steam Guard, QR). myChat
-// watches for the new saved login for 10 minutes and uses it automatically.
 func (s *ChatService) OpenSteamLogin() error {
 	a := s.a
 	if err := steamlocal.OpenSteam(); err != nil {
 		return errors.New("could not open Steam")
 	}
-	// Steam is already signed in: there is no new login to wait for.
 	if accs, err := steamlocal.Accounts(); err == nil {
 		for _, ac := range accs {
 			if ac.MostRecent && ac.HasLogin {
@@ -320,8 +287,6 @@ func (s *ChatService) OpenSteamLogin() error {
 			}
 		}
 	}
-	// Saved login per account. Signing in again to an account that already
-	// had one replaces its token, so a changed token counts as a new login.
 	before := map[string]string{}
 	if accs, err := steamlocal.Accounts(); err == nil {
 		for _, ac := range accs {
@@ -389,7 +354,6 @@ func (s *ChatService) OpenSteamLogin() error {
 	return nil
 }
 
-// StartLogin begins a QR login. Progress arrives as mychat:login events.
 func (s *ChatService) StartLogin() {
 	a := s.a
 	ctx, cancel := a.beginLogin()
@@ -401,7 +365,7 @@ func (s *ChatService) StartLogin() {
 		})
 		if err != nil {
 			if ctx.Err() != nil {
-				return // cancelled or replaced by another login
+				return
 			}
 			a.setLogin(LoginState{Phase: "error", Method: SourceQR, Error: loginMessage(err)})
 			return
@@ -410,9 +374,6 @@ func (s *ChatService) StartLogin() {
 	}()
 }
 
-// LoginWithPassword logs in like the Steam app's own login screen. The
-// password is encrypted with Steam's RSA key and sent only to Steam; it is
-// never stored. If Steam Guard is needed the phase becomes "guard".
 func (s *ChatService) LoginWithPassword(account, password string) {
 	a := s.a
 	account = strings.TrimSpace(account)
@@ -444,8 +405,6 @@ func (s *ChatService) LoginWithPassword(account, password string) {
 		if names, hint := guardNames(l.Guards); len(names) > 0 {
 			a.setLogin(LoginState{Phase: "guard", Method: SourcePassword, Account: account, Guards: names, EmailHint: hint})
 		}
-		// Wait also finishes on its own when the login is approved in the
-		// Steam mobile app or by email link.
 		token, acct, guard, err := l.Wait(ctx)
 		a.mu.Lock()
 		if a.credLogin == l {
@@ -462,8 +421,6 @@ func (s *ChatService) LoginWithPassword(account, password string) {
 	}()
 }
 
-// SubmitGuardCode sends the Steam Guard code from the authenticator app or
-// email. Wrong codes keep the guard step open with CodeError set.
 func (s *ChatService) SubmitGuardCode(code string) {
 	a := s.a
 	code = strings.ToUpper(strings.ReplaceAll(strings.TrimSpace(code), " ", ""))
@@ -488,7 +445,7 @@ func (s *ChatService) SubmitGuardCode(code string) {
 		cur := a.login
 		a.mu.Unlock()
 		if cur.Phase != "guard" {
-			return // already finished
+			return
 		}
 		cur.Checking = false
 		if err != nil {
@@ -498,7 +455,6 @@ func (s *ChatService) SubmitGuardCode(code string) {
 	}()
 }
 
-// CancelLogin stops any login in progress and the wait for a Steam sign-in.
 func (s *ChatService) CancelLogin() {
 	a := s.a
 	a.cancelLogins()
@@ -506,8 +462,6 @@ func (s *ChatService) CancelLogin() {
 	a.emitLocalLogins()
 }
 
-// Logout ends myChat's Steam session and forgets the login choice. myChat's
-// own saved login is deleted; the Steam app is not affected.
 func (s *ChatService) Logout() {
 	a := s.a
 	a.steam.Stop()

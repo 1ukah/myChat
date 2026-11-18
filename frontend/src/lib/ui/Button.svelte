@@ -1,6 +1,4 @@
 <script lang="ts">
-  // A flat translucent box with a small semibold label; the main
-  // action uses the steel-blue fill of the selected tab.
   import type { Snippet } from "svelte";
   import Icon, { type IconName } from "./Icon.svelte";
 
@@ -12,7 +10,6 @@
     onclick,
     children,
   }: {
-    /** outline: neutral · accent / primary: steel blue · go: CS2 green · danger: red */
     variant?: "outline" | "accent" | "primary" | "go" | "danger";
     size?: "md" | "lg";
     icon?: IconName;
@@ -62,7 +59,6 @@
     background: rgba(255, 255, 255, 0.3);
   }
 
-  /* The selected-tab look: steel-blue box, light-blue text. */
   .accent,
   .primary {
     color: var(--accent);

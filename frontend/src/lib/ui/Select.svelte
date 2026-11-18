@@ -1,8 +1,4 @@
 <script lang="ts" generics="T extends string">
-  // Dropdown: the value in semibold type with a chevron
-  // ("Slide up ⌄"), and a flat list that opens below, or above when there
-  // is no room below (the last row of a page). The chosen option is the
-  // steel-blue box of the selected tab.
   import { tick } from "svelte";
   import Icon from "./Icon.svelte";
 
@@ -15,14 +11,12 @@
   }: {
     value: T;
     options: readonly { value: T; label: string }[];
-    /** Accessible name (the visible label lives in the row). */
     label: string;
     disabled?: boolean;
     onchange: (value: T) => void;
   } = $props();
 
   let open = $state(false);
-  /** The list opens above the value instead of below. */
   let up = $state(false);
   let root = $state<HTMLElement>();
   let trigger = $state<HTMLButtonElement>();
@@ -32,7 +26,6 @@
   const items = (): HTMLElement[] =>
     Array.from(root?.querySelectorAll<HTMLElement>('[role="option"]') ?? []);
 
-  /** Top and bottom of what the list may cover: the scrolling pane, else the window. */
   function room(): { top: number; bottom: number } {
     for (let el = root?.parentElement; el; el = el.parentElement) {
       const flow = getComputedStyle(el).overflowY;
@@ -47,7 +40,6 @@
     await tick();
     const box = root?.querySelector<HTMLElement>(".list")?.getBoundingClientRect();
     const top = trigger?.getBoundingClientRect().top ?? 0;
-    // Above only if it does not fit below and does fit above.
     const pane = room();
     if (box && box.bottom > pane.bottom && top - 2 - box.height >= pane.top) up = true;
     (items().find((el) => el.getAttribute("aria-selected") === "true") ?? items()[0])?.focus();
@@ -81,7 +73,6 @@
     all[(at + step + all.length) % all.length]?.focus();
   }
 
-  // Focus left the control (click elsewhere, Tab away): close.
   function onfocusout(e: FocusEvent): void {
     if (!(e.relatedTarget instanceof Node) || !root?.contains(e.relatedTarget)) open = false;
   }
@@ -130,7 +121,6 @@
     font-weight: 600;
   }
 
-  /* No box: just the value and a chevron, right-aligned in the row. */
   .value {
     display: flex;
     align-items: center;

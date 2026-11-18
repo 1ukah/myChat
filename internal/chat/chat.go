@@ -1,6 +1,3 @@
-// Package chat is the chat box logic, modelled on World of Warcraft chat:
-// a sticky channel, /r to reply, /w to whisper, Tab to cycle recent people,
-// and a shared chat log.
 package chat
 
 import (
@@ -11,17 +8,15 @@ import (
 	"time"
 )
 
-// Friend is the chat view of a Steam friend.
 type Friend struct {
 	ID      uint64
-	Name    string // shown name: the nickname the user gave, else the Steam name
-	AltName string // the Steam name when Name is a nickname
+	Name    string
+	AltName string
 	Online  bool
 	InGame  string
-	Avatar  string // avatar image URL
+	Avatar  string
 }
 
-// Backend is what the engine needs from the Steam session.
 type Backend interface {
 	SelfID() uint64
 	Friends() []Friend
@@ -30,7 +25,6 @@ type Backend interface {
 	Ack(partner uint64, t time.Time)
 }
 
-// Notifier receives state changes for the UI.
 type Notifier interface {
 	EntryAdded(e Entry)
 	EntryUpdated(e Entry)
@@ -38,55 +32,59 @@ type Notifier interface {
 	ComposerChanged(s ComposerState)
 }
 
-// Entry kinds.
 const (
-	KindIn     = "in"     // whisper from a friend
-	KindOut    = "out"    // whisper to a friend
-	KindSystem = "system" // help and info lines
+	KindIn     = "in"
+	KindOut    = "out"
+	KindSystem = "system"
 	KindError  = "error"
 )
 
-// Entry statuses.
 const (
 	StatusPending = "pending"
 	StatusSent    = "sent"
 	StatusFailed  = "failed"
 )
 
-// Entry is one line in the chat log.
 type Entry struct {
-	ID         int64  `json:"id"`
-	Time       int64  `json:"time"` // Unix milliseconds
-	Kind       string `json:"kind"`
-	PeerID     string `json:"peerId"`
-	PeerName   string `json:"peerName"`
-	PeerAvatar string `json:"peerAvatar"`
-	Text       string `json:"text"`
-	Status     string `json:"status"`
-	Detail     string `json:"detail"`
-	// Media are the pictures in the message (at most one for now); the text
-	// no longer holds the address of a picture shown here.
-	Media []Media `json:"media"`
+	ID         int64   `json:"id"`
+	Time       int64   `json:"time"`
+	Kind       string  `json:"kind"`
+	PeerID     string  `json:"peerId"`
+	PeerName   string  `json:"peerName"`
+	PeerAvatar string  `json:"peerAvatar"`
+	Text       string  `json:"text"`
+	Status     string  `json:"status"`
+	Detail     string  `json:"detail"`
+	Media      []Media `json:"media"`
+	Embed      *Embed  `json:"embed"`
 }
 
-// Media is a picture in a message, served to the UI by myChat itself.
+type Embed struct {
+	URL      string `json:"url"`
+	Site     string `json:"site"`
+	SiteName string `json:"siteName"`
+	Title    string `json:"title"`
+	Author   string `json:"author"`
+	Text     string `json:"text"`
+	Video    bool   `json:"video"`
+	Thumb    *Media `json:"thumb"`
+}
+
 type Media struct {
 	ID     string `json:"id"`
-	URL    string `json:"url"`   // local address to load it from
-	Full   string `json:"full"`  // local address of the original when URL is a smaller copy; "" otherwise
-	Width  int    `json:"width"` // as the sender says or as decoded; 0 when unknown
+	URL    string `json:"url"`
+	Full   string `json:"full"`
+	Width  int    `json:"width"`
 	Height int    `json:"height"`
-	Kind   string `json:"kind"`  // "upload" | "gif" | "link"
-	Title  string `json:"title"` // a GIF's title, if any
+	Kind   string `json:"kind"`
+	Title  string `json:"title"`
 }
 
-// Channel kinds.
 const (
 	ChannelNone    = "none"
 	ChannelWhisper = "whisper"
 )
 
-// Channel is where plain text goes when Enter is pressed.
 type Channel struct {
 	Kind       string `json:"kind"`
 	TargetID   string `json:"targetId"`
@@ -95,35 +93,32 @@ type Channel struct {
 	Avatar     string `json:"avatar"`
 }
 
-// Suggestion is a friend offered while typing /w.
 type Suggestion struct {
 	ID      string `json:"id"`
 	Name    string `json:"name"`
-	AltName string `json:"altName"` // Steam name when Name is a nickname
+	AltName string `json:"altName"`
 	Online  bool   `json:"online"`
 	InGame  string `json:"inGame"`
 	Avatar  string `json:"avatar"`
 }
 
-// ComposerState is everything the UI needs to draw the input line.
 type ComposerState struct {
 	Text        string       `json:"text"`
-	Caret       int          `json:"caret"` // in characters (runes)
+	Caret       int          `json:"caret"`
 	Channel     Channel      `json:"channel"`
 	Hint        string       `json:"hint"`
 	Suggestions []Suggestion `json:"suggestions"`
 	Selected    int          `json:"selected"`
 	Error       string       `json:"error"`
-	Scroll      int          `json:"scroll"` // log lines scrolled up from the bottom
+	Scroll      int          `json:"scroll"`
 }
 
-// Action tells the caller what to do after a key.
 type Action int
 
 const (
-	ActNone  Action = iota
-	ActClose        // close the chat box
-	ActSent         // a message was accepted for sending
+	ActNone Action = iota
+	ActClose
+	ActSent
 )
 
 const (
@@ -143,7 +138,6 @@ type echoKey struct {
 	at   time.Time
 }
 
-// Engine holds chat state. All methods are safe for concurrent use.
 type Engine struct {
 	mu sync.Mutex
 	b  Backend
@@ -173,10 +167,9 @@ type Engine struct {
 	echoes  []echoKey
 	unacked map[uint64]time.Time
 
-	q chan func() // notifications, delivered in order by one goroutine
+	q chan func()
 }
 
-// New creates an engine.
 func New(b Backend, n Notifier) *Engine {
 	e := &Engine{b: b, n: n, channel: Channel{Kind: ChannelNone}, unacked: map[uint64]time.Time{}, q: make(chan func(), 1024)}
 	go func() {
@@ -189,14 +182,12 @@ func New(b Backend, n Notifier) *Engine {
 
 func (e *Engine) notify(f func()) { e.q <- f }
 
-// Log returns a copy of the chat log.
 func (e *Engine) Log() []Entry {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	return append([]Entry(nil), e.log...)
 }
 
-// Composer returns the current input line state.
 func (e *Engine) Composer() ComposerState {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -238,7 +229,6 @@ func (e *Engine) changed() {
 	e.notify(func() { e.n.ComposerChanged(s) })
 }
 
-// Reset clears the input line (not the channel), as when the box closes.
 func (e *Engine) Reset() {
 	e.mu.Lock()
 	e.text, e.caret = nil, 0
@@ -250,14 +240,12 @@ func (e *Engine) Reset() {
 	e.mu.Unlock()
 }
 
-// Refresh re-sends the composer state (for example after friend data changed).
 func (e *Engine) Refresh() {
 	e.mu.Lock()
 	e.changed()
 	e.mu.Unlock()
 }
 
-// AckAll marks every conversation with unread messages as read.
 func (e *Engine) AckAll() {
 	e.mu.Lock()
 	pending := e.unacked
@@ -268,8 +256,6 @@ func (e *Engine) AckAll() {
 	}
 }
 
-// Incoming records a message from Steam. It returns the entry and whether it
-// is new (a toast is worth showing).
 func (e *Engine) Incoming(partner uint64, text string, media []Media, at time.Time, echo bool) (Entry, bool) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -292,7 +278,6 @@ func (e *Engine) Incoming(partner uint64, text string, media []Media, at time.Ti
 	return ent, true
 }
 
-// System adds an info line to the log.
 func (e *Engine) System(text string) {
 	e.mu.Lock()
 	e.addLocked(Entry{Kind: KindSystem, Text: text})
@@ -313,9 +298,6 @@ func (e *Engine) addLocked(ent Entry) Entry {
 	return ent
 }
 
-// SetMedia gives a logged entry its pictures (once a linked picture has
-// loaded) and the text that goes with them. It reports false when the entry
-// has already left the log.
 func (e *Engine) SetMedia(id int64, text string, media []Media) (Entry, bool) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -323,6 +305,21 @@ func (e *Engine) SetMedia(id int64, text string, media []Media) (Entry, bool) {
 		if e.log[i].ID == id {
 			e.log[i].Text = text
 			e.log[i].Media = media
+			out := e.log[i]
+			e.notify(func() { e.n.EntryUpdated(out) })
+			return out, true
+		}
+	}
+	return Entry{}, false
+}
+
+func (e *Engine) SetEmbed(id int64, text string, embed *Embed) (Entry, bool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	for i := range e.log {
+		if e.log[i].ID == id {
+			e.log[i].Text = text
+			e.log[i].Embed = embed
 			out := e.log[i]
 			e.notify(func() { e.n.EntryUpdated(out) })
 			return out, true
@@ -379,9 +376,6 @@ func (e *Engine) setWhisperLocked(id uint64) {
 	e.channel = Channel{Kind: ChannelWhisper, TargetID: idStr(id), TargetName: e.nameLocked(id)}
 }
 
-// WhisperTo makes a person the one the input line whispers to, as when
-// their name is clicked. Text being typed stays, except a half-typed
-// "/w name" whose suggestions were showing: picking a person answers it.
 func (e *Engine) WhisperTo(id uint64) {
 	if id == 0 {
 		return
@@ -397,7 +391,6 @@ func (e *Engine) WhisperTo(id uint64) {
 	e.changed()
 }
 
-// Insert types text at the caret (used for paste).
 func (e *Engine) Insert(s string) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -423,7 +416,6 @@ func (e *Engine) insertLocked(s string) {
 	e.caret += len(r)
 }
 
-// HandleKey processes one key from the input hook. key is empty for text.
 func (e *Engine) HandleKey(text, key string, shift bool) Action {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -547,8 +539,6 @@ func (e *Engine) pickSuggestionLocked() {
 	e.sugg, e.suggSel = nil, 0
 }
 
-// afterEditLocked implements live channel switching, as in WoW: typing
-// "/r " or "/w name " turns the line into that channel at once.
 func (e *Engine) afterEditLocked() {
 	e.histPos = len(e.history)
 	t := string(e.text)
@@ -610,9 +600,6 @@ func (e *Engine) recentFriendsLocked(n int) []Friend {
 	return out
 }
 
-// matchLocked finds friends by nickname or Steam name: exact, then prefix,
-// then word prefix, then substring. Online friends come first inside each
-// group.
 func (e *Engine) matchLocked(q string) (all, exact []Friend) {
 	q = strings.ToLower(q)
 	var prefix, word, sub []Friend
@@ -634,8 +621,6 @@ func (e *Engine) matchLocked(q string) (all, exact []Friend) {
 	return all, exact
 }
 
-// matchRank is 0 for an exact match, 1 prefix, 2 word prefix, 3 substring,
-// 4 no match. q is lower case.
 func matchRank(name, q string) int {
 	n := strings.ToLower(name)
 	switch {
@@ -720,7 +705,6 @@ func (e *Engine) commandLocked(t string) Action {
 			e.errMsg = "Usage: /w name message"
 			return ActNone
 		}
-		// Try the longest run of words that is exactly one friend's name.
 		for k := len(words); k >= 1; k-- {
 			_, exact := e.matchLocked(strings.Join(words[:k], " "))
 			if len(exact) == 1 {
@@ -814,7 +798,6 @@ func wordRight(t []rune, i int) int {
 
 func idStr(id uint64) string { return strconv.FormatUint(id, 10) }
 
-// ParseID converts a string ID from the UI.
 func ParseID(s string) uint64 {
 	v, _ := strconv.ParseUint(s, 10, 64)
 	return v

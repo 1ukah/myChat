@@ -1,11 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
   <title>myChat (small sizes)</title>
-  <!-- The app icon redrawn for 16 and 32 px. Every edge sits on a multiple
-       of 64 units, which is a whole pixel at 16 px and at 32 px. The figure
-       is a little larger than in frontend/src/assets/mychat-icon.svg, the
-       gloss is two plain bands, and the hairline and glow are gone.
-       20 px and 24 px have their own files (mychat-icon-small-20.svg and
-       -24.svg) because 1024 does not divide into those grids. -->
   <defs>
     <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#1c1c1c"/>
@@ -22,11 +16,9 @@
 
   <rect width="1024" height="1024" rx="192" fill="url(#tile)"/>
 
-  <!-- Head 320..704 x 128..512, gap 512..576, body 192..832 x 576..896. -->
   <circle cx="512" cy="320" r="192" fill="url(#skin)"/>
   <path d="M192 896V768A320 192 0 0 1 832 768V896Z" fill="url(#skin)"/>
 
-  <!-- Highlights: white over the top half of the head and the shoulders. -->
   <ellipse cx="512" cy="192" rx="256" ry="128" fill="#ffffff" clip-path="url(#head-clip)"/>
   <ellipse cx="512" cy="576" rx="384" ry="128" fill="#ffffff" clip-path="url(#body-clip)"/>
 </svg>

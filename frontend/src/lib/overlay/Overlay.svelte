@@ -1,11 +1,4 @@
 <script lang="ts">
-  // The in-game overlay window. It is never focused and never sees the mouse:
-  // everything here is drawn from state that Go pushes. See docs/UI_CONTRACT.md.
-  //
-  // Clicks on pictures are caught by Go, which needs to know where they are
-  // (spots.ts). A clicked picture opens at full size (Viewer): the window
-  // then covers the whole monitor, and the 640×360 area keeps its place on
-  // screen, at the bottom middle, `bottomOffset` px up.
   import { onMount, tick, untrack } from "svelte";
   import type * as C from "../../../bindings/mychat/internal/chat/models";
   import { app, overlayReady, overlayResized } from "../store.svelte";
@@ -18,17 +11,13 @@
   import Toasts from "./Toasts.svelte";
   import Viewer from "./Viewer.svelte";
 
-  /** More than fits in 360 px even when every line is short. */
   const MAX_LINES = 48;
 
   const open = $derived(app.mode.mode === "composer");
   const live = $derived(app.mode.mode !== "hidden");
   const motion = $derived(motionOf(app.mode, app.mode.hideDelayMs));
-  /** The chat look: Legacy (CS2 style) or Minimal (dark Panorama glass bands). */
   const minimal = $derived(asLook(app.mode.overlayStyle) === "minimal");
 
-  // What was last on screen. After `hidden` it stays mounted so the exit
-  // animation has something to fade, and so reopening costs no DOM work.
   let lastShown: "composer" | "toast" | null = null;
   const shown = $derived.by(() => {
     const m = app.mode.mode;
@@ -36,9 +25,6 @@
     return lastShown;
   });
 
-  // The composer's inputs are read only while it is open. Once hidden these
-  // return the last frame and stop depending on the store, so events that
-  // arrive in the background (new messages, the input reset) touch no DOM.
   let heldComposer = app.composer;
   const composer = $derived.by(() => (open ? (heldComposer = app.composer) : heldComposer));
 
@@ -55,8 +41,6 @@
     return heldLines;
   });
 
-  // The pop-ups are read only in toast mode, so they stay as they were while
-  // the exit animation fades them out.
   let heldToasts: C.Entry[] = [];
   const toasts = $derived.by(() =>
     app.mode.mode === "toast" ? (heldToasts = app.toasts) : heldToasts,
@@ -65,16 +49,11 @@
   let heldTotal = 0;
   const total = $derived.by(() => (open ? (heldTotal = app.log.length) : heldTotal));
 
-  // ---- pictures that open when clicked ----
-
   const viewer = $derived(live ? app.mode.viewer : null);
 
-  // The picture drawn: a closed one stays while its closing animation plays
-  // (Go shrinks the window only after it).
   let shownViewer = $state<C.Media | null>(null);
   let closing = $state(false);
   let closeTimer = 0;
-  /** Changes on each opening, so a picture reopened mid-close starts over. */
   let opening = $state(0);
   $effect(() => {
     const v = viewer;
@@ -97,12 +76,9 @@
     });
   });
 
-  /** Frames drawn at a new window size before Go shows the window again. */
   const SETTLE_FRAMES = 4;
-  /** False from a window resize until Go is asked to show the window again. */
   let settled = $state(true);
 
-  /** How far the 640×360 area sits above the bottom of the monitor, in CSS px. */
   const lift = $derived(Math.max(0, app.config.bottomOffset) / (app.config.scale || 1));
 
   let area = $state<HTMLElement>();
@@ -118,7 +94,6 @@
   });
 
   $effect(() => {
-    // Everything that adds, removes or moves a picture.
     void app.mode.mode;
     void viewer;
     void lines;
@@ -132,8 +107,6 @@
   });
 
   function fontsReady(): Promise<unknown> {
-    // Legacy is set in Saira and Noto Sans, Minimal in Inter (one variable
-    // file covers every weight). Both are loaded: the look can change later.
     const faces = [
       '600 16px "Saira Semi Condensed"',
       '700 16px "Saira Semi Condensed"',
@@ -148,18 +121,10 @@
   }
 
   onMount(() => {
-    // Tell Go the page has rendered. Fonts are decoded first so the very
-    // first open in game shows final text, with no swap or reflow.
     void tick()
       .then(fontsReady)
       .then(overlayReady);
 
-    // Go hides the window while it changes size (opening or closing a
-    // picture). Until a frame at the new size reaches the screen, WebView2
-    // shows its last one stretched over the window, and that lags a few
-    // frames behind the page (more with the game busy on the GPU). So Go
-    // shows the window only after SETTLE_FRAMES, and the picture starts
-    // opening then.
     let pending = 0;
     const onResize = (): void => {
       settled = false;
@@ -227,18 +192,12 @@
 </div>
 
 <style>
-  /* The whole window, as a size container for the area below. */
   .window {
     position: fixed;
     inset: 0;
     container-type: size;
   }
 
-  /* The 640×360 area. It fills the window as usual; when the window covers
-     the whole monitor (a picture is open) it stays at the bottom middle,
-     `--lift` up, exactly where the window was, so nothing moves. The
-     clamp() is 0 for a 360 px high window and --lift for anything taller.
-     The transform also makes it the box for the panel's position: fixed. */
   .area {
     position: absolute;
     left: 50%;

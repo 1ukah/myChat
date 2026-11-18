@@ -1,7 +1,4 @@
 <script lang="ts">
-  // Steam Guard step of the password login (phase "guard"): a 5-character
-  // code from the authenticator app or from email, and/or approval in the
-  // Steam mobile app (which completes on its own).
   import { onMount, untrack } from "svelte";
   import { app, cancelLogin, submitGuardCode } from "../store.svelte";
   import Icon from "../ui/Icon.svelte";
@@ -25,7 +22,6 @@
   const cursor = $derived(Math.min(code.length, LENGTH - 1));
 
   function oninput(e: Event & { currentTarget: HTMLInputElement }): void {
-    // Typing and pasting both land here: keep letters and digits only.
     const next = e.currentTarget.value
       .toUpperCase()
       .replace(/[^A-Z0-9]/g, "")
@@ -35,7 +31,6 @@
     if (next.length === LENGTH && !login.checking) submitGuardCode(next);
   }
 
-  // A wrong code: empty the boxes and put the cursor back for another try.
   $effect(() => {
     if (!login.codeError) return;
     untrack(() => (code = ""));
@@ -157,8 +152,6 @@
     color: var(--text-soft);
   }
 
-  /* One real input, invisible, on top of five drawn boxes: typing, paste
-     and the on-screen keyboard all behave as in any text field. */
   .code {
     position: relative;
     margin-top: 20px;
@@ -199,7 +192,6 @@
     border-color: rgba(255, 255, 255, 0.5);
   }
 
-  /* The box the next character goes into. */
   .box.at {
     border-color: var(--accent);
     box-shadow: inset 0 -3px 0 var(--accent);

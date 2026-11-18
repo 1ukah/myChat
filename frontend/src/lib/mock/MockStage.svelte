@@ -1,9 +1,4 @@
 <script lang="ts">
-  // Development-only stage for the overlay in a plain browser. It stands in
-  // for what Windows and Go do in the real app: a game picture behind, and a
-  // window of exactly the layout size, docked bottom middle, that is resized
-  // per mode, blurred when blur is on, zoomed by the size setting, and hidden
-  // `hideDelayMs` after `hidden`. The real page stays fully transparent.
   import type { Snippet } from "svelte";
   import { app } from "../store.svelte";
 
@@ -16,7 +11,6 @@
   let height = $state(app.layout.composerHeight);
   let pageW = $state(0);
   let pageH = $state(0);
-  /** Like Go: with a picture open the window covers the whole screen (page). */
   const viewing = $derived(visible && app.mode.mode !== "hidden" && app.mode.viewer != null);
   const zoom = $derived(app.config.scale || 1);
 
@@ -30,7 +24,6 @@
     visible = true;
   });
 
-  /** Link to this page with some query values changed. */
   function href(change: Record<string, string>): string {
     const q = new URLSearchParams(location.search);
     for (const [k, v] of Object.entries(change)) q.set(k, v);
@@ -194,8 +187,6 @@
 </nav>
 
 <style>
-  /* ---------- a stand-in game picture: dark and bright areas behind the box ---------- */
-
   .game {
     position: fixed;
     inset: 0;
@@ -220,7 +211,6 @@
     background: radial-gradient(#fff 0%, #ffe9b0 30%, rgba(255, 220, 150, 0) 70%);
   }
 
-  /* A sunlit wall that crosses behind the right half of the overlay. */
   .wall {
     position: absolute;
     right: 0;
@@ -312,8 +302,6 @@
     background: linear-gradient(#d8cbac, #b7a986);
   }
 
-  /* ---------- the pretend overlay window ---------- */
-
   .dock {
     position: fixed;
     right: 0;
@@ -323,8 +311,6 @@
     pointer-events: none;
   }
 
-  /* Clicks still pass through the pretend window, except on pictures,
-     names and the open picture (Go catches those clicks in the real app). */
   .window :global([data-spot]),
   .window :global(.viewer) {
     pointer-events: auto;
@@ -334,8 +320,6 @@
     z-index: 1;
   }
 
-  /* `contain` makes this box the containing block of the overlay's
-     `position: fixed` panel and clips it, as a real window would. */
   .window {
     position: relative;
     flex: none;
@@ -347,13 +331,10 @@
     visibility: visible;
   }
 
-  /* Windows blurs the game behind the whole window when blur is on. */
   .window.shown.blur {
     -webkit-backdrop-filter: blur(18px);
     backdrop-filter: blur(18px);
   }
-
-  /* ---------- small dev menu ---------- */
 
   .dev {
     position: fixed;

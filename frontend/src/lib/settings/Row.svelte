@@ -1,7 +1,4 @@
 <script lang="ts">
-  // One settings row: label on the left, control on the right, thin divider.
-  // The row is tall enough for a second line (hint or error), so showing an
-  // error never moves the layout.
   import type { Snippet } from "svelte";
 
   let {
@@ -13,9 +10,7 @@
   }: {
     label: string;
     hint?: string;
-    /** Shown in red instead of the hint (for example a rejected hotkey). */
     error?: string;
-    /** The setting has no effect right now. */
     dim?: boolean;
     children?: Snippet;
   } = $props();
@@ -41,7 +36,6 @@
     gap: 24px;
     min-height: 56px;
     padding: 8px 0;
-    /* No fill: only the thin light rule under each row, as in CS2. */
     border-bottom: 1px solid var(--line);
   }
 

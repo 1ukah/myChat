@@ -14,7 +14,6 @@ import (
 	"time"
 )
 
-// Messages as Steam sent them (field 4 and field 8 of the notification).
 const (
 	giphyBB    = `[img src="https://giphy.com/gifs/ai-cat-meme-774uK11mxE3W0cjE8L" thumbnail_src="https://media2.giphy.com/media/v1.Y2lk/774uK11mxE3W0cjE8L/giphy.gif" height="480" width="480" giphy_search="cat" title="High Five Ai GIF"][url=https://media2.giphy.com/media/v1.Y2lk/774uK11mxE3W0cjE8L/giphy.gif]https://media2.giphy.com/media/v1.Y2lk/774uK11mxE3W0cjE8L/giphy.gif[/url][/img]`
 	giphyPlain = `https://media2.giphy.com/media/v1.Y2lk/774uK11mxE3W0cjE8L/giphy.gif`
@@ -94,6 +93,37 @@ func TestFindLinks(t *testing.T) {
 	}
 }
 
+func TestFindPage(t *testing.T) {
+	cases := []struct {
+		plain string
+		ok    bool
+		site  string
+		id    string
+		strip string
+	}{
+		{"https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=10", true, SiteYouTube, "dQw4w9WgXcQ", "https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=10"},
+		{"watch https://youtu.be/dQw4w9WgXcQ!", true, SiteYouTube, "dQw4w9WgXcQ", ""},
+		{"https://youtube.com/shorts/dQw4w9WgXcQ", true, SiteYouTube, "dQw4w9WgXcQ", "https://youtube.com/shorts/dQw4w9WgXcQ"},
+		{"https://x.com/jack/status/20", true, SiteX, "20", "https://x.com/jack/status/20"},
+		{"lol https://vxtwitter.com/jack/status/20/photo/1", true, SiteX, "20", ""},
+		{"https://twitter.com/i/status/123", true, SiteX, "123", "https://twitter.com/i/status/123"},
+		{"https://x.com/jack", true, SiteWeb, "", "https://x.com/jack"},
+		{"https://www.reddit.com/r/computadores/comments/1wis7x7/esse_pc_consegue_rodar_gta_6/", true, SiteReddit, "1wis7x7", "https://www.reddit.com/r/computadores/comments/1wis7x7/esse_pc_consegue_rodar_gta_6/"},
+		{"see https://old.reddit.com/comments/1wis7x7", true, SiteReddit, "1wis7x7", ""},
+		{"https://redd.it/1wis7x7", true, SiteReddit, "1wis7x7", "https://redd.it/1wis7x7"},
+		{"https://www.reddit.com/r/cs2/s/AbCdEf123", true, SiteWeb, "", "https://www.reddit.com/r/cs2/s/AbCdEf123"},
+		{"https://example.com/page", true, SiteWeb, "", "https://example.com/page"},
+		{"https://i.imgur.com/abc.png", false, "", "", ""},
+		{"no links here", false, "", "", ""},
+	}
+	for _, c := range cases {
+		p, ok := FindPage(c.plain)
+		if ok != c.ok || p.Site != c.site || p.ID != c.id || p.Strip != c.strip {
+			t.Errorf("%q: got %+v, %v", c.plain, p, ok)
+		}
+	}
+}
+
 func TestPlainHTTPIsNotTrusted(t *testing.T) {
 	f, ok := Find("http://images.steamusercontent.com/ugc/1/a.png", "http://images.steamusercontent.com/ugc/1/a.png")
 	if !ok || f.Trusted {
@@ -116,7 +146,7 @@ func TestStoreFetchesAndServes(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/a.png":
-			w.Header().Set("Content-Type", "text/plain") // the bytes decide, not this
+			w.Header().Set("Content-Type", "text/plain")
 			_, _ = w.Write(pic)
 		case "/fake.png":
 			_, _ = w.Write([]byte("<html>not a picture</html>"))
@@ -194,7 +224,7 @@ func TestStoreRefusesLocalAddresses(t *testing.T) {
 		_, _ = w.Write(pngBytes(t, 1, 1))
 	}))
 	defer srv.Close()
-	s := NewStore() // the real client
+	s := NewStore()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if _, err := s.Wait(ctx, s.Start(srv.URL+"/a.png")); err == nil {

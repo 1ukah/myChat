@@ -1,7 +1,4 @@
 <script lang="ts">
-  // On/off setting: a pill switch. Its position and colour say on or off, so
-  // there is no text next to it; screen readers get `role="switch"` with
-  // `aria-checked` and the row's label.
   let {
     checked,
     label,
@@ -9,7 +6,6 @@
     onchange,
   }: {
     checked: boolean;
-    /** Accessible name (the visible label lives in the row). */
     label: string;
     disabled?: boolean;
     onchange: (checked: boolean) => void;

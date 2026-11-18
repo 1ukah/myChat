@@ -1,77 +1,40 @@
 # myChat
 
-Read and answer Steam private messages from inside Counter-Strike 2, without
-Shift+Tab.
-
-- Press the hotkey (default **I**). A small chat box opens at the bottom middle.
-- Type and press **Enter**. The message goes to Steam.
-- New messages pop up at the same place.
-- You keep moving while you type: keys you held before you opened the box
-  (for example W) still go to the game.
-
-## Commands (WoW style)
-
-| Input | Action |
-|---|---|
-| `/r [msg]` | Reply to the last person who messaged you |
-| `/w name [msg]` | Message a friend (part of the name is enough) |
-| `Tab` / `Shift+Tab` | Cycle recent people |
-| `↑` `↓` | Sent history |
-| `PgUp` `PgDn` | Scroll |
-| `Enter` on empty line, `Esc` | Close |
-| `Ctrl+V` | Paste |
-
-Typing `/r ` or `/w name ` switches the channel at once.
+myChat is a Steam chat overlay for Windows. With myChat, you can read and send Steam messages in games and in other applications. Counter-Strike 2 was the first target, but you can use myChat in all games.
 
 ## Requirements
 
-- Windows 10 or 11. Blur needs Windows 11.
-- CS2 in **Fullscreen Windowed**.
-- Use a hotkey that CS2 does not use.
+- Windows 10 or Windows 11.
+- A Steam account.
+- For games: windowed mode or fullscreen windowed mode.
 
-## Safety
+## Install
 
-myChat never opens, reads or writes the CS2 process and never changes game
-files. It uses:
+1. Download `mychat.exe` from the latest release.
+2. Start `mychat.exe`.
+3. Log in to Steam.
 
-- a normal Windows hotkey (`RegisterHotKey`),
-- a keyboard hook (`WH_KEYBOARD_LL`) only while the chat box is open,
-- a window that never takes focus, so CS2 stays the active window.
+## Use
 
-It logs in to Steam as a quiet second session (like the Steam mobile app), in
-one of three ways: the login the Steam app already saved on this PC, account
-name + password + Steam Guard, or a QR code scanned with the Steam mobile app.
-The password is encrypted with Steam's key and sent only to Steam; it is never
-stored. myChat stays a silent, offline session: it never sets a status and
-never asks the Steam connection for anyone's status, so your Steam app stays
-signed in to Friends & Chat with your status and a correct friends list.
-Friend names and avatars come from Steam's web API instead. The login token is encrypted
-with Windows DPAPI in `%APPDATA%\myChat`.
+1. Push the hotkey to open the chat box. The default hotkey is `I`.
+2. Type the message.
+3. Push `Enter` to send the message.
 
 ## Build
 
+You must have Go, Node.js and the Wails 3 CLI.
+
 ```
+go install github.com/wailsapp/wails/v3/cmd/wails3@v3.1.0
 wails3 build
 ```
 
-Output: `bin\myChat.exe`.
+The build writes the file `bin\myChat.exe`.
 
-Development:
+## Release
 
-```
-cd frontend
-npm run dev        # UI preview in a browser with mock data (?view=overlay&mock=composer)
-```
+1. Write the new version in `VERSION`.
+2. Write the changes for the new version in `CHANGELOG`.
+3. Push a tag with the same version, for example `v0.1.0`.
 
-## Layout
-
-| Path | What |
-|---|---|
-| `internal/steam` | Minimal Steam client (WebSocket CM, QR and password login, friends, chat) |
-| `internal/input` | Hotkey and keyboard hook thread |
-| `internal/chat` | Chat logic (channels, commands, history) |
-| `internal/config` | Settings and encrypted session |
-| `internal/win` | Win32 calls |
-| `app.go`, `overlay.go`, `main.go` | Wails app, overlay window control, tray |
-| `frontend/` | Svelte UI (overlay + settings) |
-| `docs/UI_CONTRACT.md` | API between Go and the UI |
+GitHub Actions builds `mychat.exe` and publishes the release.

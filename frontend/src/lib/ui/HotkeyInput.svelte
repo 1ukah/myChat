@@ -1,14 +1,10 @@
 <script lang="ts">
-  // Key-bind control. Click it, then press the new key combination.
-  // Pure modifier presses are ignored (keep holding, then press the key);
-  // Escape cancels.
   import * as Cfg from "../../../bindings/mychat/internal/config/models";
 
   let {
     label,
     onpick,
   }: {
-    /** Current hotkey as text, e.g. "I" or "Ctrl + F6". */
     label: string;
     onpick: (hotkey: Cfg.Hotkey) => void;
   } = $props();
@@ -28,7 +24,6 @@
       if (e.code === "Escape") return;
       onpick(new Cfg.Hotkey({ code: e.code, ctrl: e.ctrlKey, shift: e.shiftKey, alt: e.altKey }));
     };
-    // Capture phase: nothing else in the window reacts to the key.
     window.addEventListener("keydown", onkeydown, true);
     return () => window.removeEventListener("keydown", onkeydown, true);
   });
@@ -56,7 +51,6 @@
 </button>
 
 <style>
-  /* The bound key in a thin bordered box, like a CS2 value box. */
   .hotkey {
     display: inline-flex;
     align-items: center;

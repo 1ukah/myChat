@@ -18,8 +18,6 @@ import (
 	"github.com/coder/websocket"
 )
 
-// conn is one WebSocket connection to a Steam connection manager (CM).
-// WebSocket CMs use TLS, so Steam's own channel encryption is not needed.
 type conn struct {
 	ws     *websocket.Conn
 	ctx    context.Context
@@ -84,7 +82,7 @@ func (c *conn) readLoop() {
 func (c *conn) dispatch(data []byte) error {
 	p, err := parsePacket(data)
 	if err != nil {
-		return nil // skip malformed packets
+		return nil
 	}
 	if p.emsg == emsgMulti {
 		return c.handleMulti(p.body)
@@ -156,7 +154,6 @@ func (c *conn) write(b []byte) error {
 	return c.ws.Write(wctx, websocket.MessageBinary, b)
 }
 
-// send writes a message with the session's SteamID and session ID filled in.
 func (c *conn) send(emsg uint32, h header, body []byte) error {
 	if emsg != emsgClientHello && emsg != emsgServiceMethodCallFromClientNonAuthed {
 		h.steamID = c.steamID.Load()
@@ -165,7 +162,6 @@ func (c *conn) send(emsg uint32, h header, body []byte) error {
 	return c.write(buildPacket(emsg, h, body))
 }
 
-// call sends a service method request and waits for its response.
 func (c *conn) call(ctx context.Context, emsg uint32, method string, body []byte) (packet, error) {
 	job := c.nextJob.Add(1) & 0x7fffffffffffffff
 	ch := make(chan packet, 1)
@@ -202,7 +198,6 @@ func (c *conn) call(ctx context.Context, emsg uint32, method string, body []byte
 	}
 }
 
-// notify sends a service method call that has no response.
 func (c *conn) notify(method string, body []byte) error {
 	h := newHeader()
 	h.targetJobName = method
@@ -220,7 +215,6 @@ var (
 	cmCacheAt time.Time
 )
 
-// cmEndpoints returns WebSocket CM endpoints from the Steam directory.
 func cmEndpoints(ctx context.Context) ([]string, error) {
 	cmCacheMu.Lock()
 	defer cmCacheMu.Unlock()
@@ -257,7 +251,6 @@ func cmEndpoints(ctx context.Context) ([]string, error) {
 	return list, nil
 }
 
-// dialAny connects to one of the best few CMs.
 func dialAny(ctx context.Context) (*conn, error) {
 	list, err := cmEndpoints(ctx)
 	if err != nil {

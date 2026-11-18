@@ -113,7 +113,6 @@
     gap: 6px;
   }
 
-  /* Keys in thin bordered boxes, like the value boxes. */
   kbd {
     min-width: 32px;
     height: 28px;

@@ -10,10 +10,6 @@ import (
 	"time"
 )
 
-// QRLogin runs Steam's QR code login. onChallenge is called with each QR URL
-// (the URL changes when an old code expires). The user scans the code with the
-// Steam mobile app. The returned refresh token can log on to the Steam client
-// network, so the password is never seen by this app.
 func QRLogin(ctx context.Context, deviceName string, onChallenge func(url string)) (refreshToken, accountName string, err error) {
 	for attempt := 0; attempt < 20; attempt++ {
 		token, account, err := qrAttempt(ctx, deviceName, onChallenge)
@@ -24,7 +20,6 @@ func QRLogin(ctx context.Context, deviceName string, onChallenge func(url string
 		if ctx.Err() != nil {
 			return "", "", ctx.Err()
 		}
-		// An expired or unknown session gets a fresh QR code.
 		if errors.As(err, &se) && (se.EResult == EResultFileNotFound || se.EResult == EResultExpired) {
 			continue
 		}
@@ -53,9 +48,9 @@ func qrAttempt(ctx context.Context, deviceName string, onChallenge func(string))
 
 	var details enc
 	details.string(1, deviceName)
-	details.varint(2, 1) // EAuthTokenPlatformType SteamClient
-	details.int32(3, 20) // EOSType Win11
-	details.varint(4, 1) // gaming device type: desktop PC
+	details.varint(2, 1)
+	details.int32(3, 20)
+	details.varint(4, 1)
 	var req enc
 	req.bytes(3, details.b)
 
@@ -114,15 +109,12 @@ func qrAttempt(ctx context.Context, deviceName string, onChallenge func(string))
 	return "", "", errQRExpired
 }
 
-// TokenInfo is the readable part of a Steam refresh token (a JWT).
 type TokenInfo struct {
 	SteamID  uint64
 	Expires  time.Time
 	Audience []string
 }
 
-// ParseToken reads the SteamID, expiry and audience from a refresh token.
-// It does not verify the signature; Steam does that on logon.
 func ParseToken(token string) (TokenInfo, error) {
 	parts := strings.Split(token, ".")
 	if len(parts) != 3 {

@@ -6,7 +6,6 @@ import (
 	"fmt"
 )
 
-// EMsg values, from SteamDatabase/Protobufs enums_clientserver.proto.
 const (
 	emsgMulti                                = 1
 	emsgServiceMethod                        = 146
@@ -31,7 +30,6 @@ const (
 	jobNone         = ^uint64(0)
 )
 
-// EResult values used by this package.
 const (
 	EResultOK                 = 1
 	EResultFail               = 2
@@ -46,7 +44,6 @@ const (
 	EResultRateLimitExceeded  = 84
 )
 
-// Error is a Steam EResult returned by the server.
 type Error struct {
 	EResult int32
 	Message string
@@ -59,7 +56,6 @@ func (e *Error) Error() string {
 	return fmt.Sprintf("steam: eresult %d", e.EResult)
 }
 
-// header is CMsgProtoBufHeader, restricted to the fields this app uses.
 type header struct {
 	steamID       uint64
 	sessionID     int32
@@ -133,8 +129,6 @@ func parsePacket(b []byte) (packet, error) {
 	raw := binary.LittleEndian.Uint32(b)
 	p := packet{emsg: raw &^ protoMask, proto: raw&protoMask != 0}
 	if !p.proto {
-		// Extended (non-protobuf) header is 36 bytes. None of the messages this
-		// app handles use it, so only the body offset matters.
 		if len(b) < 36 {
 			return packet{}, errShortPacket
 		}

@@ -1,12 +1,9 @@
 .task
 .wails
 bin
+build/bin
 frontend/dist
 frontend/node_modules
-
-build/bin/
-frontend/dist/
-frontend/node_modules/
-
-# local design references, not committed
-reference/
+frontend/bindings
+reference
+*.syso

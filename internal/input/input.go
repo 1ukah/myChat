@@ -1,11 +1,5 @@
 //go:build windows
 
-// Package input owns the global hotkey and, only while the chat box is open,
-// a low-level keyboard hook. The hook catches typed keys so the game never
-// receives them, while keys that were already held when the box opened (for
-// example W) keep going to the game. The game keeps focus the whole time.
-// A low-level mouse hook (mouse.go) makes the overlay's pictures and names
-// clickable.
 package input
 
 import (
@@ -22,7 +16,6 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-// Key is a non-text editing key.
 type Key string
 
 const (
@@ -43,18 +36,15 @@ const (
 	KeyPageDown      Key = "PageDown"
 	KeyTab           Key = "Tab"
 	KeyPaste         Key = "Paste"
-	// KeyFocusLost means the user switched away (Alt+Tab or Win key).
-	KeyFocusLost Key = "FocusLost"
+	KeyFocusLost     Key = "FocusLost"
 )
 
-// Event is one typed character or editing key.
 type Event struct {
 	Text  string
 	Key   Key
 	Shift bool
 }
 
-// Hotkey is the global key that opens the chat box.
 type Hotkey struct {
 	VK    uint32
 	Ctrl  bool
@@ -71,13 +61,10 @@ const (
 	hotkeyID      = 0x4d43
 )
 
-// Manager runs the input thread.
 type Manager struct {
 	Hotkeys <-chan struct{}
 	Events  <-chan Event
-	// Mouse are clicks on the overlay's spots and changes of the spot
-	// under the pointer (see SetMouse).
-	Mouse <-chan Mouse
+	Mouse   <-chan Mouse
 
 	hotkeys     chan struct{}
 	events      chan Event
@@ -94,7 +81,6 @@ type Manager struct {
 
 var errNoThread = errors.New("input: thread not running")
 
-// Start launches the input thread and registers the hotkey.
 func Start(hk Hotkey) (*Manager, error) {
 	m := &Manager{
 		hotkeys: make(chan struct{}, 4),
@@ -112,7 +98,6 @@ func Start(hk Hotkey) (*Manager, error) {
 	return m, nil
 }
 
-// SetHotkey changes the global hotkey.
 func (m *Manager) SetHotkey(hk Hotkey) error {
 	if m.threadID == 0 {
 		return errNoThread
@@ -124,7 +109,6 @@ func (m *Manager) SetHotkey(hk Hotkey) error {
 	return <-m.reply
 }
 
-// Capture turns the keyboard hook on or off.
 func (m *Manager) Capture(on bool) {
 	m.mu.Lock()
 	if m.capturing == on {
@@ -140,7 +124,6 @@ func (m *Manager) Capture(on bool) {
 	win.PostThreadMessage(m.threadID, msg, 0, 0)
 }
 
-// Close stops the input thread.
 func (m *Manager) Close() {
 	if m.threadID != 0 {
 		win.PostThreadMessage(m.threadID, win.WM_QUIT, 0, 0)
@@ -169,7 +152,6 @@ func (m *Manager) loop(hk Hotkey, ready chan<- error) {
 	defer runtime.UnlockOSThread()
 	m.threadID = win.CurrentThreadID()
 
-	// Make sure the thread has a message queue before anyone posts to it.
 	var msg win.MSG
 	err := registerHotkey(hk)
 	ready <- err
@@ -209,7 +191,6 @@ func (m *Manager) loop(hk Hotkey, ready chan<- error) {
 	}
 }
 
-// Hook state. It is only touched on the input thread.
 var (
 	hookHandle uintptr
 	hookCB     = windows.NewCallback(hookProc)
@@ -258,11 +239,6 @@ func startHook(events chan Event) {
 	}
 	st.down = [256]bool{}
 	st.pass = [256]bool{}
-	// Keys held right now (movement, the hotkey itself) keep going to the
-	// game, including their release. The generic Shift/Ctrl/Alt codes are
-	// skipped: the hook only ever sees the left/right codes, so a generic
-	// one would never get its release and would stay "held" (Ctrl stuck on
-	// after Ctrl+I: letters typed nothing and V pasted).
 	for vk := 8; vk < 255; vk++ {
 		if vk == vkShift || vk == vkControl || vk == vkMenu {
 			continue
@@ -304,17 +280,14 @@ func emit(e Event) {
 	}
 }
 
-// Key-down counters for diagnostics (no key contents are kept).
 var keysCaught, keysPassed atomic.Int64
 
-// Stats returns and resets the key counters, and whether the hook is active.
 func (m *Manager) Stats() (caught, passed int64, hooked bool) {
 	return keysCaught.Swap(0), keysPassed.Swap(0), hookActive.Load()
 }
 
 var hookActive atomic.Bool
 
-// hookProc must return fast: Windows removes slow low-level hooks.
 func hookProc(nCode, wParam, lParam uintptr) uintptr {
 	if int32(nCode) < 0 || hookHandle == 0 {
 		return win.CallNextHookEx(int(int32(nCode)), wParam, lParam)
@@ -346,7 +319,6 @@ func hookProc(nCode, wParam, lParam uintptr) uintptr {
 		}
 		return win.CallNextHookEx(int(int32(nCode)), wParam, lParam)
 	case vkLMenu:
-		// Left Alt goes through so Alt+Tab keeps working.
 		return win.CallNextHookEx(int(int32(nCode)), wParam, lParam)
 	case vkTab:
 		if st.down[vkLMenu] {
@@ -362,10 +334,6 @@ func hookProc(nCode, wParam, lParam uintptr) uintptr {
 	return 1
 }
 
-// held reports whether a modifier is down. Keys held when the box opened go
-// on to Windows, so Windows' own state is right for them even if their
-// release came just before the hook started. Caught keys never reach
-// Windows, so only the hook's own record knows about them.
 func held(vk int) bool {
 	if st.pass[vk] {
 		return win.AsyncKeyDown(vk)
@@ -451,7 +419,7 @@ func translate(vk, scan, flags uint32) {
 	var buf [8]uint16
 	n := win.ToUnicodeEx(vk, scan, &ks, buf[:], st.hkl)
 	if n <= 0 {
-		return // dead key (stored for the next key) or nothing
+		return
 	}
 	runes := utf16.Decode(buf[:n])
 	out := runes[:0]

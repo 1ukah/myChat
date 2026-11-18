@@ -1,5 +1,4 @@
 <script lang="ts">
-  // A small progress ring. It turns only when animations are on.
   let { size = 16, label = "Working" }: { size?: number; label?: string } = $props();
 </script>
 

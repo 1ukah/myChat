@@ -1,17 +1,11 @@
 <script lang="ts" module>
   import { SvelteSet } from "svelte/reactivity";
 
-  /** URLs that failed to load. They are never requested again this session. */
   const failed = new SvelteSet<string>();
-  /** URLs that have loaded once: shown at once, with no letter flashing first. */
   const loaded = new Set<string>();
 </script>
 
 <script lang="ts">
-  // A person, CS2 style: a square picture with a thin coloured border, as in
-  // the friends list and the scoreboard. `round` gives the circle CS2 uses
-  // for the spectated player. Until the picture has loaded, or if it fails,
-  // the dark tile shows the first letter of the name ("?" without a name).
   import { initial } from "../format";
 
   let {
@@ -23,24 +17,16 @@
     round = false,
     inline = false,
   }: {
-    /** Image URL, or "" for the letter tile. */
     src?: string;
-    /** "" shows CS2's "?" tile. */
     name: string;
-    /** Side in CSS px. */
     size: number;
-    /** Border colour: whisper blue, green (online), grey (offline), light blue, or none. */
     ring?: "whisper" | "green" | "offline" | "accent" | "none";
-    /** A CSS colour for the border (a player colour); wins over `ring`. */
     tint?: string;
-    /** Circle instead of square (the person in focus). */
     round?: boolean;
-    /** Sits in a line of text (chat log) instead of a flex row. */
     inline?: boolean;
   } = $props();
 
   const usable = $derived(src !== "" && !failed.has(src));
-  /** The URL this instance has seen finish loading. */
   let seen = $state("");
   const ready = $derived(usable && (seen === src || loaded.has(src)));
 
@@ -79,9 +65,7 @@
     width: var(--size);
     height: var(--size);
     background: var(--tile);
-    /* Square in both looks; a parent may still set a radius. */
     border-radius: var(--avatar-radius, 0);
-    /* About 1 px on the small sizes, 2 px from 44 px up. */
     box-shadow: 0 0 0 max(1px, calc(var(--size) / 22)) var(--ring);
   }
 
@@ -89,7 +73,6 @@
     border-radius: 50%;
   }
 
-  /* Centred on the text of the line it sits in, without making the line taller. */
   .avatar.inline {
     margin: 0 6px 0 2px;
     vertical-align: calc(0.32em - var(--size) / 2);
@@ -112,8 +95,6 @@
   }
 
   .letter {
-    /* The font of the place it sits in: Inter in the settings window and the
-       Minimal look, the CS2 face in the Legacy look. */
     font-family: inherit;
     font-size: calc(var(--size) * 0.6);
     font-style: normal;

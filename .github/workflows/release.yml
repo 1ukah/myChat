@@ -1,0 +1,49 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: read version and notes
+        run: |
+          $version = (Get-Content VERSION -Raw).Trim()
+          if ("v$version" -ne $env:GITHUB_REF_NAME) { throw "tag $env:GITHUB_REF_NAME does not agree with version $version" }
+          $notes = @(); $on = $false
+          foreach ($line in Get-Content CHANGELOG) {
+            if ($line -match '^## ') { $on = ($line -eq "## $version"); continue }
+            if ($on) { $notes += $line }
+          }
+          $notes = ($notes -join "`n").Trim()
+          if (-not $notes) { throw "changelog has no notes for $version" }
+          Set-Content notes.txt $notes
+          (Get-Content build/windows/info.json -Raw) -replace '\d+\.\d+\.\d+', $version | Set-Content build/windows/info.json
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: install wails
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.1.0
+
+      - name: build
+        run: wails3 build
+
+      - name: publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          Copy-Item bin/myChat.exe mychat.exe
+          gh release create $env:GITHUB_REF_NAME mychat.exe --title $env:GITHUB_REF_NAME --notes-file notes.txt

@@ -1,18 +1,4 @@
 <script lang="ts">
-  // One picture of a message, in a box of its final size from the start
-  // (Go sends width and height), so nothing jumps when the image arrives:
-  // a quiet placeholder first, then the image fades in. GIFs simply play.
-  //
-  // When pictures are switched off, or the image cannot be loaded, a small
-  // muted label ("Image" / "GIF") stands in, so a message that was only a
-  // picture is never empty.
-  //
-  // The only address ever put into `src` is `media.url`, and only when it
-  // points at myChat itself.
-  //
-  // With `zoom` a click opens the picture at full size. In game the window
-  // never sees the mouse: Go catches the click (see spots.ts); `onclick` is
-  // for the browser mock.
   import { tick } from "svelte";
   import type * as C from "../../../bindings/mychat/internal/chat/models";
   import { clickSpot } from "../store.svelte";
@@ -29,19 +15,14 @@
     onsize,
   }: {
     media: C.Media;
-    /** Setting `showImages`; off draws the label instead. */
     show: boolean;
     maxW: number;
     maxH: number;
-    /** The Minimal look: no frame, feathered edges. */
     minimal?: boolean;
-    /** A click opens the picture at full size (the overlay only). */
     zoom?: boolean;
-    /** The box changed size after it was drawn (the real size was unknown). */
     onsize?: () => void;
   } = $props();
 
-  // Remembered per address, so a new picture in the same place starts over.
   let loaded = $state("");
   let failed = $state("");
   let natural = $state<{ url: string; w: number; h: number } | null>(null);
@@ -73,7 +54,6 @@
 </script>
 
 {#if usable}
-  <!-- The overlay never has keyboard focus, and Go handles the real clicks. -->
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
   <span
     class="pic"
@@ -106,9 +86,6 @@
 {/if}
 
 <style>
-  /* Legacy: square, with a thin dark frame like CS2's own panels. The
-     frame is drawn outside the picture; the 1 px margin keeps its outer
-     edge in line with the text. The fill is the placeholder. */
   .pic {
     position: relative;
     flex: none;
@@ -121,8 +98,6 @@
     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.85);
   }
 
-  /* A faint band of light on the placeholder; it only moves with
-     animations on, and is gone once the image is there. */
   .pic::before {
     content: "";
     position: absolute;
@@ -157,8 +132,6 @@
     opacity: 1;
   }
 
-  /* Minimal: no frame. The edges are feathered over a few px instead, so
-     the picture sits in the glass band the way the band sits in the game. */
   .pic.minimal {
     max-width: 100%;
     margin: 0;
@@ -183,7 +156,6 @@
     );
   }
 
-  /* "Image" / "GIF": small and muted, with a tiny picture glyph. */
   .label {
     display: inline-flex;
     align-items: center;
@@ -208,7 +180,6 @@
     color: #a9b9c8;
   }
 
-  /* Opacity only, and only with animations on. */
   :global(.anim) img {
     transition: opacity 180ms ease-out;
   }

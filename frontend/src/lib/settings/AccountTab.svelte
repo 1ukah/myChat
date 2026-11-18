@@ -11,14 +11,9 @@
 
   const status = $derived(app.status);
 
-  // A finished login sets the account a moment before Steam reports a
-  // connection state; "done" bridges that gap so the login screen does not
-  // flash back.
   const loggedOut = $derived(
     !status.accountName || (status.state === "needs_login" && app.login.phase !== "done"),
   );
-  /** The Steam login name is private: shown only when the user asks for it.
-      Hidden, a masked placeholder stands in its place (never the name). */
   const showAccount = $derived(app.config.showAccountName);
   const name = $derived(
     status.personaName || (showAccount ? status.accountName : "") || "Steam",
@@ -35,7 +30,6 @@
   const conn = $derived.by(() => {
     switch (status.state) {
       case "online":
-        // Logged in to Steam; it says nothing about the user's Steam status.
         return { tone: "in", ring: "accent", text: "Logged in" } as const;
       case "connecting":
       case "needs_login":
@@ -51,7 +45,6 @@
     eyeError = await saveConfig({ showAccountName: !showAccount });
   }
 
-  /** Showing Steam's saved accounts again, to change to another one. */
   let switching = $state(false);
 
   function startSwitch(): void {
@@ -60,7 +53,6 @@
   }
 
   function cancelSwitch(): void {
-    // "Sign in in Steam" on a card may have started the sign-in watch.
     if (app.local.watching) cancelLogin();
     switching = false;
   }
@@ -72,8 +64,6 @@
   </Section>
 {:else}
   <Section id="steam" title="Steam">
-    <!-- Status card, in the style of the CS2 spectator bar: the player in
-         focus gets the circle avatar with a coloured ring. -->
     <div class="card">
       <Avatar round size={64} ring={conn.ring} src={status.avatar} {name} />
       <div class="who">
@@ -163,7 +153,6 @@
     color: #fff;
   }
 
-  /* Logged in: the app's blue, not Steam's green "online". */
   .state .label.in {
     color: var(--accent);
   }
@@ -181,7 +170,6 @@
     gap: 5px;
   }
 
-  /* Shows or hides the Steam login names. */
   .eye {
     flex: none;
     display: flex;
@@ -231,8 +219,6 @@
     color: var(--accent);
   }
 
-  /* The name and its mask are separate elements, so each fades in when the
-     eye swaps them. */
   :global(.anim) .account {
     animation: account-in 180ms ease-out both;
   }

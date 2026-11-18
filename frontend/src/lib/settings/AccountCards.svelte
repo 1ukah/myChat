@@ -1,15 +1,4 @@
 <script lang="ts">
-  // The Steam accounts saved on this PC, as rows of the CS2 friends list:
-  // square avatar, bold persona name, small grey account line, a pill tag,
-  // and the scoreboard's blue highlight on the selected row. One primary
-  // button uses the selected account. Accounts the Steam app is not signed in
-  // to are muted and offer "Sign in in Steam" instead.
-  //
-  // Steam's saved logins come without pictures, so every row shows the "?"
-  // tile; only the account in use can show its real picture. Login names are
-  // private: all of them are masked unless `showAccountName` is on.
-  //
-  // Used on the login screen and for "Switch account" when logged in.
   import { app, openSteamLogin, useSteamAccount } from "../store.svelte";
   import Avatar from "../ui/Avatar.svelte";
   import Button from "../ui/Button.svelte";
@@ -22,11 +11,8 @@
     ondone,
     oncancel,
   }: {
-    /** The account myChat is using now (switch mode): tagged, and not offered again. */
     current?: string;
-    /** Called after a successful login. */
     ondone?: () => void;
-    /** Switch mode: show a Cancel button. */
     oncancel?: () => void;
   } = $props();
 
@@ -35,7 +21,6 @@
   const accounts = $derived(app.local.accounts ?? []);
   const usable = $derived(accounts.filter((a) => a.hasLogin));
 
-  // The most recent usable account is preselected, until the user picks one.
   let picked = $state<string | null>(null);
   const selected = $derived.by(() => {
     if (picked !== null && usable.some((a) => a.accountName === picked)) return picked;
@@ -44,13 +29,9 @@
     return (pool.find((a) => a.mostRecent) ?? pool[0])?.accountName ?? "";
   });
 
-  /** Account being logged in right now. */
   let pending = $state("");
-  /** A failure from this screen's own calls, shown on that account's card. */
   let failed = $state<{ account: string; text: string } | null>(null);
 
-  // Go also reports a failed Steam login in LoginState (for example when the
-  // sign-in watch found a new login but could not use it).
   function errorFor(account: string): string {
     if (failed && same(failed.account, account)) return failed.text;
     const l = app.login;
@@ -78,7 +59,6 @@
 <div class="cards" role="radiogroup" aria-label="Steam accounts on this PC">
   {#each accounts as a (a.accountName)}
     {@const inUse = current !== "" && same(a.accountName, current)}
-    <!-- Every login name stays masked unless the user asked to see them. -->
     {@const veiled = !app.config.showAccountName}
     {@const name = a.personaName || (veiled ? "Steam account" : a.accountName)}
     {@const error = errorFor(a.accountName)}
@@ -112,7 +92,6 @@
       </button>
     {:else}
       <div class="card">
-        <!-- Not usable yet: CS2's "?" tile. -->
         <span class="muted"><Avatar size={40} name="" /></span>
         <span class="who">
           <bdi class="persona muted">{name}</bdi>
@@ -144,7 +123,6 @@
       <Spinner size={14} label="Connecting" />
     {/if}
     {#if oncancel && app.local.watching}
-      <!-- Switch mode has no "Steam app" section to show the watch in. -->
       <Spinner size={14} label="Waiting" />
       <span>Waiting for you to sign in to Steam…</span>
     {/if}
@@ -175,7 +153,6 @@
     background: rgba(255, 255, 255, 0.1);
   }
 
-  /* The scoreboard's highlighted player. */
   button.card.selected {
     background: var(--row-pick);
     box-shadow: inset 0 0 0 1px var(--row-pick-line);
@@ -231,7 +208,6 @@
     color: var(--red-text);
   }
 
-  /* A rounded pill, like the country pills in the friends list. */
   .tag {
     flex: none;
     height: 20px;

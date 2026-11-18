@@ -1,47 +1,3 @@
-// Development-only stand-in for the Go backend. It is imported dynamically,
-// and only when the Wails runtime is missing (plain `npm run dev`), so none
-// of this is on the real app's path.
-//
-//   ?view=overlay&mock=composer   chat box with a sample log (you can type)
-//   ?view=overlay&mock=toast      five pop-up messages (A, A, B, B, A), three with pictures, standing still
-//   ?view=overlay&mock=toaststream  a new pop-up message every 2 s
-//   ?view=overlay&mock=suggest    chat box while typing "/w s", with an error
-//   ?view=overlay&mock=offline    chat box while Steam is reconnecting
-//   ?view=settings&mock=login     logged out: Steam accounts, password form, QR folded
-//   ?view=settings&mock=watching  waiting for a sign-in in the Steam app
-//   ?view=settings&mock=nosteam   Steam not installed: password and QR only
-//   ?view=settings&mock=guard     Steam Guard code step (authenticator app)
-//   ?view=settings&mock=email     Steam Guard code step (email)
-//   ?view=settings&mock=expired   login screen with the "expired" banner
-//   ?view=settings&mock=error     a failed password sign-in
-//   ?view=settings&mock=online    logged in and online (&source=qr|password, default steam)
-//   ?view=settings&mock=offline   logged in, Steam unreachable
-//
-// Sign-in in the mock: "Use this account" goes online after about 400 ms; the
-// account named "expired" is rejected. Opening the Steam sign-in "signs in"
-// after about 3 s. Password "guard" leads to the Steam Guard step (code from
-// the app), "email" to the email-code step, "wrong" is rejected, and anything
-// else signs in. Guard code ABCDE is right; other codes are wrong. The QR is
-// shown but never scanned.
-//
-// Extra switches: &look=minimal|legacy  &blur=1  &anim=0  &avatars=0  &scale=0.75
-//                 &style=fade|slide-up|slide-down|slide-left|slide-right|typewriter
-//                 &speed=fast|normal|slow  &bg=dark|bright|mixed
-//                 &layout=stack|group  &max=1..5  &long=1 (a long pop-up message)
-//                 &images=0 (Show images off: labels instead of pictures)
-//                 &pics=0 (sample messages without pictures)
-//                 &links=1 (Also load image links on: a linked picture arrives 1.2 s after its message)
-//
-// Pictures: there is no /media/ server here, so the samples point at bundled
-// files (a photo, also used cropped as a portrait, and an animated GIF) and
-// one at a missing address, which fails and shows the "Image" label.
-//
-// The chat engine below is a small imitation of internal/chat, good enough to
-// try the keys: text, arrows, Tab, /w name, /r, /help, /clear, PgUp/PgDn,
-// Enter, Esc. A message containing "fail" fails to send. Enter on an empty
-// line closes only on a double tap (`doubleEnterClose`, on by default).
-// "Stas (work)" is a friend with a nickname; his Steam name is "st4s_".
-
 import type { Backend, Handlers } from "../backend";
 import type { View } from "../store.svelte";
 import * as M from "../../../bindings/mychat/models";
@@ -51,17 +7,11 @@ import * as SL from "../../../bindings/mychat/internal/steamlocal/models";
 import photoUrl from "../../assets/preview-bg.jpg";
 import gifUrl from "../../assets/sample.gif";
 
-/** Sample pictures: what Go would serve from /media/<id>. */
 const PICS = {
-  /** A landscape photo sent through Steam chat. */
   photo: { url: photoUrl, width: 1280, height: 720, kind: "upload", title: "" },
-  /** A portrait one (the same file, cropped by the box). */
   tall: { url: photoUrl, width: 720, height: 1280, kind: "upload", title: "" },
-  /** /giphy. */
   gif: { url: gifUrl, width: 120, height: 68, kind: "gif", title: "Blue gradient" },
-  /** The download failed: Go answers 404. */
   broken: { url: "/media/missing", width: 800, height: 450, kind: "upload", title: "" },
-  /** A picture behind an address in the message; its size is not known ahead. */
   link: { url: photoUrl, width: 0, height: 0, kind: "link", title: "" },
 } as const;
 
@@ -71,14 +21,37 @@ const mediaOf = (pic: Pic, id: number): C.Media[] => [
   new C.Media({ id: `mock-${pic}-${id}`, ...PICS[pic] }),
 ];
 
-/** The address a linked picture is written as. */
 const LINK = "https://example.com/clutch.png";
+
+const YOUTUBE = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+const TWEET = "https://x.com/jack/status/20";
+
+const EMBEDS: Record<string, C.Embed> = {
+  [YOUTUBE]: new C.Embed({
+    url: YOUTUBE,
+    site: "youtube",
+    siteName: "YouTube",
+    author: "Rick Astley",
+    title: "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+    video: true,
+    thumb: new C.Media({ id: "mock-yt", url: photoUrl, width: 320, height: 180, kind: "link" }),
+  }),
+  [TWEET]: new C.Embed({
+    url: TWEET,
+    site: "x",
+    siteName: "X",
+    author: "@jack",
+    title: "jack",
+    text: "just setting up my twttr",
+  }),
+};
+
+const embedIn = (text: string): C.Embed | null =>
+  Object.entries(EMBEDS).find(([url]) => text.includes(url))?.[1] ?? null;
 
 interface Friend {
   id: string;
-  /** The nickname the user gave, else the Steam name. */
   name: string;
-  /** The Steam name, when `name` is a nickname. */
   altName?: string;
   online: boolean;
   inGame: string;
@@ -87,10 +60,6 @@ interface Friend {
 
 const CS2 = "Counter-Strike 2";
 
-/**
- * Steam's avatar server is not reachable offline, so mock avatars are drawn
- * here: a coloured tile with a shape and the first letter, as a data URI.
- */
 function avatar(name: string, hue: number): string {
   const letter = Array.from(name)[0]?.toUpperCase() ?? "?";
   const svg =
@@ -103,7 +72,6 @@ function avatar(name: string, hue: number): string {
   return "data:image/svg+xml," + encodeURIComponent(svg);
 }
 
-/** An image that cannot be decoded: shows the letter fallback. No network involved. */
 const BROKEN_AVATAR = "data:image/png;base64,AAAA";
 
 const FRIENDS: Friend[] = [
@@ -118,10 +86,8 @@ const FRIENDS: Friend[] = [
   { id: "76561198000000009", name: "Stas (work)", altName: "st4s_", online: true, inGame: CS2, avatar: avatar("st4s_", 95) },
 ];
 
-/** The user's own avatar (`Status.avatar`). */
 const OWN_AVATAR = avatar("sant1", 210);
 
-/** The fields of an Entry that describe the other person. */
 const peer = (f: Friend): Pick<C.Entry, "peerId" | "peerName" | "peerAvatar"> => ({
   peerId: f.id,
   peerName: f.name,
@@ -134,9 +100,10 @@ const SPEEDS: Record<string, number> = { fast: 120, normal: 200, slow: 320 };
 const LONG =
   "this is a deliberately long message to show how a pop-up clamps its text to two lines and ends with an ellipsis instead of growing or pushing anything around";
 
-/** `mock=toaststream`: who writes what, in turn. People repeat, so groups form. */
 const INCOMING: [number, string, Pic?][] = [
   [1, "we need one more for premier, you in?"],
+  [1, YOUTUBE],
+  [0, `lmao ${TWEET}`],
   [1, "look at this lineup", "photo"],
   [0, "gg, that last round was insane"],
   [0, "", "gif"],
@@ -150,7 +117,6 @@ const INCOMING: [number, string, Pic?][] = [
   [0, "one more?"],
 ];
 
-/** `mock=toast`: A, A, B, B, A: text, text + photo, a failed picture, text, a GIF. */
 const STILL: [number, string, Pic?][] = [
   [0, "gg, that last round was insane"],
   [0, "look at this", "photo"],
@@ -173,7 +139,6 @@ function hotkeyLabel(h: Cfg.Hotkey): string {
   return (h.ctrl ? "Ctrl + " : "") + (h.alt ? "Alt + " : "") + (h.shift ? "Shift + " : "") + key;
 }
 
-/** A matrix that looks like a version-4 QR code (it does not scan). */
 function fakeQr(seed: number): string[] {
   const n = 33;
   const m = Array.from({ length: n }, () => new Array<number>(n).fill(-1));
@@ -218,8 +183,6 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     h?.(...args);
   };
 
-  // ---------------- config ----------------
-
   let cfg = new Cfg.Config({
     hotkey: new Cfg.Hotkey({ code: "KeyI" }),
     closeAfterSend: false,
@@ -234,19 +197,17 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     showToasts: true,
     toastSeconds: 6,
     toastLayout: params.get("layout") === "stack" ? "stack" : "group",
-    // The real default is 3; the overlay mocks show more unless told otherwise.
     toastMax: max >= 1 && max <= 5 ? max : view === "overlay" ? 5 : 3,
     messageSound: true,
     showImages: flag("images", true),
     imageLinks: flag("links", false),
+    linkPreviews: flag("previews", true),
     bottomOffset: 150,
     scale: scale >= 0.75 && scale <= 1.5 ? scale : 1,
     machineSeed: "mock",
   });
   const configView = (): M.ConfigView =>
     new M.ConfigView({ ...cfg, hotkeyLabel: hotkeyLabel(cfg.hotkey) });
-
-  // ---------------- Steam status and login ----------------
 
   const EXPIRED = "Steam's saved login for sant1_cs has expired. Sign in to Steam again.";
   const noLogin = (account: string): string =>
@@ -276,8 +237,6 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
   );
   let loginTimers: number[] = [];
 
-  // What the Steam app has saved on this PC: two accounts with a usable login
-  // (one most recent; "expired" is rejected when used) and one without.
   const steamInstalled = mock !== "nosteam";
   const accounts: SL.Account[] = steamInstalled
     ? [
@@ -314,24 +273,18 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     clearTimeout(watchTimer);
     watching = false;
   };
-  /** Steam accepted the login: the session connects and comes online. */
   const finishLogin = (method: string, account: string): void => {
     const persona = accounts.find((a) => a.accountName === account)?.personaName || account;
     status = new M.Status({ state: "connecting", accountName: account, source: method });
     emit("status", status);
     setLogin({ phase: "done", method, account });
     loginTimers = [
-      // The avatar is known a moment after the session is up.
       window.setTimeout(
         () => setStatus({ state: "online", personaName: persona, avatar: avatar(persona, 210) }),
         300,
       ),
     ];
   };
-  /**
-   * After OpenSteamLogin: the user "signs in" to the Steam app after about
-   * 3 s. An account gains a saved login (or a new one appears) and is used.
-   */
   const watch = (newAccount: boolean): void => {
     stopWatch();
     watching = true;
@@ -350,8 +303,6 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     }, 3000);
   };
 
-  // ---------------- chat engine (imitation) ----------------
-
   let mode = "hidden";
   let log: C.Entry[] = [];
   let nextId = 1;
@@ -368,11 +319,8 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
   let scroll = 0;
   let toastTimer = 0;
   let toasts: C.Entry[] = [];
-  /** The picture open at full size; the pop-ups stay while it is open. */
   let viewer: C.Media | null = null;
-  /** When Enter was last pressed on an empty line (for the double tap). */
   let lastEmptyEnter = 0;
-  /** `mock=toast`: the pop-ups stay up, for screenshots. */
   const still = mock === "toast";
 
   const friend = (id: string): Friend | undefined => FRIENDS.find((f) => f.id === id);
@@ -438,7 +386,6 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     }, cfg.toastSeconds * 1000);
   };
 
-  /** Like Go: the pictures and names on screen, by key, as the overlay last reported them. */
   let spots = new Map<string, M.Spot>();
   const openPicture = (m: C.Media): void => {
     if (mode === "hidden" || viewer) return;
@@ -446,7 +393,6 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     clearTimeout(toastTimer);
     emit("mode", modeInfo());
   };
-  /** Like Go: a click on a name whispers to that person, opening the chat box if needed. */
   const replyTo = (id: string): void => {
     const f = friend(id);
     if (!f) return;
@@ -465,6 +411,7 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     const s = spots.get(key);
     if (s?.kind === "picture") openPicture(s.media);
     else if (s?.kind === "name") replyTo(s.peerId);
+    else if (s?.kind === "link") window.open(s.url, "_blank", "noopener");
   };
   const closePicture = (): void => {
     if (!viewer) return;
@@ -501,7 +448,6 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
   const toast = (entry: C.Entry): void => {
     if (!cfg.showToasts || mode === "composer") return;
     clearTimeout(toastTimer);
-    // Like Go: a fresh set after the last one faded out.
     if (mode === "hidden") toasts = [];
     mode = "toast";
     toasts = [...toasts, entry].slice(-cfg.toastMax);
@@ -510,20 +456,18 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     emit("mode", modeInfo());
   };
 
-  /** `&pics=0`: the sample messages come without their pictures. */
   const withPics = flag("pics", true);
 
-  /**
-   * Like Go once it has checked a linked picture: the same entry again, now
-   * with the picture and without the address, to the log and to the pop-ups
-   * if it is still on screen.
-   */
   const attach = (entry: C.Entry, pic: Pic): void => {
-    const next = new C.Entry({
-      ...entry,
-      text: entry.text.replace(LINK, "").trim(),
-      media: mediaOf(pic, entry.id),
-    });
+    replace(new C.Entry({ ...entry, text: entry.text.replace(LINK, "").trim(), media: mediaOf(pic, entry.id) }));
+  };
+
+  const attachEmbed = (entry: C.Entry, embed: C.Embed): void => {
+    const text = entry.text.trim() === embed.url ? "" : entry.text;
+    replace(new C.Entry({ ...entry, text, embed }));
+  };
+
+  const replace = (next: C.Entry): void => {
     if (!log.some((e) => e.id === next.id)) return;
     log = log.map((e) => (e.id === next.id ? next : e));
     emit("entryUpdated", next);
@@ -535,7 +479,6 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
 
   const incoming = (from: Friend, text: string, pic?: Pic): void => {
     const linked = pic === "link";
-    // A message that was only a picture still says something without it.
     if (!withPics) pic = undefined;
     const media = pic && !linked ? mediaOf(pic, nextId) : [];
     const entry = add({ kind: "in", ...peer(from), text: text || (pic ? "" : "(picture)"), media });
@@ -543,10 +486,11 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     touch(from.id);
     changed();
     toast(entry);
-    // The address stays as text unless image links are on.
     if (pic && linked && cfg.showImages && cfg.imageLinks) {
       window.setTimeout(() => attach(entry, "link"), 1200);
     }
+    const embed = !pic && cfg.linkPreviews ? embedIn(text) : null;
+    if (embed) window.setTimeout(() => attachEmbed(entry, embed), 800);
   };
 
   const setWhisper = (f: Friend): void => {
@@ -557,7 +501,6 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     const query = q.toLowerCase();
     const groups: Friend[][] = [[], [], []];
     for (const f of FRIENDS) {
-      // A friend is found by the nickname and by the Steam name behind it.
       const names = [f.name, f.altName ?? ""].filter(Boolean).map((n) => n.toLowerCase());
       if (names.includes(query)) groups[0].push(f);
       else if (names.some((n) => n.startsWith(query))) groups[1].push(f);
@@ -567,7 +510,6 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     return { all: groups.flatMap(onlineFirst), exact: groups[0] };
   };
 
-  /** Live channel switching: "/r " and "/w name " act at once. */
   const afterEdit = (): void => {
     histPos = history.length;
     sugg = [];
@@ -634,7 +576,6 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     return true;
   };
 
-  /** Returns true when a message was accepted for sending. */
   const command = (t: string): boolean => {
     const fields = t.split(/\s+/);
     const cmd = fields[0].toLowerCase();
@@ -684,7 +625,6 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     return false;
   };
 
-  /** Returns "close", "sent" or "". */
   const enter = (): string => {
     const t = chars.join("").trim();
     if (sugg.length > 0 && WHISPER.test(t.split(/\s+/)[0])) {
@@ -816,7 +756,6 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
         break;
     }
     changed();
-    // Enter on an empty line: with double-tap on, only the second quick press closes.
     if (action === "close" && e.key === "Enter" && !cfg.closeAfterSend && cfg.doubleEnterClose) {
       const now = performance.now();
       const second = now - lastEmptyEnter < 400;
@@ -826,12 +765,9 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     if (action === "close" || (action === "sent" && cfg.closeAfterSend)) closeComposer();
   };
 
-  // ---------------- starting state ----------------
-
   const seedLog = (): void => {
     const now = Date.now();
     const at = (minutesAgo: number): number => now - minutesAgo * 60_000;
-    // `long` has a broken avatar URL and `sandro` has none: both show the letter tile.
     const [sant1, mira, dmitri, long, sakura, sandro, ahmed] = FRIENDS;
     const lines: (Partial<C.Entry> & { pic?: Pic })[] = [
       { time: at(34), kind: "system", text: "Connected to Steam as sant1." },
@@ -850,13 +786,16 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
       { time: at(4), kind: "out", ...peer(dmitri), text: "ready when you are", status: "failed", detail: "Steam did not answer" },
       { time: at(3), kind: "error", text: "Steam connection lost. Reconnecting…" },
       { time: at(2), kind: "system", text: "Back online." },
+      { time: at(2), kind: "in", ...peer(sant1), text: `lmao ${TWEET}` },
+      { time: at(1), kind: "in", ...peer(mira), text: `this is how they hold B ${YOUTUBE}` },
       { time: at(1), kind: "in", ...peer(sant1), text: "one more after this?" },
     ];
     log = lines
       .filter((l) => withPics || !l.pic)
       .map(({ pic, ...l }) => {
         const id = nextId++;
-        return new C.Entry({ id, ...l, media: pic ? mediaOf(pic, id) : [] });
+        const embed = cfg.linkPreviews ? embedIn(l.text ?? "") : null;
+        return new C.Entry({ id, ...l, media: pic ? mediaOf(pic, id) : [], embed });
       });
     mru = [sant1.id, mira.id, dmitri.id, long.id, sakura.id, ahmed.id];
     lastFrom = sant1.id;
@@ -864,7 +803,6 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
 
   const scenario = (): void => {
     if (view !== "overlay") {
-      // Already waiting for a sign-in in the Steam app; a new account turns up.
       if (mock === "watching") watch(true);
       return;
     }
@@ -911,8 +849,6 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
 
   seedLog();
 
-  // ---------------- the Backend ----------------
-
   const done = (): Promise<void> => Promise.resolve();
 
   return {
@@ -934,7 +870,6 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
     overlayReady: done,
 
     saveConfig(c) {
-      // "F12" stands in for a key another app has already registered.
       if (c.hotkey.code === "F12") {
         return Promise.reject(new Error("that key is already in use by another app"));
       }
@@ -951,12 +886,10 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
       cfg = next;
       const saved = configView();
       emit("config", saved);
-      // Like Go: the overlay learns about a new look, style or speed at once.
       emit("mode", modeInfo());
       return new Promise((resolve) => window.setTimeout(() => resolve(saved), 60));
     },
 
-    // The QR is shown and then simply waits: nobody scans it in the mock.
     startLogin() {
       stopLogin();
       stopWatch();
@@ -973,7 +906,6 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
 
     localLogins: () => Promise.resolve(localLogins()),
 
-    // Like Go: the call itself fails, and LoginState reports the same error.
     useSteamAccount(account) {
       stopLogin();
       stopWatch();
@@ -1001,7 +933,6 @@ export function createMockBackend(view: View, params: URLSearchParams): Backend 
       return done();
     },
 
-    // Passwords are compared with the mock's trigger words and then dropped.
     loginWithPassword(account, password) {
       stopLogin();
       stopWatch();

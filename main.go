@@ -43,8 +43,7 @@ func main() {
 			application.NewService(&ChatService{a: a}),
 		},
 		Assets: application.AssetOptions{
-			Handler: application.AssetFileServerFS(assets),
-			// Pictures from chat messages, fetched by myChat (/media/<id>).
+			Handler:    application.AssetFileServerFS(assets),
 			Middleware: a.media.Middleware,
 		},
 		Windows: application.WindowsOptions{
@@ -65,8 +64,6 @@ func main() {
 	})
 	a.app = app
 
-	// The in-game overlay: frameless, transparent, click-through, topmost,
-	// never activated. It stays hidden unless something is on screen.
 	ow := app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Name:                       "overlay",
 		Title:                      "myChat overlay",
@@ -86,9 +83,7 @@ func main() {
 			HiddenOnTaskbar:                   true,
 			DisableFramelessWindowDecorations: true,
 			DisableIcon:                       true,
-			// Set at creation so the window can never take focus, not
-			// even during the one Show() call at startup.
-			ExStyle: win.OverlayExStyle,
+			ExStyle:                           win.OverlayExStyle,
 		},
 	})
 	a.ov.w = ow

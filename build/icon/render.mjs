@@ -1,38 +1,5 @@
-// Renders every icon file from the SVG masters. Each size is drawn straight
-// from an SVG, never by shrinking a bigger PNG.
-//
-// Needs @resvg/resvg-js, which is NOT a project dependency. Install it in a
-// folder outside the repo, once:
-//
-//   mkdir <folder> && cd <folder> && npm init -y && npm install @resvg/resvg-js
-//
-// Then, from anywhere:
-//
-//   node build/icon/render.mjs [--resvg <folder>] [--sheet <file.png>] [--no-icns]
-//
-//   --resvg <folder>   where @resvg/resvg-js is installed. Also read from the
-//                      MYCHAT_RESVG_DIR env var. Default:
-//                      <temp dir>/opencode/icon-render
-//   --sheet <file.png> also write a review sheet: every .ico size at 1x and
-//                      at 8x nearest-neighbour on mid-grey
-//   --sheet-sizes a,b  only these sizes on the sheet
-//   --no-icns          skip build/darwin/icons.icns (which needs wails3)
-//
-// Writes:
-//   build/appicon.png        1024x1024, from the main SVG
-//   build/windows/icon.ico   16 20 24 32 40 48 64 96 128 256
-//   build/trayicon.ico       16 20 24 32 40 48 64
-//   build/darwin/icons.icns  from appicon.png, by `wails3 generate icons`
-//
-// Masters:
-//   frontend/src/assets/mychat-icon.svg     48 px and up
-//   build/icon/mychat-icon-small.svg        16 and 32 px (edges on a 64-unit grid)
-//   build/icon/mychat-icon-small-20.svg     20 px, and 40 px at exactly 2x
-//   build/icon/mychat-icon-small-24.svg     24 px
-
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import { spawnSync } from 'node:child_process'
 import { deflateSync } from 'node:zlib'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -47,12 +14,9 @@ const SMALL = join(here, 'mychat-icon-small.svg')
 const SMALL_20 = join(here, 'mychat-icon-small-20.svg')
 const SMALL_24 = join(here, 'mychat-icon-small-24.svg')
 
-// Which master draws which size.
 const SOURCES = { 16: SMALL, 20: SMALL_20, 24: SMALL_24, 32: SMALL, 40: SMALL_20 }
 const APP_SIZES = [16, 20, 24, 32, 40, 48, 64, 96, 128, 256]
 const TRAY_SIZES = [16, 20, 24, 32, 40, 48, 64]
-
-// ---- arguments -----------------------------------------------------------
 
 const argv = process.argv.slice(2)
 function option(name) {
@@ -67,11 +31,10 @@ function fail(message) {
 }
 
 const resvgDir = resolve(
-  option('--resvg') ?? process.env.MYCHAT_RESVG_DIR ?? join(tmpdir(), 'opencode', 'icon-render'),
+  option('--resvg') ?? process.env.MYCHAT_RESVG_DIR ?? join(tmpdir(), 'mychat-icon-render'),
 )
 const sheetPath = option('--sheet')
 const sheetSizes = option('--sheet-sizes')?.split(',').map(Number)
-const skipIcns = argv.includes('--no-icns')
 
 let Resvg
 try {
@@ -83,16 +46,12 @@ try {
   )
 }
 
-// ---- rendering -----------------------------------------------------------
-
 const svgCache = new Map()
 function readSvg(path) {
   if (!svgCache.has(path)) svgCache.set(path, readFileSync(path, 'utf8'))
   return svgCache.get(path)
 }
 
-// One size, drawn from its master. Returns { size, png, pixels } where
-// pixels is RGBA, 4 bytes per pixel.
 const rendered = new Map()
 function render(size) {
   if (!rendered.has(size)) {
@@ -106,25 +65,21 @@ function render(size) {
   return rendered.get(size)
 }
 
-// ---- ICO -----------------------------------------------------------------
-
-// ICONDIR (6 bytes), one ICONDIRENTRY (16 bytes) per image, then the PNG
-// payloads. A width or height byte of 0 means 256.
 function buildIco(sizes) {
   const images = [...sizes].sort((a, b) => a - b).map(render)
   const header = Buffer.alloc(6 + 16 * images.length)
-  header.writeUInt16LE(0, 0) // reserved
-  header.writeUInt16LE(1, 2) // type: icon
+  header.writeUInt16LE(0, 0)
+  header.writeUInt16LE(1, 2)
   header.writeUInt16LE(images.length, 4)
   let offset = header.length
   images.forEach(({ size, png }, i) => {
     const at = 6 + 16 * i
-    header.writeUInt8(size === 256 ? 0 : size, at) // width
-    header.writeUInt8(size === 256 ? 0 : size, at + 1) // height
-    header.writeUInt8(0, at + 2) // palette colours
-    header.writeUInt8(0, at + 3) // reserved
-    header.writeUInt16LE(1, at + 4) // colour planes
-    header.writeUInt16LE(32, at + 6) // bits per pixel
+    header.writeUInt8(size === 256 ? 0 : size, at)
+    header.writeUInt8(size === 256 ? 0 : size, at + 1)
+    header.writeUInt8(0, at + 2)
+    header.writeUInt8(0, at + 3)
+    header.writeUInt16LE(1, at + 4)
+    header.writeUInt16LE(32, at + 6)
     header.writeUInt32LE(png.length, at + 8)
     header.writeUInt32LE(offset, at + 12)
     offset += png.length
@@ -134,8 +89,6 @@ function buildIco(sizes) {
 
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
 
-// Reads the file back and checks the count, the order and every size, both
-// in the directory and in each PNG's own header.
 function validateIco(path, sizes) {
   const want = [...sizes].sort((a, b) => a - b)
   const file = readFileSync(path)
@@ -173,8 +126,6 @@ function writeIco(path, sizes) {
   console.log(`${path}  ${[...sizes].sort((a, b) => a - b).join(' ')}  (checked)`)
 }
 
-// ---- review sheet --------------------------------------------------------
-
 const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
   let c = n
   for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1
@@ -193,13 +144,12 @@ function pngChunk(type, data) {
   out.writeUInt32BE(crc32(body), 8 + data.length)
   return out
 }
-// Opaque RGB PNG from a width*height*3 buffer.
 function encodePng(width, height, rgb) {
   const header = Buffer.alloc(13)
   header.writeUInt32BE(width, 0)
   header.writeUInt32BE(height, 4)
-  header.writeUInt8(8, 8) // bit depth
-  header.writeUInt8(2, 9) // colour type: RGB
+  header.writeUInt8(8, 8)
+  header.writeUInt8(2, 9)
   const raw = Buffer.alloc((width * 3 + 1) * height)
   for (let y = 0; y < height; y++) {
     rgb.copy(raw, y * (width * 3 + 1) + 1, y * width * 3, (y + 1) * width * 3)
@@ -212,7 +162,6 @@ function encodePng(width, height, rgb) {
   ])
 }
 
-// 3x5 digits for the size labels.
 const DIGITS = {
   0: '111101101101111', 1: '010110010010111', 2: '111001111100111', 3: '111001111001111',
   4: '101101111001001', 5: '111100111001111', 6: '111100111101111', 7: '111001001001001',
@@ -222,11 +171,10 @@ const DIGITS = {
 function writeSheet(path, sizes) {
   const ZOOM = 8
   const PAD = 24
-  const LABEL = 5 * 3 // digit height at 3x
+  const LABEL = 5 * 3
   const MAX_ROW = 2200
   const GREY = 128
 
-  // Each cell: label, the 8x image, then the 1x image under it.
   const cells = sizes.map((size) => ({
     size,
     width: size * ZOOM,
@@ -294,8 +242,6 @@ function writeSheet(path, sizes) {
   console.log(`${path}  ${width}x${height}`)
 }
 
-// ---- run -----------------------------------------------------------------
-
 const appIcon = join(buildDir, 'appicon.png')
 const appImage = new Resvg(readSvg(MAIN), { fitTo: { mode: 'width', value: 1024 } }).render()
 writeFileSync(appIcon, appImage.asPng())
@@ -305,18 +251,3 @@ writeIco(join(buildDir, 'windows', 'icon.ico'), APP_SIZES)
 writeIco(join(buildDir, 'trayicon.ico'), TRAY_SIZES)
 
 if (sheetPath) writeSheet(resolve(sheetPath), sheetSizes ?? APP_SIZES)
-
-if (!skipIcns) {
-  // wails3 always writes a Windows .ico too; send it to the temp folder so
-  // the one made above is not overwritten.
-  const throwaway = join(tmpdir(), 'mychat-wails-icon.ico')
-  const result = spawnSync(
-    'wails3',
-    ['generate', 'icons', '-input', 'appicon.png', '-macfilename', 'darwin/icons.icns', '-windowsfilename', throwaway],
-    { cwd: buildDir, stdio: 'inherit' },
-  )
-  if (result.error || result.status !== 0) {
-    fail(`wails3 generate icons failed${result.error ? ': ' + result.error.message : ''}`)
-  }
-  console.log(join(buildDir, 'darwin', 'icons.icns'))
-}

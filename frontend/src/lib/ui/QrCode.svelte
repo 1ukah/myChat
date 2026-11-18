@@ -1,14 +1,10 @@
 <script lang="ts">
-  // QR code from rows of "1" (dark) / "0" (light). Dark on white with the
-  // standard 4-module quiet zone, drawn as one crisp path so phones scan it
-  // at any DPI.
   let {
     rows,
     size = 232,
     label = "QR code",
   }: {
     rows: string[];
-    /** Largest side in CSS px. The code uses the biggest whole-pixel module that fits. */
     size?: number;
     label?: string;
   } = $props();
@@ -18,7 +14,6 @@
   const total = $derived(rows.length + QUIET * 2);
   const px = $derived(Math.max(1, Math.floor(size / total)) * total);
 
-  // One rectangle per horizontal run of dark modules.
   const path = $derived.by(() => {
     let d = "";
     rows.forEach((row, y) => {

@@ -1,5 +1,4 @@
 <script lang="ts" module>
-  // Inline line icons on a 16 px grid, in the plain white style of CS2's menus.
   const paths = {
     close: "M3.5 3.5l9 9 M12.5 3.5l-9 9",
     chevron: "M4 6l4 4 4-4",
@@ -18,7 +17,6 @@
     user: "M8 8a2.75 2.75 0 1 0 0-5.5 2.75 2.75 0 0 0 0 5.5z M2.5 14c.5-2.8 2.7-4 5.5-4s5 1.2 5.5 4",
     retry: "M1.5 2.5v4h4 M3 10a5.5 5.5 0 1 0 1.3-5.7l-2.8 2.2",
     search: "M6.75 11a4.25 4.25 0 1 0 0-8.5 4.25 4.25 0 0 0 0 8.5z M10 10l4 4",
-    // CS2's RESET icon: a clock inside an arrow that turns back.
     history: "M1.5 3v3.5h3.5 M2.6 10.2a5.75 5.75 0 1 0 .3-5.2l-1.4 1.5 M8 5v3.2l2.2 1.4",
     check: "M3.5 8.5l3 3 6-7",
     lock: "M3.5 7.5h9v6.5h-9z M5.5 7.5v-2a2.5 2.5 0 0 1 5 0v2",

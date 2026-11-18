@@ -1,7 +1,4 @@
 <script lang="ts">
-  // CS2 slider: thin track, small square handle, value in a bordered box ("93%").
-  // The value box follows the handle while dragging; `onchange` fires once,
-  // when the handle is released, so each drag saves a single time.
   let {
     value,
     min,
@@ -16,7 +13,6 @@
     min: number;
     max: number;
     step?: number;
-    /** Accessible name (the visible label lives in the row). */
     label: string;
     disabled?: boolean;
     format?: (value: number) => string;
@@ -81,8 +77,6 @@
     cursor: pointer;
   }
 
-  /* A thin grey track; the part left of the handle is lighter. It ends at
-     the centre of the handle. */
   input::-webkit-slider-runnable-track {
     height: 4px;
     background: linear-gradient(
@@ -92,7 +86,6 @@
     );
   }
 
-  /* CS2's small squarish handle. */
   input::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
@@ -113,7 +106,6 @@
     outline-offset: 2px;
   }
 
-  /* The value in a thin bordered box. */
   .value {
     width: 68px;
     height: 32px;

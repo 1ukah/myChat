@@ -1,5 +1,4 @@
 <script lang="ts" module>
-  /** Context shared by the settings shell: which section is selected. */
   export const SECTIONS = Symbol("sections");
   export interface SectionsContext {
     readonly active: string;
@@ -7,8 +6,6 @@
 </script>
 
 <script lang="ts">
-  // A titled group of rows. The title is a plain semibold heading; the
-  // section picked in the sub-tab row is lit.
   import { getContext, type Snippet } from "svelte";
 
   let { id, title, children }: { id: string; title: string; children: Snippet } = $props();

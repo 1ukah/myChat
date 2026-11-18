@@ -1,14 +1,10 @@
 <script lang="ts">
-  // The eye that shows or hides the Steam login names (setting
-  // `showAccountName`). Used next to the account on the Account tab and
-  // above the list of Steam accounts on the login screen.
   import Icon from "./Icon.svelte";
 
   let {
     shown,
     onclick,
   }: {
-    /** The names are in clear right now. */
     shown: boolean;
     onclick: () => void;
   } = $props();

@@ -1,11 +1,5 @@
-// The faint topographic contour lines behind the CS2 menus, recreated as an
-// SVG tile. A smooth height field that repeats exactly at the tile edges is
-// traced at evenly spaced heights (marching squares), which gives real
-// contour lines of constant thickness that tile without seams.
-
 const TAU = Math.PI * 2;
 
-/** Small seeded generator, so the pattern is the same on every start. */
 function rng(seed: number): () => number {
   let a = seed >>> 0;
   return () => {
@@ -17,17 +11,11 @@ function rng(seed: number): () => number {
   };
 }
 
-/**
- * Returns the SVG source of one square tile of contour lines.
- * @param size  tile side in px
- * @param seed  picks the terrain
- */
 export function topoTile(size = 560, seed = 5): string {
-  const N = 64; // cells per side
+  const N = 64;
   const W = N + 1;
   const rand = rng(seed);
 
-  // Height = a few sine waves with whole wave numbers, so it is periodic.
   const waves: { kx: number; ky: number; phase: number; amp: number }[] = [];
   while (waves.length < 6) {
     const kx = Math.floor(rand() * 7) - 3;
@@ -53,13 +41,11 @@ export function topoTile(size = 560, seed = 5): string {
     const level = l * 0.34 + 0.013;
     for (let j = 0; j < N; j++) {
       for (let i = 0; i < N; i++) {
-        // Corner heights relative to the level: a b / e c (clockwise from top left).
         const a = h[j * W + i] - level;
         const b = h[j * W + i + 1] - level;
         const c = h[(j + 1) * W + i + 1] - level;
         const e = h[(j + 1) * W + i] - level;
 
-        // Where the contour crosses each cell edge.
         const pts: number[] = [];
         if (a < 0 !== b < 0) pts.push(i + a / (a - b), j);
         if (b < 0 !== c < 0) pts.push(i + 1, j + b / (b - c));
