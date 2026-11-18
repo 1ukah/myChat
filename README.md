@@ -1,6 +1,9 @@
 # myChat
 
-myChat is a Steam chat overlay for Windows. With myChat, you can read and send Steam messages in games and in other applications. Counter-Strike 2 was the first target, but you can use myChat in all games.
+myChat is a Steam chat overlay for Windows.  
+You can read and send Steam messages in games and in other applications. Counter-Strike 2 was the first target, but you can use myChat in all games.
+
+![myChat](.github/screenshot.png)
 
 ## Requirements
 
